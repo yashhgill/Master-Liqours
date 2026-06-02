@@ -9,6 +9,7 @@ import ProductCard from '../components/ProductCard';
 import CategoryChips from '../components/CategoryChips';
 import MyFlashSales from '../components/MyFlashSales';
 import DrinkReveal from '../components/DrinkReveal';
+import BrandCarousel from '../components/BrandCarousel';
 import { useAuth } from '../context';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -232,13 +233,15 @@ const Home = () => {
         </div>
       </section>
 
+      {/* BRANDS CAROUSEL */}
+      <BrandCarousel />
+
       {/* TIER REWARDS */}
       <section className="py-20 bg-gradient-to-b from-[#050505] via-[#0a0a0a] to-[#050505] relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
           <div className="text-center mb-12">
             <div className="eyebrow mb-3">Members Only</div>
-            <h2 className="display-xl">Drink More, <span className="neon-lime-text">Earn More</span></h2>
-            <p className="text-white/60 max-w-xl mx-auto mt-4">Every order earns points. Climb the tier ladder for shipping discounts & exclusive perks lah.</p>
+            <h2 className="display-xl">Drink More, <span className="neon-lime-text">Earn More</span></h2>            <p className="text-white/60 max-w-xl mx-auto mt-4">Every order earns points. Climb the tier ladder for shipping discounts & exclusive perks lah.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
