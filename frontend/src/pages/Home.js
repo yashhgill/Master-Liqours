@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowRight, Zap, TrendingUp, Award } from 'react-icons/fa';
+import { FaArrowRight, FaBolt, FaTrendingUp, FaTrophy } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -46,7 +46,7 @@ const Home = () => {
               {banners[0].cta_text && (
                 <Link to={banners[0].cta_link || '/products'} className="btn-neon inline-flex items-center space-x-2">
                   <span>{banners[0].cta_text}</span>
-                  <ArrowRight size={20} />
+                  <FaArrowRight size={20} />
                 </Link>
               )}
             </div>
@@ -60,7 +60,7 @@ const Home = () => {
               </p>
               <Link to="/products" className="btn-neon inline-flex items-center space-x-2">
                 <span>Shop Now</span>
-                <ArrowRight size={20} />
+                <FaArrowRight size={20} />
               </Link>
             </div>
           )}
@@ -72,7 +72,7 @@ const Home = () => {
         <section className="py-16 bg-gradient-to-r from-pink-500/10 to-purple-500/10">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-center mb-8">
-              <Zap className="text-pink-500 mr-2" size={32} />
+              <FaBolt className="text-pink-500 mr-2" size={32} />
               <h2 className="text-3xl md:text-4xl font-bold text-white">Flash Sales!</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -91,7 +91,7 @@ const Home = () => {
             <div className="card-dark text-center">
               <div className="flex justify-center mb-4">
                 <div className="w-16 h-16 bg-pink-500/20 rounded-full flex items-center justify-center">
-                  <Zap className="text-pink-500" size={32} />
+                  <FaBolt className="text-pink-500" size={32} />
                 </div>
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Fast Delivery</h3>
@@ -101,7 +101,7 @@ const Home = () => {
             <div className="card-dark text-center">
               <div className="flex justify-center mb-4">
                 <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center">
-                  <Award className="text-purple-500" size={32} />
+                  <FaTrophy className="text-purple-500" size={32} />
                 </div>
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Rewards Program</h3>
@@ -111,7 +111,7 @@ const Home = () => {
             <div className="card-dark text-center">
               <div className="flex justify-center mb-4">
                 <div className="w-16 h-16 bg-cyan-500/20 rounded-full flex items-center justify-center">
-                  <TrendingUp className="text-cyan-500" size={32} />
+                  <FaTrendingUp className="text-cyan-500" size={32} />
                 </div>
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Best Prices</h3>

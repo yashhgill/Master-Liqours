@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context';
-import { Plus, Edit, Trash2, Zap } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaBolt } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -122,7 +122,7 @@ const SuperAdminDashboard = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Hero Banners</h2>
             <button onClick={() => setShowBannerForm(!showBannerForm)} className="btn-neon">
-              <Plus size={20} className="inline mr-2" />
+              <FaPlus size={20} className="inline mr-2" />
               Add Banner
             </button>
           </div>
@@ -152,7 +152,7 @@ const SuperAdminDashboard = () => {
                   </span>
                 </div>
                 <button onClick={() => deleteBanner(banner.banner_id)} className="text-red-500 hover:text-red-700">
-                  <Trash2 size={20} />
+                  <FaTrash size={20} />
                 </button>
               </div>
             ))}
@@ -166,7 +166,7 @@ const SuperAdminDashboard = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Products</h2>
             <button onClick={() => setShowProductForm(!showProductForm)} className="btn-neon">
-              <Plus size={20} className="inline mr-2" />
+              <FaPlus size={20} className="inline mr-2" />
               Add Product
             </button>
           </div>
@@ -203,7 +203,7 @@ const SuperAdminDashboard = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Flash Sales</h2>
             <button onClick={() => setShowFlashSaleForm(!showFlashSaleForm)} className="btn-neon">
-              <Zap size={20} className="inline mr-2" />
+              <FaBolt size={20} className="inline mr-2" />
               Create Flash Sale
             </button>
           </div>

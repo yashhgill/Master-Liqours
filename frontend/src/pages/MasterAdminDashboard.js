@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context';
-import { TrendingUp, Package, Users, Zap } from 'react-icons/fa';
+import { FaTrendingUp, FaBox, FaUsers, FaBolt } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -41,7 +41,7 @@ const MasterAdminDashboard = () => {
         <div className="card">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-pink-500/20 rounded-full flex items-center justify-center">
-              <TrendingUp className="text-pink-500" size={24} />
+              <FaTrendingUp className="text-pink-500" size={24} />
             </div>
             <div>
               <p className="text-gray-600">Total Sales</p>
@@ -53,7 +53,7 @@ const MasterAdminDashboard = () => {
         <div className="card">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
-              <Package className="text-purple-500" size={24} />
+              <FaBox className="text-purple-500" size={24} />
             </div>
             <div>
               <p className="text-gray-600">Total Orders</p>
@@ -65,7 +65,7 @@ const MasterAdminDashboard = () => {
         <div className="card">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center">
-              <Users className="text-yellow-500" size={24} />
+              <FaUsers className="text-yellow-500" size={24} />
             </div>
             <div>
               <p className="text-gray-600">Pending Orders</p>
@@ -77,7 +77,7 @@ const MasterAdminDashboard = () => {
         <div className="card">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center">
-              <Zap className="text-cyan-500" size={24} />
+              <FaBolt className="text-cyan-500" size={24} />
             </div>
             <div>
               <p className="text-gray-600">Active Flash Sales</p>

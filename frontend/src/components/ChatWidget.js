@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { MessageCircle, X, Send } from 'react-icons/fa';
+import { FaComments, FaTimes, FaPaperPlane } from 'react-icons/fa';
 import { useAuth } from '../context';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -51,7 +51,7 @@ const ChatWidget = () => {
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 bg-gradient-to-r from-pink-500 to-purple-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all z-50 pulse-glow"
         >
-          <MessageCircle size={24} />
+          <FaComments size={24} />
         </button>
       )}
       
@@ -65,7 +65,7 @@ const ChatWidget = () => {
               <p className="text-xs opacity-80">Here to help! 🚀</p>
             </div>
             <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-2 rounded-lg transition">
-              <X size={20} />
+              <FaTimes size={20} />
             </button>
           </div>
           
@@ -115,7 +115,7 @@ const ChatWidget = () => {
                 disabled={loading || !input.trim()}
                 className="bg-pink-500 text-white p-2 rounded-lg hover:bg-pink-600 transition disabled:opacity-50"
               >
-                <Send size={20} />
+                <FaPaperPlane size={20} />
               </button>
             </div>
           </div>

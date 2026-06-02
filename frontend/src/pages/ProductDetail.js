@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ShoppingBag, ArrowLeft } from 'react-icons/fa';
+import { FaShoppingBag, FaArrowLeft } from 'react-icons/fa';
 import { useCart } from '../context';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -45,7 +45,7 @@ const ProductDetail = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <button onClick={() => navigate(-1)} className="flex items-center text-white hover:text-pink-500 mb-6 transition">
-        <ArrowLeft size={20} className="mr-2" />
+        <FaArrowLeft size={20} className="mr-2" />
         Back
       </button>
       
@@ -89,7 +89,7 @@ const ProductDetail = () => {
           </div>
           
           <button onClick={handleAddToCart} className="w-full btn-neon flex items-center justify-center space-x-2">
-            <ShoppingBag size={20} />
+            <FaShoppingBag size={20} />
             <span>Add to Cart</span>
           </button>
         </div>

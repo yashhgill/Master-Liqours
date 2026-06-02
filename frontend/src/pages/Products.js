@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Search, Filter } from 'react-icons/fa';
+import { FaSearch, Filter } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -54,7 +54,7 @@ const Products = () => {
       <div className="mb-8 space-y-4">
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           <input
             type="text"
             placeholder="Search products..."

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context';
-import { Trash2, Plus, Minus } from 'react-icons/fa';
+import { FaTrash, FaPlus, Minus } from 'react-icons/fa';
 
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, total } = useCart();
@@ -46,14 +46,14 @@ const Cart = () => {
                   onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
                   className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
                 >
-                  <Minus size={16} />
+                  <FaMinus size={16} />
                 </button>
                 <span className="w-12 text-center font-bold">{item.quantity}</span>
                 <button
                   onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
                   className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
                 >
-                  <Plus size={16} />
+                  <FaPlus size={16} />
                 </button>
               </div>
               
@@ -61,7 +61,7 @@ const Cart = () => {
                 onClick={() => removeFromCart(item.product_id)}
                 className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
               >
-                <Trash2 size={20} />
+                <FaTrash size={20} />
               </button>
             </div>
           ))}
