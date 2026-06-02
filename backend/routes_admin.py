@@ -3,16 +3,116 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from typing import List, Optional
 from datetime import datetime
+from pydantic import BaseModel
 
 from database import get_db
-from models import User, Product, Order, Staff, FlashSale, DiscountCode, UserRole
+from models import (
+    User, Product, Order, Staff, FlashSale, DiscountCode, 
+    UserRole, HeroBanner
+)
 from schemas import ProductCreate, ProductResponse
 from auth_utils import get_current_user, require_role
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 # =============================================================================
-# PRODUCT MANAGEMENT (Super Admin)
+# HERO BANNER MANAGEMENT (Super Admin)
+# =============================================================================
+
+class HeroBannerCreate(BaseModel):
+    title: str
+    subtitle: Optional[str] = None
+    cta_text: Optional[str] = None
+    cta_link: Optional[str] = None
+    background_image: Optional[str] = None
+    is_active: bool = True
+    order_position: int = 0
+
+class HeroBannerResponse(BaseModel):
+    banner_id: str
+    title: str
+    subtitle: Optional[str]
+    cta_text: Optional[str]
+    cta_link: Optional[str]
+    background_image: Optional[str]
+    is_active: bool
+    order_position: int
+    created_at: datetime
+    updated_at: datetime
+
+@router.post("/hero-banners", response_model=HeroBannerResponse)
+async def create_hero_banner(
+    data: HeroBannerCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create hero banner (Super Admin only)"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    
+    banner = HeroBanner(**data.dict())
+    db.add(banner)
+    await db.commit()
+    await db.refresh(banner)
+    return banner
+
+@router.get("/hero-banners", response_model=List[HeroBannerResponse])
+async def get_all_hero_banners(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all hero banners for admin"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    
+    result = await db.execute(
+        select(HeroBanner).order_by(HeroBanner.order_position.asc())
+    )
+    return result.scalars().all()
+
+@router.patch("/hero-banners/{banner_id}", response_model=HeroBannerResponse)
+async def update_hero_banner(
+    banner_id: str,
+    data: HeroBannerCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update hero banner (Super Admin only)"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    
+    result = await db.execute(select(HeroBanner).where(HeroBanner.banner_id == banner_id))
+    banner = result.scalar_one_or_none()
+    
+    if not banner:
+        raise HTTPException(status_code=404, detail="Banner tak jumpa")
+    
+    for key, value in data.dict(exclude_unset=True).items():
+        setattr(banner, key, value)
+    
+    banner.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(banner)
+    return banner
+
+@router.delete("/hero-banners/{banner_id}")
+async def delete_hero_banner(
+    banner_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete hero banner (Super Admin only)"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    
+    result = await db.execute(select(HeroBanner).where(HeroBanner.banner_id == banner_id))
+    banner = result.scalar_one_or_none()
+    
+    if not banner:
+        raise HTTPException(status_code=404, detail="Banner tak jumpa")
+    
+    await db.delete(banner)
+    await db.commit()
+    return {"message": "Banner dipadam"}
+
+# =============================================================================
+# PRODUCT MANAGEMENT WITH IMAGE UPLOAD (Super Admin)
 # =============================================================================
 
 @router.post("/products", response_model=ProductResponse)
@@ -21,7 +121,7 @@ async def create_product(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create product (Super Admin only)"""
+    """Create product dengan image URL (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
     
     product = Product(**data.dict())
@@ -37,7 +137,7 @@ async def update_product(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Update product (Super Admin only)"""
+    """Update product termasuk image (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
     
     result = await db.execute(select(Product).where(Product.product_id == product_id))
@@ -73,26 +173,45 @@ async def delete_product(
     return {"message": "Produk dipadamkan"}
 
 # =============================================================================
-# FLASH SALES & DISCOUNTS (Super Admin)
+# FLASH SALES WITH AUTO-EXPIRY (Super Admin)
 # =============================================================================
 
-@router.post("/flash-sales")
+class FlashSaleCreate(BaseModel):
+    product_id: str
+    discount_percentage: float
+    start_time: datetime
+    end_time: datetime
+
+class FlashSaleResponse(BaseModel):
+    sale_id: str
+    product_id: str
+    discount_percentage: float
+    start_time: datetime
+    end_time: datetime
+    is_active: bool
+    created_at: datetime
+
+@router.post("/flash-sales", response_model=FlashSaleResponse)
 async def create_flash_sale(
-    product_id: str,
-    discount_percentage: float,
-    start_time: datetime,
-    end_time: datetime,
+    data: FlashSaleCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create flash sale (Super Admin only)"""
+    """Create flash sale dengan auto-timeout (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
     
+    # Validate dates
+    if data.end_time <= data.start_time:
+        raise HTTPException(status_code=400, detail="End time mesti after start time")
+    
+    if data.end_time <= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="End time mesti di masa depan")
+    
     flash_sale = FlashSale(
-        product_id=product_id,
-        discount_percentage=discount_percentage,
-        start_time=start_time,
-        end_time=end_time,
+        product_id=data.product_id,
+        discount_percentage=data.discount_percentage,
+        start_time=data.start_time,
+        end_time=data.end_time,
         is_active=True
     )
     db.add(flash_sale)
@@ -100,16 +219,61 @@ async def create_flash_sale(
     await db.refresh(flash_sale)
     return flash_sale
 
-@router.get("/flash-sales")
-async def get_flash_sales(
+@router.get("/flash-sales", response_model=List[FlashSaleResponse])
+async def get_all_flash_sales(
+    include_expired: bool = False,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all flash sales"""
+    """Get all flash sales (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
     
-    result = await db.execute(select(FlashSale).order_by(FlashSale.start_time.desc()))
+    query = select(FlashSale)
+    
+    if not include_expired:
+        query = query.where(FlashSale.end_time > datetime.utcnow())
+    
+    query = query.order_by(FlashSale.start_time.desc())
+    result = await db.execute(query)
     return result.scalars().all()
+
+@router.patch("/flash-sales/{sale_id}/toggle")
+async def toggle_flash_sale(
+    sale_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Activate/deactivate flash sale manually (Super Admin only)"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    
+    result = await db.execute(select(FlashSale).where(FlashSale.sale_id == sale_id))
+    sale = result.scalar_one_or_none()
+    
+    if not sale:
+        raise HTTPException(status_code=404, detail="Flash sale tak jumpa")
+    
+    sale.is_active = not sale.is_active
+    await db.commit()
+    return {"message": f"Flash sale {'activated' if sale.is_active else 'deactivated'}"}
+
+@router.delete("/flash-sales/{sale_id}")
+async def delete_flash_sale(
+    sale_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete flash sale (Super Admin only)"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    
+    result = await db.execute(select(FlashSale).where(FlashSale.sale_id == sale_id))
+    sale = result.scalar_one_or_none()
+    
+    if not sale:
+        raise HTTPException(status_code=404, detail="Flash sale tak jumpa")
+    
+    await db.delete(sale)
+    await db.commit()
+    return {"message": "Flash sale dipadam"}
 
 # =============================================================================
 # ANALYTICS (Master Admin)
@@ -142,10 +306,22 @@ async def get_analytics(
     )
     pending_orders = result.scalar()
     
+    # Active flash sales
+    result = await db.execute(
+        select(func.count(FlashSale.sale_id))
+        .where(and_(
+            FlashSale.is_active == True,
+            FlashSale.start_time <= datetime.utcnow(),
+            FlashSale.end_time > datetime.utcnow()
+        ))
+    )
+    active_sales = result.scalar()
+    
     return {
         "total_sales": total_sales or 0,
         "total_orders": total_orders or 0,
         "pending_orders": pending_orders or 0,
+        "active_flash_sales": active_sales or 0,
         "staff_sales": staff_sales
     }
 

@@ -3,10 +3,11 @@ import bcrypt
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import HTTPException, Request, Cookie
+from fastapi import HTTPException, Request, Cookie, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from models import User, UserSession, UserRole
+from database import get_db
 import httpx
 
 # Password hashing

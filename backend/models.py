@@ -38,7 +38,7 @@ class User(Base):
     user_id = Column(String(36), primary_key=True, default=generate_uuid)
     email = Column(String(255), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)
-    password_hash = Column(String(255), nullable=True)  # Null for Google Auth users
+    password_hash = Column(String(255), nullable=True)
     phone = Column(String(20), nullable=True)
     points = Column(Integer, default=0)
     tier = Column(SQLEnum(UserTier), default=UserTier.REGULAR)
@@ -48,7 +48,6 @@ class User(Base):
     picture = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=utcnow)
     
-    # Relationships
     assigned_staff = relationship('Staff', back_populates='customers', foreign_keys=[assigned_staff_id])
     orders = relationship('Order', back_populates='user', cascade='all, delete-orphan')
     rewards = relationship('Reward', back_populates='user', cascade='all, delete-orphan')
@@ -65,7 +64,6 @@ class UserSession(Base):
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=utcnow)
     
-    # Relationships
     user = relationship('User', back_populates='sessions')
 
 
@@ -81,7 +79,6 @@ class Staff(Base):
     orders_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=utcnow)
     
-    # Relationships
     customers = relationship('User', back_populates='assigned_staff', foreign_keys=[User.assigned_staff_id])
     products = relationship('Product', back_populates='staff')
     stock = relationship('Stock', back_populates='staff')
@@ -101,7 +98,6 @@ class Product(Base):
     created_at = Column(DateTime, default=utcnow)
     staff_id = Column(String(36), ForeignKey('staff.staff_id'), nullable=True, index=True)
     
-    # Relationships
     staff = relationship('Staff', back_populates='products')
     stock = relationship('Stock', back_populates='product', cascade='all, delete-orphan')
     order_items = relationship('OrderItem', back_populates='product')
@@ -115,9 +111,8 @@ class Stock(Base):
     product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)
     staff_id = Column(String(36), ForeignKey('staff.staff_id', ondelete='CASCADE'), nullable=False, index=True)
     quantity = Column(Integer, default=0)
-    updated_at = Column(DateTime, default=utcnow, onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
     
-    # Relationships
     product = relationship('Product', back_populates='stock')
     staff = relationship('Staff', back_populates='stock')
 
@@ -137,7 +132,6 @@ class Order(Base):
     points_earned = Column(Integer, default=0)
     created_at = Column(DateTime, default=utcnow, index=True)
     
-    # Relationships
     user = relationship('User', back_populates='orders')
     staff = relationship('Staff', back_populates='orders')
     order_items = relationship('OrderItem', back_populates='order', cascade='all, delete-orphan')
@@ -153,7 +147,6 @@ class OrderItem(Base):
     price = Column(Float, nullable=False)
     subtotal = Column(Float, nullable=False)
     
-    # Relationships
     order = relationship('Order', back_populates='order_items')
     product = relationship('Product', back_populates='order_items')
 
@@ -164,11 +157,10 @@ class Reward(Base):
     reward_id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, index=True)
     points = Column(Integer, nullable=False)
-    type = Column(String(50), nullable=False)  # 'earned', 'redeemed', 'bonus'
+    type = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=utcnow, index=True)
     
-    # Relationships
     user = relationship('User', back_populates='rewards')
 
 
@@ -183,7 +175,6 @@ class FlashSale(Base):
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=utcnow)
     
-    # Relationships
     product = relationship('Product', back_populates='flash_sales')
 
 
@@ -192,7 +183,7 @@ class DiscountCode(Base):
     
     code_id = Column(String(36), primary_key=True, default=generate_uuid)
     code = Column(String(50), unique=True, nullable=False, index=True)
-    discount_type = Column(String(20), nullable=False)  # 'percentage' or 'fixed'
+    discount_type = Column(String(20), nullable=False)
     discount_value = Column(Float, nullable=False)
     min_purchase = Column(Float, default=0)
     max_uses = Column(Integer, nullable=True)
@@ -216,9 +207,24 @@ class ChatMessage(Base):
     
     message_id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, index=True)
-    role = Column(String(20), nullable=False)  # 'user' or 'assistant'
+    role = Column(String(20), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=utcnow, index=True)
     
-    # Relationships
     user = relationship('User', back_populates='chat_messages')
+
+
+# NEW: Hero Banner Model for Super Admin to manage homepage
+class HeroBanner(Base):
+    __tablename__ = 'hero_banners'
+    
+    banner_id = Column(String(36), primary_key=True, default=generate_uuid)
+    title = Column(String(255), nullable=False)
+    subtitle = Column(Text, nullable=True)
+    cta_text = Column(String(100), nullable=True)
+    cta_link = Column(String(255), nullable=True)
+    background_image = Column(String(500), nullable=True)
+    is_active = Column(Boolean, default=True)
+    order_position = Column(Integer, default=0)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)

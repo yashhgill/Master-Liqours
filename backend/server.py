@@ -237,6 +237,54 @@ async def get_categories(db: AsyncSession = Depends(get_db)):
     return {"categories": [row[0] for row in result.all()]}
 
 # =============================================================================
+# HERO BANNERS & FLASH SALES (Public)
+# =============================================================================
+
+@api_router.get("/hero-banners")
+async def get_active_hero_banners(db: AsyncSession = Depends(get_db)):
+    """Get active hero banners untuk homepage"""
+    from models import HeroBanner
+    result = await db.execute(
+        select(HeroBanner)
+        .where(HeroBanner.is_active == True)
+        .order_by(HeroBanner.order_position.asc())
+    )
+    return result.scalars().all()
+
+@api_router.get("/flash-sales/active")
+async def get_active_flash_sales(db: AsyncSession = Depends(get_db)):
+    """Get active flash sales sekarang"""
+    from sqlalchemy import and_
+    from models import FlashSale
+    from datetime import datetime
+    
+    now = datetime.utcnow()
+    result = await db.execute(
+        select(FlashSale, Product)
+        .join(Product, FlashSale.product_id == Product.product_id)
+        .where(and_(
+            FlashSale.is_active == True,
+            FlashSale.start_time <= now,
+            FlashSale.end_time > now,
+            Product.is_active == True
+        ))
+    )
+    
+    sales = []
+    for sale, product in result.all():
+        discounted_price = product.price * (1 - sale.discount_percentage / 100)
+        sales.append({
+            "sale_id": sale.sale_id,
+            "product": product,
+            "original_price": product.price,
+            "discounted_price": round(discounted_price, 2),
+            "discount_percentage": sale.discount_percentage,
+            "end_time": sale.end_time
+        })
+    
+    return sales
+
+# =============================================================================
 # USER ROUTES
 # =============================================================================
 
