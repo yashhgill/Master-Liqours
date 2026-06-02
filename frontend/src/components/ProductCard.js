@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context';
 import { FaShoppingBag, FaBolt, FaClock } from 'react-icons/fa';
+import { resolveImageUrl } from '../lib/imageUrl';
 
 const useCountdown = (endTime) => {
   const [remaining, setRemaining] = useState(() => endTime ? Math.max(0, new Date(endTime).getTime() - Date.now()) : 0);
@@ -54,7 +55,7 @@ const ProductCard = ({ product, flashSale }) => {
       <div className="relative aspect-square bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
         {product.image_url ? (
           <img
-            src={product.image_url}
+            src={resolveImageUrl(product.image_url)}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=600'; }}

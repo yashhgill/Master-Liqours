@@ -1,7 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context';
-import { FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlassAlt, FaArrowUp, FaArrowDown } from 'react-icons/fa';
+import {
+  FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlassAlt,
+  FaArrowUp, FaArrowDown, FaPen, FaFileCsv, FaDownload, FaSpinner,
+} from 'react-icons/fa';
+import ImageUploader from '../components/ImageUploader';
+import { resolveImageUrl } from '../lib/imageUrl';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -12,24 +17,40 @@ const TABS = [
   { id: 'brands', label: 'Brands', icon: FaWineGlassAlt },
 ];
 
+const CATEGORIES = ['Wine', 'Beer', 'Whiskey', 'Gin', 'Rum', 'Vodka', 'Champagne', 'Tequila', 'Sake', 'Cognac'];
+
+const blankProduct = { name: '', price: '', description: '', category: '', image_url: '', is_active: true };
+const blankBanner = { title: '', subtitle: '', cta_text: '', cta_link: '', background_image: '', is_active: true, order_position: 0 };
+const blankBrand = { name: '', short_name: '', subtitle: '', logo_url: '', color_hex: '#1a1a1a', search_term: '', is_active: true, order_position: 0 };
+const blankFlash = { product_id: '', discount_percentage: 10, start_time: '', end_time: '' };
+
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
-  const [tab, setTab] = useState('banners');
+  const [tab, setTab] = useState('products');
+
   const [banners, setBanners] = useState([]);
   const [products, setProducts] = useState([]);
   const [flashSales, setFlashSales] = useState([]);
   const [brands, setBrands] = useState([]);
+
+  // Forms
+  const [bannerForm, setBannerForm] = useState(blankBanner);
+  const [productForm, setProductForm] = useState(blankProduct);
+  const [brandForm, setBrandForm] = useState(blankBrand);
+  const [flashForm, setFlashForm] = useState(blankFlash);
+
+  // Visibility & edit state
   const [showBanner, setShowBanner] = useState(false);
   const [showProduct, setShowProduct] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
   const [showBrand, setShowBrand] = useState(false);
+  const [editingBanner, setEditingBanner] = useState(null);
+  const [editingProduct, setEditingProduct] = useState(null);
   const [editingBrand, setEditingBrand] = useState(null);
-
-  const [bannerForm, setBannerForm] = useState({ title: '', subtitle: '', cta_text: '', cta_link: '', background_image: '', is_active: true, order_position: 0 });
-  const [productForm, setProductForm] = useState({ name: '', price: 0, description: '', category: '', image_url: '', is_active: true });
-  const [flashForm, setFlashForm] = useState({ product_id: '', discount_percentage: 0, start_time: '', end_time: '' });
-  const blankBrand = { name: '', short_name: '', subtitle: '', logo_url: '', color_hex: '#1a1a1a', search_term: '', is_active: true, order_position: 0 };
-  const [brandForm, setBrandForm] = useState(blankBrand);
+  const [productSearch, setProductSearch] = useState('');
+  const [csvBusy, setCsvBusy] = useState(false);
+  const [csvResult, setCsvResult] = useState(null);
+  const csvRef = useRef(null);
 
   useEffect(() => { load(); }, [tab]);
 
@@ -42,8 +63,11 @@ const SuperAdminDashboard = () => {
         const r = await axios.get(`${API}/products`);
         setProducts(r.data);
       } else if (tab === 'flash-sales') {
-        const r = await axios.get(`${API}/admin/flash-sales?include_expired=true`, { withCredentials: true });
-        setFlashSales(r.data);
+        const [r, p] = await Promise.all([
+          axios.get(`${API}/admin/flash-sales?include_expired=true`, { withCredentials: true }),
+          axios.get(`${API}/products`),
+        ]);
+        setFlashSales(r.data); setProducts(p.data);
       } else if (tab === 'brands') {
         const r = await axios.get(`${API}/admin/brands`, { withCredentials: true });
         setBrands(r.data);
@@ -51,58 +75,91 @@ const SuperAdminDashboard = () => {
     } catch (e) { console.error(e); }
   };
 
-  const createBanner = async () => {
+  // === BANNERS ===
+  const saveBanner = async () => {
     try {
-      await axios.post(`${API}/admin/hero-banners`, bannerForm, { withCredentials: true });
-      setShowBanner(false); load();
-    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
-  };
-  const createProduct = async () => {
-    try {
-      await axios.post(`${API}/admin/products`, productForm, { withCredentials: true });
-      setShowProduct(false); load();
-    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
-  };
-  const createFlash = async () => {
-    try {
-      // Convert datetime-local (browser local time, naive) → ISO with user's timezone offset
-      const toIsoWithTZ = (localStr) => {
-        if (!localStr) return null;
-        const d = new Date(localStr); // browser parses as local time
-        return d.toISOString(); // serialize as UTC ISO with Z
-      };
-      const payload = {
-        ...flashForm,
-        start_time: toIsoWithTZ(flashForm.start_time),
-        end_time: toIsoWithTZ(flashForm.end_time),
-      };
-      if (!payload.start_time || !payload.end_time) {
-        alert('Pick both start and end time lah boss');
-        return;
+      if (editingBanner) {
+        await axios.patch(`${API}/admin/hero-banners/${editingBanner}`, bannerForm, { withCredentials: true });
+      } else {
+        await axios.post(`${API}/admin/hero-banners`, bannerForm, { withCredentials: true });
       }
-      await axios.post(`${API}/admin/flash-sales`, payload, { withCredentials: true });
-      setShowFlash(false);
-      setFlashForm({ product_id: '', discount_percentage: 0, start_time: '', end_time: '' });
+      setShowBanner(false); setEditingBanner(null); setBannerForm(blankBanner);
       load();
     } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
   };
+  const editBanner = (b) => {
+    setEditingBanner(b.banner_id);
+    setBannerForm({
+      title: b.title || '', subtitle: b.subtitle || '', cta_text: b.cta_text || '',
+      cta_link: b.cta_link || '', background_image: b.background_image || '',
+      is_active: !!b.is_active, order_position: b.order_position || 0,
+    });
+    setShowBanner(true);
+  };
   const delBanner = async (id) => {
-    if (!window.confirm('Delete banner?')) return;
+    if (!window.confirm('Delete banner ni?')) return;
     await axios.delete(`${API}/admin/hero-banners/${id}`, { withCredentials: true });
     load();
   };
 
-  // Brand CRUD
+  // === PRODUCTS ===
+  const saveProduct = async () => {
+    try {
+      const payload = { ...productForm, price: parseFloat(productForm.price) || 0 };
+      if (editingProduct) {
+        await axios.patch(`${API}/admin/products/${editingProduct}`, payload, { withCredentials: true });
+      } else {
+        await axios.post(`${API}/admin/products`, payload, { withCredentials: true });
+      }
+      setShowProduct(false); setEditingProduct(null); setProductForm(blankProduct);
+      load();
+    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+  };
+  const editProduct = (p) => {
+    setEditingProduct(p.product_id);
+    setProductForm({
+      name: p.name || '', price: p.price || 0, description: p.description || '',
+      category: p.category || '', image_url: p.image_url || '', is_active: !!p.is_active,
+    });
+    setShowProduct(true);
+  };
+  const delProduct = async (id) => {
+    if (!window.confirm('Delete product? This cannot be undone lah.')) return;
+    try {
+      await axios.delete(`${API}/admin/products/${id}`, { withCredentials: true });
+      load();
+    } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
+  };
+
+  const csvUpload = async (file) => {
+    if (!file) return;
+    setCsvBusy(true); setCsvResult(null);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const res = await axios.post(`${API}/admin/products/bulk-import`, fd, {
+        withCredentials: true, headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setCsvResult(res.data);
+      load();
+    } catch (e) {
+      setCsvResult({ error: e.response?.data?.detail || 'Import failed' });
+    } finally { setCsvBusy(false); }
+  };
+
+  const downloadSampleCsv = () => {
+    const csv = 'name,price,category,description,image_url\nChardonnay White Wine,110,Wine,Smooth white wine,\nLager Beer Premium,18,Beer,Local favorite,\n';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'products_sample.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // === BRANDS ===
   const saveBrand = async () => {
     try {
-      if (editingBrand) {
-        await axios.put(`${API}/admin/brands/${editingBrand}`, brandForm, { withCredentials: true });
-      } else {
-        await axios.post(`${API}/admin/brands`, brandForm, { withCredentials: true });
-      }
-      setShowBrand(false);
-      setEditingBrand(null);
-      setBrandForm(blankBrand);
+      if (editingBrand) await axios.put(`${API}/admin/brands/${editingBrand}`, brandForm, { withCredentials: true });
+      else await axios.post(`${API}/admin/brands`, brandForm, { withCredentials: true });
+      setShowBrand(false); setEditingBrand(null); setBrandForm(blankBrand);
       load();
     } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
   };
@@ -122,27 +179,39 @@ const SuperAdminDashboard = () => {
   };
   const moveBrand = async (b, delta) => {
     await axios.put(`${API}/admin/brands/${b.brand_id}`, {
-      name: b.name, short_name: b.short_name, subtitle: b.subtitle, logo_url: b.logo_url,
-      color_hex: b.color_hex, search_term: b.search_term, is_active: b.is_active,
-      order_position: (b.order_position || 0) + delta,
+      ...b, order_position: (b.order_position || 0) + delta,
     }, { withCredentials: true });
     load();
   };
+
+  // === FLASH SALES ===
+  const saveFlash = async () => {
+    try {
+      const toIso = (s) => s ? new Date(s).toISOString() : null;
+      const payload = { ...flashForm, start_time: toIso(flashForm.start_time), end_time: toIso(flashForm.end_time) };
+      if (!payload.start_time || !payload.end_time) { alert('Pick both times lah'); return; }
+      await axios.post(`${API}/admin/flash-sales`, payload, { withCredentials: true });
+      setShowFlash(false); setFlashForm(blankFlash);
+      load();
+    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+  };
+
+  const filteredProducts = productSearch
+    ? products.filter((p) => p.name.toLowerCase().includes(productSearch.toLowerCase()) || (p.category || '').toLowerCase().includes(productSearch.toLowerCase()))
+    : products;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12">
       <div className="eyebrow mb-3">Super Admin Console</div>
       <h1 className="display-xl mb-2">Manage <span className="neon-pink-text">Everything</span></h1>
-      <p className="text-white/60 mb-10">Welcome {user?.name}, control banners, products & flash sales here lah.</p>
+      <p className="text-white/60 mb-10">Welcome {user?.name}. Drag-drop images, bulk import via CSV, edit anything boss.</p>
 
       <div className="flex flex-wrap gap-2 mb-10">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-5 py-3 rounded-full font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-2 ${
-              tab === t.id ? 'bg-[#ff007f] text-white' : 'border border-white/15 hover:border-[#ff007f]'
-            }`}
+            className={`px-5 py-3 rounded-full font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-2 ${tab === t.id ? 'bg-[#ff007f] text-white' : 'border border-white/15 hover:border-[#ff007f]'}`}
             data-testid={`admin-tab-${t.id}`}
           >
             <t.icon size={14} /> {t.label}
@@ -150,161 +219,270 @@ const SuperAdminDashboard = () => {
         ))}
       </div>
 
+      {/* === PRODUCTS === */}
+      {tab === 'products' && (
+        <div className="surface p-6" data-testid="admin-products-panel">
+          <div className="flex justify-between items-start mb-6 flex-wrap gap-3">
+            <div>
+              <h2 className="display-md">Products ({filteredProducts.length})</h2>
+              <p className="text-xs text-white/50 mt-1">Click any card to edit · drag image to replace</p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={downloadSampleCsv} className="btn-ghost text-xs px-4 py-2.5" data-testid="csv-sample-btn">
+                <FaDownload size={11} /> Sample CSV
+              </button>
+              <button onClick={() => csvRef.current?.click()} className="btn-ghost text-xs px-4 py-2.5" data-testid="csv-import-btn" disabled={csvBusy}>
+                {csvBusy ? <FaSpinner className="animate-spin" size={11} /> : <FaFileCsv size={11} />} Bulk Import
+              </button>
+              <input ref={csvRef} type="file" accept=".csv" className="hidden" onChange={(e) => csvUpload(e.target.files?.[0])} />
+              <button onClick={() => { setEditingProduct(null); setProductForm(blankProduct); setShowProduct(!showProduct); }} className="btn-pink" data-testid="admin-add-product-btn">
+                <FaPlus /> Add Product
+              </button>
+            </div>
+          </div>
+
+          {csvResult && (
+            <div className={`mb-6 px-5 py-4 rounded-2xl border ${csvResult.error ? 'border-[#ff007f]/40 bg-[#ff007f]/10 text-[#ff007f]' : 'border-[#39ff14]/40 bg-[#39ff14]/10 text-[#39ff14]'}`} data-testid="csv-result">
+              {csvResult.error ? `❌ ${csvResult.error}` : `✓ Created ${csvResult.created} · Skipped ${csvResult.skipped}${csvResult.errors?.length ? ` · ${csvResult.errors.length} errors` : ''}`}
+            </div>
+          )}
+
+          <div className="relative mb-6">
+            <input
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              placeholder="Search products lah..."
+              className="input-dark"
+              data-testid="admin-products-search"
+            />
+          </div>
+
+          {showProduct && (
+            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 mb-6 grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6" data-testid="admin-product-form">
+              <ImageUploader
+                value={productForm.image_url}
+                onChange={(url) => setProductForm({ ...productForm, image_url: url })}
+                label="Product Image"
+                aspect="square"
+                testid="product-image-uploader"
+              />
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Name</label>
+                  <input value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} className="input-dark" data-testid="product-form-name" placeholder="e.g. Chardonnay White Wine" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Price (RM)</label>
+                    <input type="number" step="0.01" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} className="input-dark" data-testid="product-form-price" placeholder="0.00" />
+                  </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Category</label>
+                    <select value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })} className="input-dark" data-testid="product-form-category">
+                      <option value="">Pick one</option>
+                      {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Description</label>
+                  <textarea rows={4} value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} className="input-dark resize-none" placeholder="What makes this bottle special?" />
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={productForm.is_active} onChange={(e) => setProductForm({ ...productForm, is_active: e.target.checked })} />
+                  <span>Active (shown to customers)</span>
+                </label>
+                <div className="flex gap-2 pt-2">
+                  <button onClick={saveProduct} className="btn-lime" data-testid="product-form-save">{editingProduct ? 'Update Product' : 'Create Product'}</button>
+                  <button onClick={() => { setShowProduct(false); setEditingProduct(null); setProductForm(blankProduct); }} className="btn-ghost">Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {filteredProducts.map((p) => (
+              <div key={p.product_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center gap-4 group" data-testid={`admin-product-${p.product_id}`}>
+                <div className="w-20 h-20 rounded-xl shrink-0 bg-white overflow-hidden">
+                  {p.image_url ? (
+                    <img src={resolveImageUrl(p.image_url)} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300"><FaImage size={20} /></div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-display text-lg uppercase truncate">{p.name}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-white/40">{p.category}</div>
+                  <div className="font-display text-xl neon-pink-text mt-1">RM{(p.price || 0).toFixed(2)}</div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => editProduct(p)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center transition-all" title="Edit" data-testid={`admin-product-edit-${p.product_id}`}>
+                    <FaPen size={11} />
+                  </button>
+                  <button onClick={() => delProduct(p.product_id)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center transition-all" title="Delete" data-testid={`admin-product-del-${p.product_id}`}>
+                    <FaTrash size={11} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* === BANNERS === */}
       {tab === 'banners' && (
         <div className="surface p-6">
-          <div className="flex justify-between mb-6">
-            <h2 className="display-md">Hero Banners</h2>
-            <button onClick={() => setShowBanner(!showBanner)} className="btn-pink" data-testid="admin-add-banner-btn"><FaPlus /> Add</button>
+          <div className="flex justify-between mb-6 flex-wrap gap-3">
+            <h2 className="display-md">Hero Banners ({banners.length})</h2>
+            <button onClick={() => { setEditingBanner(null); setBannerForm(blankBanner); setShowBanner(!showBanner); }} className="btn-pink" data-testid="admin-add-banner-btn">
+              <FaPlus /> Add Banner
+            </button>
           </div>
+
           {showBanner && (
-            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 mb-6 space-y-3">
-              {['title', 'subtitle', 'cta_text', 'cta_link', 'background_image'].map((f) => (
-                <input key={f} placeholder={f.replace('_', ' ')} value={bannerForm[f]} onChange={(e) => setBannerForm({ ...bannerForm, [f]: e.target.value })} className="input-dark" />
-              ))}
-              <button onClick={createBanner} className="btn-lime">Create</button>
+            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 mb-6 grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-6">
+              <ImageUploader
+                value={bannerForm.background_image}
+                onChange={(url) => setBannerForm({ ...bannerForm, background_image: url })}
+                label="Background Image"
+                aspect="16/9"
+                testid="banner-image-uploader"
+              />
+              <div className="space-y-3">
+                <input placeholder="Title (e.g. Spend & Win the Night)" value={bannerForm.title} onChange={(e) => setBannerForm({ ...bannerForm, title: e.target.value })} className="input-dark" />
+                <input placeholder="Subtitle" value={bannerForm.subtitle} onChange={(e) => setBannerForm({ ...bannerForm, subtitle: e.target.value })} className="input-dark" />
+                <div className="grid grid-cols-2 gap-3">
+                  <input placeholder="CTA Text (Shop Now Lah)" value={bannerForm.cta_text} onChange={(e) => setBannerForm({ ...bannerForm, cta_text: e.target.value })} className="input-dark" />
+                  <input placeholder="CTA Link (/products)" value={bannerForm.cta_link} onChange={(e) => setBannerForm({ ...bannerForm, cta_link: e.target.value })} className="input-dark" />
+                </div>
+                <input type="number" placeholder="Order" value={bannerForm.order_position} onChange={(e) => setBannerForm({ ...bannerForm, order_position: parseInt(e.target.value || '0') })} className="input-dark" />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={bannerForm.is_active} onChange={(e) => setBannerForm({ ...bannerForm, is_active: e.target.checked })} /> Active
+                </label>
+                <div className="flex gap-2">
+                  <button onClick={saveBanner} className="btn-lime">{editingBanner ? 'Update' : 'Create'}</button>
+                  <button onClick={() => { setShowBanner(false); setEditingBanner(null); setBannerForm(blankBanner); }} className="btn-ghost">Cancel</button>
+                </div>
+              </div>
             </div>
           )}
+
           <div className="space-y-3">
             {banners.map((b) => (
-              <div key={b.banner_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex justify-between items-start">
-                <div>
-                  <h3 className="font-display text-xl uppercase">{b.title}</h3>
-                  <p className="text-sm text-white/60">{b.subtitle}</p>
-                  <span className={`text-xs uppercase font-bold ${b.is_active ? 'text-[#39ff14]' : 'text-white/30'}`}>{b.is_active ? 'Active' : 'Inactive'}</span>
+              <div key={b.banner_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center gap-4">
+                <div className="w-32 h-20 rounded-xl bg-black overflow-hidden shrink-0">
+                  {b.background_image && <img src={resolveImageUrl(b.background_image)} alt="" className="w-full h-full object-cover opacity-60" />}
                 </div>
-                <button onClick={() => delBanner(b.banner_id)} className="text-[#ff007f] hover:scale-110 transition-transform"><FaTrash /></button>
+                <div className="flex-1 min-w-0">
+                  <div className="font-display text-lg uppercase truncate">{b.title}</div>
+                  <div className="text-xs text-white/50 truncate">{b.subtitle}</div>
+                  <span className={`text-[10px] uppercase font-bold ${b.is_active ? 'text-[#39ff14]' : 'text-white/30'}`}>{b.is_active ? 'Active' : 'Hidden'} · pos {b.order_position}</span>
+                </div>
+                <button onClick={() => editBanner(b)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center"><FaPen size={11} /></button>
+                <button onClick={() => delBanner(b.banner_id)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center"><FaTrash size={11} /></button>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {tab === 'products' && (
-        <div className="surface p-6">
-          <div className="flex justify-between mb-6">
-            <h2 className="display-md">Products</h2>
-            <button onClick={() => setShowProduct(!showProduct)} className="btn-pink"><FaPlus /> Add</button>
-          </div>
-          {showProduct && (
-            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 mb-6 grid grid-cols-2 gap-3">
-              <input placeholder="Name" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} className="input-dark" />
-              <input type="number" placeholder="Price" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: parseFloat(e.target.value) })} className="input-dark" />
-              <input placeholder="Category" value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })} className="input-dark" />
-              <input placeholder="Image URL" value={productForm.image_url} onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })} className="input-dark" />
-              <textarea placeholder="Description" value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} className="input-dark col-span-2" rows={3} />
-              <button onClick={createProduct} className="btn-lime col-span-2">Create Product</button>
-            </div>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {products.map((p) => (
-              <div key={p.product_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center gap-4">
-                {p.image_url && <img src={p.image_url} alt="" className="w-16 h-16 rounded-xl object-cover bg-white" />}
-                <div className="flex-1">
-                  <h3 className="font-display text-lg uppercase">{p.name}</h3>
-                  <div className="text-xs text-white/50">{p.category}</div>
-                </div>
-                <div className="font-display text-xl neon-pink-text">RM{p.price.toFixed(2)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+      {/* === FLASH SALES === */}
       {tab === 'flash-sales' && (
         <div className="surface p-6">
-          <div className="flex justify-between mb-6">
-            <h2 className="display-md">Flash Sales</h2>
-            <button onClick={() => setShowFlash(!showFlash)} className="btn-pink"><FaBolt /> Create</button>
+          <div className="flex justify-between mb-6 flex-wrap gap-3">
+            <h2 className="display-md">Flash Sales ({flashSales.length})</h2>
+            <button onClick={() => setShowFlash(!showFlash)} className="btn-pink" data-testid="admin-add-flash-btn"><FaBolt /> Create Sale</button>
           </div>
           {showFlash && (
             <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 mb-6 space-y-3">
-              <select value={flashForm.product_id} onChange={(e) => setFlashForm({ ...flashForm, product_id: e.target.value })} className="input-dark" data-testid="flash-product-select">
+              <select value={flashForm.product_id} onChange={(e) => setFlashForm({ ...flashForm, product_id: e.target.value })} className="input-dark">
                 <option value="">Select Product</option>
-                {products.map((p) => <option key={p.product_id} value={p.product_id}>{p.name}</option>)}
+                {products.map((p) => <option key={p.product_id} value={p.product_id}>{p.name} — RM{p.price}</option>)}
               </select>
-              <input type="number" placeholder="Discount %" value={flashForm.discount_percentage} onChange={(e) => setFlashForm({ ...flashForm, discount_percentage: parseFloat(e.target.value) })} className="input-dark" data-testid="flash-discount-input" />
               <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-1.5">Start (your local time · {Intl.DateTimeFormat().resolvedOptions().timeZone})</label>
-                <input type="datetime-local" value={flashForm.start_time} onChange={(e) => setFlashForm({ ...flashForm, start_time: e.target.value })} className="input-dark" data-testid="flash-start-input" />
+                <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Discount %</label>
+                <input type="number" min="1" max="90" value={flashForm.discount_percentage} onChange={(e) => setFlashForm({ ...flashForm, discount_percentage: parseFloat(e.target.value || '0') })} className="input-dark" />
               </div>
               <div>
-                <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-1.5">End (your local time · {Intl.DateTimeFormat().resolvedOptions().timeZone})</label>
-                <input type="datetime-local" value={flashForm.end_time} onChange={(e) => setFlashForm({ ...flashForm, end_time: e.target.value })} className="input-dark" data-testid="flash-end-input" />
+                <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Start ({Intl.DateTimeFormat().resolvedOptions().timeZone})</label>
+                <input type="datetime-local" value={flashForm.start_time} onChange={(e) => setFlashForm({ ...flashForm, start_time: e.target.value })} className="input-dark" />
+              </div>
+              <div>
+                <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">End ({Intl.DateTimeFormat().resolvedOptions().timeZone})</label>
+                <input type="datetime-local" value={flashForm.end_time} onChange={(e) => setFlashForm({ ...flashForm, end_time: e.target.value })} className="input-dark" />
               </div>
               {flashForm.start_time && flashForm.end_time && (
                 <div className="text-xs text-white/50 bg-white/5 rounded-xl px-3 py-2">
-                  Will run from <span className="text-[#39ff14] font-bold">{new Date(flashForm.start_time).toLocaleString()}</span> to <span className="text-[#ff007f] font-bold">{new Date(flashForm.end_time).toLocaleString()}</span> (stored in UTC).
+                  From <span className="text-[#39ff14] font-bold">{new Date(flashForm.start_time).toLocaleString()}</span> to <span className="text-[#ff007f] font-bold">{new Date(flashForm.end_time).toLocaleString()}</span> (UTC stored)
                 </div>
               )}
-              <button onClick={createFlash} className="btn-lime" data-testid="flash-create-btn">Create Sale</button>
+              <button onClick={saveFlash} className="btn-lime">Create Sale</button>
             </div>
           )}
           <div className="space-y-3">
-            {flashSales.map((s) => (
-              <div key={s.sale_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4">
-                <div className="flex justify-between">
-                  <div className="text-sm text-white/60">{s.product_id?.slice(0, 8)}</div>
+            {flashSales.map((s) => {
+              const prod = products.find((p) => p.product_id === s.product_id);
+              return (
+                <div key={s.sale_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-white overflow-hidden shrink-0">
+                    {prod?.image_url && <img src={resolveImageUrl(prod.image_url)} alt="" className="w-full h-full object-cover" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold">{prod?.name || s.product_id?.slice(0, 8)}</div>
+                    <div className="text-xs text-white/40">{new Date(s.start_time).toLocaleString()} → {new Date(s.end_time).toLocaleString()}</div>
+                  </div>
                   <div className="font-display text-xl neon-pink-text">{s.discount_percentage}% OFF</div>
                 </div>
-                <div className="text-xs text-white/40 mt-1">
-                  {new Date(s.start_time).toLocaleString()} → {new Date(s.end_time).toLocaleString()}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
+      {/* === BRANDS === */}
       {tab === 'brands' && (
         <div className="surface p-6" data-testid="admin-brands-panel">
           <div className="flex justify-between mb-6 flex-wrap gap-3">
             <h2 className="display-md">Brands ({brands.length})</h2>
-            <button
-              onClick={() => { setEditingBrand(null); setBrandForm(blankBrand); setShowBrand(!showBrand); }}
-              className="btn-pink"
-              data-testid="admin-add-brand-btn"
-            >
+            <button onClick={() => { setEditingBrand(null); setBrandForm(blankBrand); setShowBrand(!showBrand); }} className="btn-pink" data-testid="admin-add-brand-btn">
               <FaPlus /> Add Brand
             </button>
           </div>
 
           {showBrand && (
-            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 mb-6 grid grid-cols-1 md:grid-cols-2 gap-3" data-testid="admin-brand-form">
-              <input placeholder="Name (e.g. Johnnie Walker)" value={brandForm.name} onChange={(e) => setBrandForm({ ...brandForm, name: e.target.value })} className="input-dark" data-testid="brand-form-name" />
-              <input placeholder="Short Name (e.g. Walker)" value={brandForm.short_name} onChange={(e) => setBrandForm({ ...brandForm, short_name: e.target.value })} className="input-dark" />
-              <input placeholder="Subtitle (e.g. Striding Man)" value={brandForm.subtitle} onChange={(e) => setBrandForm({ ...brandForm, subtitle: e.target.value })} className="input-dark md:col-span-2" />
-              <input placeholder="Logo URL (PNG/SVG)" value={brandForm.logo_url} onChange={(e) => setBrandForm({ ...brandForm, logo_url: e.target.value })} className="input-dark md:col-span-2" />
-              <div className="flex gap-3 items-center">
-                <input type="color" value={brandForm.color_hex} onChange={(e) => setBrandForm({ ...brandForm, color_hex: e.target.value })} className="w-14 h-14 rounded-xl bg-transparent border border-white/10 cursor-pointer" />
-                <input placeholder="#hex" value={brandForm.color_hex} onChange={(e) => setBrandForm({ ...brandForm, color_hex: e.target.value })} className="input-dark flex-1" />
-              </div>
-              <input placeholder="Search Term (default = name)" value={brandForm.search_term} onChange={(e) => setBrandForm({ ...brandForm, search_term: e.target.value })} className="input-dark" />
-              <input type="number" placeholder="Order Position" value={brandForm.order_position} onChange={(e) => setBrandForm({ ...brandForm, order_position: parseInt(e.target.value || '0') })} className="input-dark" />
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={brandForm.is_active} onChange={(e) => setBrandForm({ ...brandForm, is_active: e.target.checked })} />
-                <span>Active (shown on home)</span>
-              </label>
-
-              {/* Live Preview */}
-              <div className="md:col-span-2 mt-2">
-                <div className="text-xs uppercase tracking-wider text-white/40 mb-2">Live Preview</div>
-                <div className="w-[220px] aspect-[4/5] rounded-3xl overflow-hidden relative">
-                  <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${brandForm.color_hex} 0%, ${brandForm.color_hex}cc 60%, ${brandForm.color_hex}88 100%)` }} />
-                  {brandForm.logo_url && (
-                    <img src={brandForm.logo_url} alt="" className="absolute inset-0 w-full h-full object-contain p-8 opacity-90" onError={(e) => { e.target.style.display = 'none'; }} />
-                  )}
-                  <div className="relative h-full flex flex-col justify-between p-6">
-                    <div className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/80">{brandForm.subtitle || 'Subtitle'}</div>
-                    {!brandForm.logo_url && (
-                      <div className="font-display text-4xl leading-[0.85] uppercase text-white">{brandForm.short_name || brandForm.name || 'Brand'}</div>
-                    )}
+            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 mb-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6" data-testid="admin-brand-form">
+              <ImageUploader
+                value={brandForm.logo_url}
+                onChange={(url) => setBrandForm({ ...brandForm, logo_url: url })}
+                label="Logo (transparent PNG/SVG)"
+                aspect="4/5"
+                testid="brand-logo-uploader"
+              />
+              <div className="space-y-3">
+                <input placeholder="Name (e.g. Johnnie Walker)" value={brandForm.name} onChange={(e) => setBrandForm({ ...brandForm, name: e.target.value })} className="input-dark" data-testid="brand-form-name" />
+                <div className="grid grid-cols-2 gap-3">
+                  <input placeholder="Short Name (Walker)" value={brandForm.short_name} onChange={(e) => setBrandForm({ ...brandForm, short_name: e.target.value })} className="input-dark" />
+                  <input placeholder="Subtitle (Striding Man)" value={brandForm.subtitle} onChange={(e) => setBrandForm({ ...brandForm, subtitle: e.target.value })} className="input-dark" />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Background Color</label>
+                  <div className="flex gap-3 items-center">
+                    <input type="color" value={brandForm.color_hex} onChange={(e) => setBrandForm({ ...brandForm, color_hex: e.target.value })} className="w-14 h-14 rounded-xl bg-transparent border border-white/10 cursor-pointer" />
+                    <input value={brandForm.color_hex} onChange={(e) => setBrandForm({ ...brandForm, color_hex: e.target.value })} className="input-dark flex-1" />
                   </div>
                 </div>
-              </div>
-
-              <div className="md:col-span-2 flex gap-2">
-                <button onClick={saveBrand} className="btn-lime" data-testid="brand-form-save">{editingBrand ? 'Update' : 'Create'}</button>
-                <button onClick={() => { setShowBrand(false); setEditingBrand(null); setBrandForm(blankBrand); }} className="btn-ghost">Cancel</button>
+                <input placeholder="Search term (default = name)" value={brandForm.search_term} onChange={(e) => setBrandForm({ ...brandForm, search_term: e.target.value })} className="input-dark" />
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Display Order</label>
+                  <input type="number" value={brandForm.order_position} onChange={(e) => setBrandForm({ ...brandForm, order_position: parseInt(e.target.value || '0') })} className="input-dark" />
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={brandForm.is_active} onChange={(e) => setBrandForm({ ...brandForm, is_active: e.target.checked })} /> Active
+                </label>
+                <div className="flex gap-2 pt-2">
+                  <button onClick={saveBrand} className="btn-lime" data-testid="brand-form-save">{editingBrand ? 'Update' : 'Create'}</button>
+                  <button onClick={() => { setShowBrand(false); setEditingBrand(null); setBrandForm(blankBrand); }} className="btn-ghost">Cancel</button>
+                </div>
               </div>
             </div>
           )}
@@ -313,19 +491,19 @@ const SuperAdminDashboard = () => {
             {brands.map((b) => (
               <div key={b.brand_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center gap-4" data-testid={`admin-brand-${b.brand_id}`}>
                 <div className="w-14 h-14 rounded-xl shrink-0 relative overflow-hidden" style={{ background: b.color_hex }}>
-                  {b.logo_url && <img src={b.logo_url} alt="" className="absolute inset-0 w-full h-full object-contain p-1.5" onError={(e) => { e.target.style.display = 'none'; }} />}
+                  {b.logo_url && <img src={resolveImageUrl(b.logo_url)} alt="" className="absolute inset-0 w-full h-full object-contain p-1.5" onError={(e) => { e.target.style.display = 'none'; }} />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-display text-lg uppercase truncate">{b.name}</div>
                   <div className="text-[10px] uppercase tracking-wider text-white/40 truncate">{b.subtitle || '—'} · pos {b.order_position}</div>
                   <div className={`text-[10px] uppercase font-bold ${b.is_active ? 'text-[#39ff14]' : 'text-white/30'}`}>{b.is_active ? 'Active' : 'Hidden'}</div>
                 </div>
-                <div className="flex flex-col gap-1 shrink-0">
-                  <button onClick={() => moveBrand(b, -1)} className="w-8 h-8 rounded-full border border-white/10 hover:border-[#39ff14] flex items-center justify-center" title="Move up"><FaArrowUp size={10} /></button>
-                  <button onClick={() => moveBrand(b, 1)} className="w-8 h-8 rounded-full border border-white/10 hover:border-[#39ff14] flex items-center justify-center" title="Move down"><FaArrowDown size={10} /></button>
+                <div className="flex flex-col gap-1">
+                  <button onClick={() => moveBrand(b, -1)} className="w-8 h-8 rounded-full border border-white/10 hover:border-[#39ff14] flex items-center justify-center"><FaArrowUp size={9} /></button>
+                  <button onClick={() => moveBrand(b, 1)} className="w-8 h-8 rounded-full border border-white/10 hover:border-[#39ff14] flex items-center justify-center"><FaArrowDown size={9} /></button>
                 </div>
-                <button onClick={() => editBrand(b)} className="text-[#00f0ff] hover:scale-110 transition-transform text-sm font-bold uppercase tracking-wider" data-testid={`admin-brand-edit-${b.brand_id}`}>Edit</button>
-                <button onClick={() => delBrand(b.brand_id)} className="text-[#ff007f] hover:scale-110 transition-transform" data-testid={`admin-brand-del-${b.brand_id}`}><FaTrash /></button>
+                <button onClick={() => editBrand(b)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center" data-testid={`admin-brand-edit-${b.brand_id}`}><FaPen size={11} /></button>
+                <button onClick={() => delBrand(b.brand_id)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center" data-testid={`admin-brand-del-${b.brand_id}`}><FaTrash size={11} /></button>
               </div>
             ))}
           </div>

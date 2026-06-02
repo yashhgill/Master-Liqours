@@ -25,6 +25,7 @@ from routes_ai import router as ai_router
 from routes_staff import router as staff_router
 from routes_drink_reveal import router as drink_reveal_router
 from routes_brands import public_router as brands_public_router, admin_router as brands_admin_router, seed_default_brands
+from routes_uploads import router as uploads_router
 
 # Load environment
 ROOT_DIR = Path(__file__).parent
@@ -316,9 +317,17 @@ api_router.include_router(staff_router)
 api_router.include_router(drink_reveal_router)
 api_router.include_router(brands_public_router)
 api_router.include_router(brands_admin_router)
+api_router.include_router(uploads_router)
 
 # Include main router
 app.include_router(api_router)
+
+# Serve uploaded files
+from fastapi.staticfiles import StaticFiles
+import os as _os
+_UPLOAD_DIR = _os.environ.get("UPLOAD_DIR", "/app/backend/uploads")
+_os.makedirs(_UPLOAD_DIR, exist_ok=True)
+app.mount("/api/uploads", StaticFiles(directory=_UPLOAD_DIR), name="uploads")
 
 @app.get("/")
 async def root():

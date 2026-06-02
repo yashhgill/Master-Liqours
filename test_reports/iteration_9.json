@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 9 — Super Admin UX upgrade (image uploads + edit/delete buttons + CSV bulk import + Emergent badge hidden). Backend 11/11 pytest cases PASS (POST /api/admin/upload happy path returns 201 with /api/uploads/<uuid>.png URL; static GET /api/uploads/<file> serves PNG bytes; .exe rejected 400; anon 401, customer 403; CSV bulk-import creates new + skips duplicates by name; missing columns 400; non-csv 400; customer forbidden 403; cleanup OK). Frontend 13/13 checks PASS after fixing one critical regression. CRITICAL BUG FIXED IN-PLACE: /app/frontend/src/components/ProductCard.js used resolveImageUrl() at line 57 but was missing its import → 'Uncaught ReferenceError: resolveImageUrl is not defined' overlayed every page (home, /login, /admin, /products) and blocked all user interaction. Added `import { resolveImageUrl } from '../lib/imageUrl';`. After fix: home loads (19 images), /admin Products tab renders panel + 17 product cards each with admin-product-edit-{id}/admin-product-del-{id} buttons, Add Product opens form with product-image-uploader (clean), EDIT prefills name='Upload Test Beer' price='15', csv-sample-btn click triggers download with no error, csv-import-btn present, admin-products-search filters cards live, Banners tab shows banner-image-uploader in form, Brands tab shows brand-logo-uploader + 12 seeded brands each with edit/del. Emergent badge: #emergent-badge anchor exists in DOM but is_visible()=False and 'Made with Emergent' text count = 0. Regression: customer1@test.com login OK, /dashboard renders, /products renders 17 cards, staff sam@masterliqours.my login OK and /staff dashboard renders for Sam with order counters.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ProductCard.js", "issue": "FIXED by sub-agent — was missing `import { resolveImageUrl } from '../lib/imageUrl'`. Used at line 57 → ReferenceError crashed home, /login, /admin, /products with full-screen 'Uncaught runtime errors' overlay, blocking all interactions including admin login. One-line import added; full app now functional.", "selector": "/app/frontend/src/components/ProductCard.js:5", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_uploads.py",
+    "/app/test_reports/pytest/uploads_results.xml"
+  ],
+  "action_items": [
+    "Sub-agent already patched the missing import in /app/frontend/src/components/ProductCard.js — please review the one-line addition. Consider adding a pre-commit `eslint --rule no-undef` check so future missing imports fail CI before reaching preview.",
+    "Optional polish: ImageUploader builds preview URL itself with `${BACKEND}${value}` (line 42) instead of using the shared `resolveImageUrl()` helper. Functionally identical but inconsistent — would be cleaner to reuse the helper everywhere.",
+    "Optional: in routes_uploads.py `_require_admin`, the function is `async` but does no awaiting — can be made sync (cosmetic only).",
+    "Optional: bulk-import returns 200 even when some rows error; consider 207 multi-status or include `created_names` list in response for UI feedback. Current frontend only shows `Created X · Skipped Y` which is fine for MVP."
+  ],
+  "critical_code_review_comments": [
+    "ProductCard.js missing-import bug should have been caught by ESLint (`no-undef`). Recommend enabling strict ESLint in CI.",
+    "routes_uploads.py is clean: extension whitelist, 8 MB cap, uuid filename, proper auth, idempotent CSV import by name, graceful per-row error capture.",
+    "server.py mounts `/api/uploads` via StaticFiles AFTER include_router for /api — works because the api_router doesn't define `/uploads`, but mounting under the same `/api` prefix is fragile. If a future route adds `/api/uploads/...`, it could conflict. Safer to mount on a fully-qualified path served by ingress (e.g. `/api-uploads`) or to use a sub-app.",
+    "SuperAdminDashboard.js (516 lines) is approaching the 700-line threshold — split Products / Banners / Flash Sales / Brands into separate tab components for maintainability."
+  ],
+  "updated_files": [
+    "/app/frontend/src/components/ProductCard.js (added resolveImageUrl import)",
+    "/app/backend/tests/test_uploads.py (new pytest file, 11 cases)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% (13/13) after one-line import fix"},
+  "test_credentials": "Super Admin: yash@masterliqours.my / Admin123! (confirmed working). Master Admin: jojo@masterliqours.my / Admin123!. Customer: customer1@test.com / Test123!. Staff: sam@masterliqours.my / Staff123!.",
+  "seed_data_creation": "Bulk-import test created 2 TEST_-prefixed products which the cleanup test deletes at the end. One leftover product 'Upload Test Beer' from an earlier iteration is present (used here to verify Edit prefill) — left in place since it was not created by this run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All admin UX features (image upload, edit/delete buttons on every row, CSV import + sample, search) verified working. The ProductCard.js import fix is the only code change made by the sub-agent. If next iteration touches admin UI, the data-testid coverage is now complete: admin-tab-{id}, admin-products-panel, admin-add-product-btn, admin-product-form, admin-product-edit-{id}, admin-product-del-{id}, product-image-uploader, product-form-{name,price,category,save}, csv-import-btn, csv-sample-btn, csv-result, admin-products-search, admin-add-banner-btn, banner-image-uploader, admin-add-brand-btn, brand-logo-uploader, admin-brand-edit-{id}, admin-brand-del-{id}. Upload dir is /app/backend/uploads/. Server mounts /api/uploads at app level (after api_router include) — works currently.",
+  "rca of the issue": "ReferenceError: resolveImageUrl is not defined at ProductCard render. Root cause: /app/frontend/src/lib/imageUrl.js was added in this iteration and SuperAdminDashboard.js imports it correctly, but the matching edit to /app/frontend/src/components/ProductCard.js (line 57 changed from `product.image_url` to `resolveImageUrl(product.image_url)`) shipped without the corresponding `import { resolveImageUrl } from '../lib/imageUrl'` at the top of the file. React error boundary then unmounted the entire tree on every page that mounts ProductCard (Home featured-products section), and CRA's dev error overlay blocked further interaction. Reproduction: open / in the preview URL → red 'Uncaught runtime errors' overlay with 'resolveImageUrl is not defined' at ProductCard. Mitigation applied: added the missing import (one line). Verified by reloading the preview — no overlay, 19 images render, /admin reachable, login button clickable. Prevention: enable ESLint `no-undef` (or `import/no-unresolved`) in CI."
+}
