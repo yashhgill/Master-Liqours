@@ -23,6 +23,7 @@ from routes_admin import router as admin_router
 from routes_newsletter import router as newsletter_router
 from routes_ai import router as ai_router
 from routes_staff import router as staff_router
+from routes_drink_reveal import router as drink_reveal_router
 
 # Load environment
 ROOT_DIR = Path(__file__).parent
@@ -311,6 +312,7 @@ api_router.include_router(admin_router)
 api_router.include_router(newsletter_router)
 api_router.include_router(ai_router)
 api_router.include_router(staff_router)
+api_router.include_router(drink_reveal_router)
 
 # Include main router
 app.include_router(api_router)

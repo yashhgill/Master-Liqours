@@ -8,6 +8,7 @@ import {
 import ProductCard from '../components/ProductCard';
 import CategoryChips from '../components/CategoryChips';
 import MyFlashSales from '../components/MyFlashSales';
+import DrinkReveal from '../components/DrinkReveal';
 import { useAuth } from '../context';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -171,6 +172,9 @@ const Home = () => {
 
       {/* MY ACTIVE FLASH SALES (logged-in customers only) */}
       <MyFlashSales user={user} />
+
+      {/* DRINK REVEAL — daily scheduled mystery drop */}
+      <DrinkReveal />
 
       {/* FLASH SALES */}
       {flashSales.length > 0 && (

@@ -9,6 +9,7 @@ from database import get_db
 from models import User, Product, Order, OrderItem, Stock, Reward, Staff, UserTier, OrderStatus, UserRole
 from schemas import CheckoutRequest, OrderResponse, CartItem
 from auth_utils import get_current_user
+from sms_utils import send_sms, status_message
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -181,21 +182,47 @@ async def get_order(
 @router.patch("/{order_id}/status")
 async def update_order_status(
     order_id: str,
-    status: OrderStatus,
+    payload: dict,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Update order status (staff/admin only)"""
+    """Update order status (staff/admin only). Sends SMS to customer when configured."""
     if user.role == UserRole.CUSTOMER:
         raise HTTPException(status_code=403, detail="Tak ada akses")
-    
+
+    new_status = payload.get("status")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="status required")
+    try:
+        new_status_enum = OrderStatus(new_status)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {new_status}")
+
     result = await db.execute(select(Order).where(Order.order_id == order_id))
     order = result.scalar_one_or_none()
-    
     if not order:
         raise HTTPException(status_code=404, detail="Order tak jumpa")
-    
-    order.status = status
+
+    # Staff can only update orders assigned to them
+    if user.role == UserRole.STAFF:
+        staff_row = await db.execute(select(Staff).where(Staff.email == user.email))
+        staff_record = staff_row.scalar_one_or_none()
+        if not staff_record or order.staff_id != staff_record.staff_id:
+            raise HTTPException(status_code=403, detail="Order ni tak assigned to you boss")
+
+    order.status = new_status_enum
     await db.commit()
-    
-    return {"message": "Status updated", "order": order}
+
+    # Notify customer via SMS (dormant if Twilio not configured)
+    customer_result = await db.execute(select(User).where(User.user_id == order.user_id))
+    customer = customer_result.scalar_one_or_none()
+    staff_name = "Our staff"
+    if order.staff_id:
+        s = await db.execute(select(Staff).where(Staff.staff_id == order.staff_id))
+        staff_obj = s.scalar_one_or_none()
+        if staff_obj:
+            staff_name = staff_obj.name
+    if customer and customer.phone:
+        send_sms(customer.phone, status_message(new_status, order.order_id, staff_name))
+
+    return {"message": "Status updated", "status": new_status, "order_id": order_id}
