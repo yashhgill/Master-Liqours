@@ -64,8 +64,8 @@ const Checkout = () => {
             <FaWhatsapp size={20} /> Open WhatsApp & Pay
           </a>
 
-          <button onClick={() => { clearCart(); navigate('/dashboard'); }} className="block mt-4 text-sm text-white/50 hover:text-[#ff007f] mx-auto" data-testid="checkout-done-btn">
-            I've sent payment →
+          <button onClick={() => { clearCart(); navigate(`/orders/${done.order_id}`); }} className="block mt-4 text-sm text-white/50 hover:text-[#ff007f] mx-auto" data-testid="checkout-done-btn">
+            View order detail →
           </button>
         </div>
       </div>

@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 4 P1 features tested. Backend (30 tests, 29 passed + 1 xfail) verifies: flash-sale UTC ISO roundtrip, /api/orders/:id access control (owner=200, anon=401, other-cust=403, master_admin=200, unknown=403/404), staff enrichment populated on /my-orders and /:id (returns Sam + +60126884925 for customer1). Frontend verified: MyFlashSales widget renders (2 cards, countdown ticks every second 01:39:12->01:39:10) when logged in and is hidden when logged out; OrderDetail page renders all 5 testids correctly with WhatsApp href starting with https://wa.me/60126884925?text=; SuperAdminDashboard flash-sale form shows TZ-aware labels ('START (YOUR LOCAL TIME · UTC)') and live preview ('Will run from 12/15/2026, 10:00:00 AM to 12/15/2026, 6:00:00 PM (stored in UTC).'). CRITICAL BUG: UserDashboard.js uses <Link> but never imports it -> whole dashboard crashes (React error boundary triggers, dash-order-* testids never render).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/flash-sales/active", "issue": "end_time (and stored datetimes generally) are serialized as naive ISO strings without Z/offset (e.g. '2026-06-02T20:49:09.469303'). Frontend new Date() will parse this as LOCAL time, so the countdown will be off by the user's UTC offset for any non-UTC browser. Backend should serialize with tzinfo (Z suffix) or store as tz-aware UTC."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "UserDashboard", "issue": "Missing `import { Link } from 'react-router-dom'` — component throws ReferenceError, error boundary triggers, Recent Orders list (incl. data-testid=\"dash-order-{id}\" links) never renders. Confirmed via console: 'An error occurred in the <UserDashboard> component.'", "selector": "[data-testid^='dash-order-']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Fix UserDashboard.js: add `import { Link } from 'react-router-dom';` so Recent Orders renders and dash-order-{id} links are clickable to /orders/:id (re-test).",
+    "Optional but recommended: make backend serialize order/flash-sale datetimes as tz-aware ISO (Z suffix) so the frontend countdown is correct in non-UTC browsers (Asia/Kuala_Lumpur etc.). Easiest fix: ensure datetimes stored in Mongo are tz-aware UTC and Pydantic response models return them with isoformat() that includes offset, or append 'Z' on serialization."
+  ],
+  "critical_code_review_comments": [
+    "UserDashboard.js line 73 uses <Link> without import — breaks the page (CRITICAL).",
+    "Backend stores/returns naive datetimes; the new toISOString()-on-create UX is correct but the read path loses timezone info, partially defeating the feature.",
+    "MyFlashSales.js useCountdown uses `new Date(endTime).getTime()` directly — combined with naive ISO from backend it will misbehave in non-UTC browsers. Consider normalizing endTime by appending 'Z' if missing offset."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (29/29 functional + 1 xfail flagged)", "frontend": "~85% (4/5 features fully working; UserDashboard broken)"},
+  "test_credentials": "Used /app/memory/test_credentials.md: customer1@test.com/Test123!, customer2@test.com/Test123!, yash@masterliqours.my/Admin123!, jojo@masterliqours.my/Admin123!",
+  "seed_data_creation": "Created (then implicitly retained) one test flash sale via TestFlashSaleUtcRoundtrip — sale_id not cleaned up if DELETE endpoint absent. Existing seeded hero banner 'Spend & Win the Night' and Chardonnay flash sale verified intact.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 4 features mostly pass. Re-run after main agent adds the missing Link import in UserDashboard.js — then verify dash-order-{id} link is present, clickable, and navigates to /orders/{id}. The flash-sale UTC backend roundtrip is verified in TestFlashSaleUtcRoundtrip. The countdown TZ issue (xfail) is a real bug but won't fail in UTC-browser testing — should be reproduced with a non-UTC TZ if needed.",
+  "rca_of_the_issue": "UserDashboard.js was changed in this iteration to wrap each recent order in a <Link to=`/orders/${id}`>, but the import statement was not updated. At runtime React throws 'Link is not defined' on render of the orders block, caught by the global error boundary, so the entire UserDashboard route renders a fallback / blank. Fix is a one-line import: `import { Link } from 'react-router-dom';` at top of /app/frontend/src/pages/UserDashboard.js."
+}

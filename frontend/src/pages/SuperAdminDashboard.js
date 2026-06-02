@@ -56,8 +56,25 @@ const SuperAdminDashboard = () => {
   };
   const createFlash = async () => {
     try {
-      await axios.post(`${API}/admin/flash-sales`, flashForm, { withCredentials: true });
-      setShowFlash(false); load();
+      // Convert datetime-local (browser local time, naive) → ISO with user's timezone offset
+      const toIsoWithTZ = (localStr) => {
+        if (!localStr) return null;
+        const d = new Date(localStr); // browser parses as local time
+        return d.toISOString(); // serialize as UTC ISO with Z
+      };
+      const payload = {
+        ...flashForm,
+        start_time: toIsoWithTZ(flashForm.start_time),
+        end_time: toIsoWithTZ(flashForm.end_time),
+      };
+      if (!payload.start_time || !payload.end_time) {
+        alert('Pick both start and end time lah boss');
+        return;
+      }
+      await axios.post(`${API}/admin/flash-sales`, payload, { withCredentials: true });
+      setShowFlash(false);
+      setFlashForm({ product_id: '', discount_percentage: 0, start_time: '', end_time: '' });
+      load();
     } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
   };
   const delBanner = async (id) => {
@@ -155,14 +172,25 @@ const SuperAdminDashboard = () => {
           </div>
           {showFlash && (
             <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 mb-6 space-y-3">
-              <select value={flashForm.product_id} onChange={(e) => setFlashForm({ ...flashForm, product_id: e.target.value })} className="input-dark">
+              <select value={flashForm.product_id} onChange={(e) => setFlashForm({ ...flashForm, product_id: e.target.value })} className="input-dark" data-testid="flash-product-select">
                 <option value="">Select Product</option>
                 {products.map((p) => <option key={p.product_id} value={p.product_id}>{p.name}</option>)}
               </select>
-              <input type="number" placeholder="Discount %" value={flashForm.discount_percentage} onChange={(e) => setFlashForm({ ...flashForm, discount_percentage: parseFloat(e.target.value) })} className="input-dark" />
-              <input type="datetime-local" value={flashForm.start_time} onChange={(e) => setFlashForm({ ...flashForm, start_time: e.target.value })} className="input-dark" />
-              <input type="datetime-local" value={flashForm.end_time} onChange={(e) => setFlashForm({ ...flashForm, end_time: e.target.value })} className="input-dark" />
-              <button onClick={createFlash} className="btn-lime">Create Sale</button>
+              <input type="number" placeholder="Discount %" value={flashForm.discount_percentage} onChange={(e) => setFlashForm({ ...flashForm, discount_percentage: parseFloat(e.target.value) })} className="input-dark" data-testid="flash-discount-input" />
+              <div>
+                <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-1.5">Start (your local time · {Intl.DateTimeFormat().resolvedOptions().timeZone})</label>
+                <input type="datetime-local" value={flashForm.start_time} onChange={(e) => setFlashForm({ ...flashForm, start_time: e.target.value })} className="input-dark" data-testid="flash-start-input" />
+              </div>
+              <div>
+                <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-1.5">End (your local time · {Intl.DateTimeFormat().resolvedOptions().timeZone})</label>
+                <input type="datetime-local" value={flashForm.end_time} onChange={(e) => setFlashForm({ ...flashForm, end_time: e.target.value })} className="input-dark" data-testid="flash-end-input" />
+              </div>
+              {flashForm.start_time && flashForm.end_time && (
+                <div className="text-xs text-white/50 bg-white/5 rounded-xl px-3 py-2">
+                  Will run from <span className="text-[#39ff14] font-bold">{new Date(flashForm.start_time).toLocaleString()}</span> to <span className="text-[#ff007f] font-bold">{new Date(flashForm.end_time).toLocaleString()}</span> (stored in UTC).
+                </div>
+              )}
+              <button onClick={createFlash} className="btn-lime" data-testid="flash-create-btn">Create Sale</button>
             </div>
           )}
           <div className="space-y-3">

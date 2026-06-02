@@ -7,6 +7,8 @@ import {
 } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 import CategoryChips from '../components/CategoryChips';
+import MyFlashSales from '../components/MyFlashSales';
+import { useAuth } from '../context';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -55,6 +57,7 @@ const highlightTitle = (title, accent) => {
 };
 
 const Home = () => {
+  const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [flashSales, setFlashSales] = useState([]);
   const [slides, setSlides] = useState(DEFAULT_HERO);
@@ -165,6 +168,9 @@ const Home = () => {
 
       {/* CATEGORY CHIPS */}
       <CategoryChips />
+
+      {/* MY ACTIVE FLASH SALES (logged-in customers only) */}
+      <MyFlashSales user={user} />
 
       {/* FLASH SALES */}
       {flashSales.length > 0 && (

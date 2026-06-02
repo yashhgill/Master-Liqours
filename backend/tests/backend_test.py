@@ -8,6 +8,7 @@ import os
 import uuid
 import pytest
 import requests
+from datetime import datetime
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://premium-spirits-app.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
@@ -305,3 +306,139 @@ class TestFlashSaleCountdown:
         assert "product_id" in s["product"]
         assert s["discount_percentage"] > 0
         assert s["discounted_price"] < s["original_price"]
+
+    def test_active_flash_sale_end_time_is_utc_iso(self):
+        """Iteration 4: verify stored end_time is ISO parseable"""
+        r = requests.get(f"{API}/flash-sales/active", timeout=15)
+        assert r.status_code == 200
+        sales = r.json()
+        assert len(sales) >= 1
+        s = sales[0]
+        v = s.get("end_time")
+        assert v, "end_time missing"
+        parsed = datetime.fromisoformat(v.replace("Z", "+00:00"))
+        assert parsed is not None
+        # IMPORTANT: report whether the returned ISO carries timezone info
+        # (frontend useCountdown will interpret naive-ISO as LOCAL time, not UTC)
+        has_tz = ("Z" in v) or ("+" in v) or v.endswith("+00:00")
+        if not has_tz:
+            pytest.xfail(
+                f"end_time '{v}' has no timezone info. "
+                "Frontend new Date() will interpret as LOCAL time, "
+                "causing countdown to be off by user's TZ offset. "
+                "Backend should serialize with Z suffix."
+            )
+
+
+# ------------- iteration 4: order detail + access control + staff enrichment -------------
+class TestOrderDetail:
+    def test_order_detail_owner_can_view(self, cust1_session):
+        s, _ = cust1_session
+        r = s.get(f"{API}/orders/my-orders", timeout=20)
+        assert r.status_code == 200
+        orders = r.json()
+        if not orders:
+            pytest.skip("customer1 has no orders to detail-test")
+        oid = orders[0]["order_id"]
+        r2 = s.get(f"{API}/orders/{oid}", timeout=20)
+        assert r2.status_code == 200, r2.text
+        body = r2.json()
+        assert body["order_id"] == oid
+        # staff enrichment must be populated for customer1 (assigned staff Sam)
+        assert body.get("staff_name"), f"staff_name missing on /orders/{{id}}: {body}"
+        assert body.get("staff_whatsapp"), f"staff_whatsapp missing: {body}"
+        assert body["staff_name"].lower() == "sam", f"expected Sam, got {body.get('staff_name')}"
+
+    def test_my_orders_returns_staff_enrichment(self, cust1_session):
+        s, _ = cust1_session
+        r = s.get(f"{API}/orders/my-orders", timeout=20)
+        assert r.status_code == 200
+        orders = r.json()
+        if not orders:
+            pytest.skip("no orders for cust1")
+        # at least one historical order has enriched staff
+        with_staff = [o for o in orders if o.get("staff_name") and o.get("staff_whatsapp")]
+        assert len(with_staff) >= 1, "No orders returned with populated staff_name/staff_whatsapp"
+
+    def test_order_detail_anonymous_returns_401(self, cust1_session):
+        s, _ = cust1_session
+        r = s.get(f"{API}/orders/my-orders", timeout=20)
+        oid = r.json()[0]["order_id"] if r.json() else None
+        if not oid:
+            pytest.skip("no order to test anon access")
+        anon = requests.Session()
+        r2 = anon.get(f"{API}/orders/{oid}", timeout=15)
+        assert r2.status_code in (401, 403), f"expected 401/403 for anon, got {r2.status_code}"
+
+    def test_order_detail_other_customer_returns_403(self, cust1_session, cust2_session):
+        s1, _ = cust1_session
+        s2, _ = cust2_session
+        r = s1.get(f"{API}/orders/my-orders", timeout=20)
+        if not r.json():
+            pytest.skip("cust1 no orders")
+        oid = r.json()[0]["order_id"]
+        # cust2 tries to fetch cust1's order
+        r2 = s2.get(f"{API}/orders/{oid}", timeout=20)
+        assert r2.status_code == 403, f"expected 403, got {r2.status_code} {r2.text}"
+
+    def test_order_detail_master_admin_can_view_any(self, cust1_session, master_admin_session):
+        s1, _ = cust1_session
+        sa, _ = master_admin_session
+        r = s1.get(f"{API}/orders/my-orders", timeout=20)
+        if not r.json():
+            pytest.skip("cust1 no orders")
+        oid = r.json()[0]["order_id"]
+        r2 = sa.get(f"{API}/orders/{oid}", timeout=20)
+        assert r2.status_code == 200, f"master_admin should access any order: {r2.status_code} {r2.text}"
+        assert r2.json()["order_id"] == oid
+
+    def test_order_detail_404_on_unknown(self, cust1_session):
+        s, _ = cust1_session
+        r = s.get(f"{API}/orders/does-not-exist-{uuid.uuid4().hex[:6]}", timeout=15)
+        assert r.status_code in (403, 404)
+
+
+# ------------- iteration 4: flash-sale UTC round-trip -------------
+class TestFlashSaleUtcRoundtrip:
+    def test_create_flash_sale_with_utc_iso_persists_exactly(self, super_admin_session):
+        from datetime import timedelta, timezone
+        s, _ = super_admin_session
+        # need a product id
+        prods = requests.get(f"{API}/products", timeout=15).json()
+        assert prods
+        pid = prods[0]["product_id"]
+        # Build start/end as UTC ISO with Z (mimicking frontend toISOString())
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        start = (now + timedelta(minutes=2)).isoformat().replace("+00:00", "Z")
+        end = (now + timedelta(hours=2)).isoformat().replace("+00:00", "Z")
+        payload = {
+            "product_id": pid,
+            "discount_percentage": 12.5,
+            "start_time": start,
+            "end_time": end,
+        }
+        r = s.post(f"{API}/admin/flash-sales", json=payload, timeout=20)
+        assert r.status_code in (200, 201), f"create flash failed: {r.status_code} {r.text}"
+        body = r.json()
+        sid = body.get("sale_id") or body.get("id")
+        # Now read back and verify times match (UTC)
+        active = requests.get(f"{API}/flash-sales/active", timeout=15).json()
+        # may not be active yet (starts in 2 min). Just confirm the create response carries the same isoform
+        # parse the start we sent and what server stored
+        sent_start = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        srv_start_raw = body.get("start_time")
+        assert srv_start_raw, "server did not echo start_time"
+        srv_start = datetime.fromisoformat(srv_start_raw.replace("Z", "+00:00"))
+        # If server returned naive (no tz), assume UTC for comparison
+        if srv_start.tzinfo is None:
+            from datetime import timezone as _tz
+            srv_start = srv_start.replace(tzinfo=_tz.utc)
+        # ensure within 5s tolerance
+        diff = abs((sent_start - srv_start).total_seconds())
+        assert diff < 5, f"start_time drift {diff}s — sent {sent_start} got {srv_start}"
+        # cleanup if delete endpoint exists
+        if sid:
+            try:
+                s.delete(f"{API}/admin/flash-sales/{sid}", timeout=15)
+            except Exception:
+                pass

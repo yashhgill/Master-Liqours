@@ -70,7 +70,12 @@ const UserDashboard = () => {
         ) : (
           <div className="space-y-3">
             {orders.slice(0, 8).map((o) => (
-              <div key={o.order_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+              <Link
+                key={o.order_id}
+                to={`/orders/${o.order_id}`}
+                className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center justify-between hover:border-[#ff007f]/40 transition-colors block"
+                data-testid={`dash-order-${o.order_id}`}
+              >
                 <div>
                   <div className="font-bold">#{o.order_id.slice(0, 8).toUpperCase()}</div>
                   <div className="text-xs text-white/50">{new Date(o.created_at).toLocaleDateString()} · {o.points_earned}pts earned</div>
@@ -82,7 +87,7 @@ const UserDashboard = () => {
                     o.status === 'cancelled' ? 'bg-[#ff007f]/20 text-[#ff007f]' : 'bg-[#ffd700]/20 text-[#ffd700]'
                   }`}>{o.status}</span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

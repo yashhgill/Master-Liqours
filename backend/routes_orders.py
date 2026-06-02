@@ -29,6 +29,22 @@ def _clean_dict(obj):
     """Remove SQLAlchemy internal state from a model __dict__"""
     return {k: v for k, v in obj.__dict__.items() if not k.startswith('_')}
 
+async def _enrich_with_staff(order, db):
+    """Attach staff_whatsapp + staff_name to an order's clean dict"""
+    payload = {
+        **_clean_dict(order),
+        "items": [_clean_dict(item) for item in order.order_items],
+        "staff_whatsapp": None,
+        "staff_name": None,
+    }
+    if order.staff_id:
+        staff_result = await db.execute(select(Staff).where(Staff.staff_id == order.staff_id))
+        staff = staff_result.scalar_one_or_none()
+        if staff:
+            payload["staff_whatsapp"] = staff.whatsapp_number
+            payload["staff_name"] = staff.name
+    return payload
+
 @router.post("/checkout", response_model=OrderResponse)
 async def checkout(
     data: CheckoutRequest,
@@ -137,13 +153,7 @@ async def get_my_orders(
     )
     orders = result.scalars().all()
     
-    return [
-        {
-            **_clean_dict(order),
-            "items": [_clean_dict(item) for item in order.order_items]
-        }
-        for order in orders
-    ]
+    return [await _enrich_with_staff(order, db) for order in orders]
 
 @router.get("/{order_id}", response_model=OrderResponse)
 async def get_order(
@@ -166,10 +176,7 @@ async def get_order(
     if order.user_id != user.user_id and user.role.value not in ['staff', 'super_admin', 'master_admin']:
         raise HTTPException(status_code=403, detail="Tak ada akses")
     
-    return {
-        **_clean_dict(order),
-        "items": [_clean_dict(item) for item in order.order_items]
-    }
+    return await _enrich_with_staff(order, db)
 
 @router.patch("/{order_id}/status")
 async def update_order_status(

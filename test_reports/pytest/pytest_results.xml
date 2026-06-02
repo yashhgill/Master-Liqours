@@ -1,1 +1,65 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="22" time="64.055" timestamp="2026-06-02T18:52:24.953452+00:00" hostname="agent-env-31fe9bc5-5128-4f85-827c-d74657e4c1e2"><testcase classname="tests.backend_test.TestHealth" name="test_root" time="0.183" /><testcase classname="tests.backend_test.TestHealth" name="test_products_listing" time="4.660" /><testcase classname="tests.backend_test.TestHealth" name="test_hero_banners" time="0.938" /><testcase classname="tests.backend_test.TestHealth" name="test_flash_sales" time="0.936" /><testcase classname="tests.backend_test.TestHealth" name="test_categories" time="0.934" /><testcase classname="tests.backend_test.TestAuth" name="test_login_success_manglish_and_no_password_hash" time="2.749" /><testcase classname="tests.backend_test.TestAuth" name="test_login_invalid" time="1.109" /><testcase classname="tests.backend_test.TestAuth" name="test_me_endpoint" time="3.579" /><testcase classname="tests.backend_test.TestAuth" name="test_register_round_robin_assignment" time="4.039" /><testcase classname="tests.backend_test.TestAuth" name="test_register_referral_sam001" time="3.055" /><testcase classname="tests.backend_test.TestCheckout" name="test_checkout_customer1_returns_staff_whatsapp" time="7.721" /><testcase classname="tests.backend_test.TestCheckout" name="test_my_orders" time="2.979" /><testcase classname="tests.backend_test.TestCheckout" name="test_gold_tier_shipping_discount" time="7.266" /><testcase classname="tests.backend_test.TestCheckout" name="test_platinum_tier_benefits" time="5.535" /><testcase classname="tests.backend_test.TestAdmin" name="test_super_admin_hero_banner_crud" time="5.660" /><testcase classname="tests.backend_test.TestAdmin" name="test_master_admin_analytics" time="5.783" /><testcase classname="tests.backend_test.TestMisc" name="test_newsletter_subscribe" time="1.829" /><testcase classname="tests.backend_test.TestMisc" name="test_ai_chat" time="2.462" /><testcase classname="tests.backend_test.TestGoogleSession" name="test_google_session_empty_body_returns_400" time="0.135" /><testcase classname="tests.backend_test.TestGoogleSession" name="test_google_session_invalid_id_returns_401" time="0.338" /><testcase classname="tests.backend_test.TestHeroBannersContent" name="test_hero_banner_has_seeded_content" time="0.805" /><testcase classname="tests.backend_test.TestFlashSaleCountdown" name="test_active_flash_sale_has_future_end_time" time="1.068" /></testsuite></testsuites>
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="30" time="118.401" timestamp="2026-06-02T19:05:31.066685+00:00" hostname="agent-env-31fe9bc5-5128-4f85-827c-d74657e4c1e2"><testcase classname="backend.tests.backend_test.TestHealth" name="test_root" time="0.577" /><testcase classname="backend.tests.backend_test.TestHealth" name="test_products_listing" time="4.917" /><testcase classname="backend.tests.backend_test.TestHealth" name="test_hero_banners" time="1.391" /><testcase classname="backend.tests.backend_test.TestHealth" name="test_flash_sales" time="0.952" /><testcase classname="backend.tests.backend_test.TestHealth" name="test_categories" time="0.963" /><testcase classname="backend.tests.backend_test.TestAuth" name="test_login_success_manglish_and_no_password_hash" time="3.164" /><testcase classname="backend.tests.backend_test.TestAuth" name="test_login_invalid" time="1.525" /><testcase classname="backend.tests.backend_test.TestAuth" name="test_me_endpoint" time="2.931" /><testcase classname="backend.tests.backend_test.TestAuth" name="test_register_round_robin_assignment" time="2.926" /><testcase classname="backend.tests.backend_test.TestAuth" name="test_register_referral_sam001" time="2.593" /><testcase classname="backend.tests.backend_test.TestCheckout" name="test_checkout_customer1_returns_staff_whatsapp" time="7.734" /><testcase classname="backend.tests.backend_test.TestCheckout" name="test_my_orders" time="3.856" /><testcase classname="backend.tests.backend_test.TestCheckout" name="test_gold_tier_shipping_discount" time="6.735" /><testcase classname="backend.tests.backend_test.TestCheckout" name="test_platinum_tier_benefits" time="7.459" /><testcase classname="backend.tests.backend_test.TestAdmin" name="test_super_admin_hero_banner_crud" time="6.997" /><testcase classname="backend.tests.backend_test.TestAdmin" name="test_master_admin_analytics" time="6.351" /><testcase classname="backend.tests.backend_test.TestMisc" name="test_newsletter_subscribe" time="1.999" /><testcase classname="backend.tests.backend_test.TestMisc" name="test_ai_chat" time="3.272" /><testcase classname="backend.tests.backend_test.TestGoogleSession" name="test_google_session_empty_body_returns_400" time="0.297" /><testcase classname="backend.tests.backend_test.TestGoogleSession" name="test_google_session_invalid_id_returns_401" time="0.379" /><testcase classname="backend.tests.backend_test.TestHeroBannersContent" name="test_hero_banner_has_seeded_content" time="0.885" /><testcase classname="backend.tests.backend_test.TestFlashSaleCountdown" name="test_active_flash_sale_has_future_end_time" time="0.899" /><testcase classname="backend.tests.backend_test.TestFlashSaleCountdown" name="test_active_flash_sale_end_time_is_utc_iso" time="0.961"><failure message="AssertionError: start_time missing&#10;assert None">backend/tests/backend_test.py:320: in test_active_flash_sale_end_time_is_utc_iso
+    assert v, f"{k} missing"
+E   AssertionError: start_time missing
+E   assert None</failure></testcase><testcase classname="backend.tests.backend_test.TestOrderDetail" name="test_order_detail_owner_can_view" time="4.171" /><testcase classname="backend.tests.backend_test.TestOrderDetail" name="test_my_orders_returns_staff_enrichment" time="2.535" /><testcase classname="backend.tests.backend_test.TestOrderDetail" name="test_order_detail_anonymous_returns_401" time="2.836" /><testcase classname="backend.tests.backend_test.TestOrderDetail" name="test_order_detail_other_customer_returns_403" time="22.558"><failure message="requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='premium-spirits-app.preview.emergentagent.com', port=443): Read timed out. (read timeout=20)">/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:534: in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/urllib3/connection.py:571: in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/http/client.py:1415: in getresponse
+    response.begin()
+/usr/local/lib/python3.11/http/client.py:330: in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/http/client.py:291: in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/socket.py:718: in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/ssl.py:1314: in recv_into
+    return self.read(nbytes, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/ssl.py:1166: in read
+    return self._sslobj.read(len, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+/root/.venv/lib/python3.11/site-packages/requests/adapters.py:696: in send
+    resp = conn.urlopen(
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/root/.venv/lib/python3.11/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/urllib3/util/util.py:39: in reraise
+    raise value
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:536: in _make_request
+    self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:367: in _raise_timeout
+    raise ReadTimeoutError(
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='premium-spirits-app.preview.emergentagent.com', port=443): Read timed out. (read timeout=20)
+
+During handling of the above exception, another exception occurred:
+backend/tests/backend_test.py:374: in test_order_detail_other_customer_returns_403
+    r2 = s2.get(f"{API}/orders/{oid}", timeout=20)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:671: in get
+    return self.request("GET", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:651: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:784: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/adapters.py:742: in send
+    raise ReadTimeout(e, request=request)
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='premium-spirits-app.preview.emergentagent.com', port=443): Read timed out. (read timeout=20)</failure></testcase><testcase classname="backend.tests.backend_test.TestOrderDetail" name="test_order_detail_master_admin_can_view_any" time="9.006" /><testcase classname="backend.tests.backend_test.TestOrderDetail" name="test_order_detail_404_on_unknown" time="1.162" /><testcase classname="backend.tests.backend_test.TestFlashSaleUtcRoundtrip" name="test_create_flash_sale_with_utc_iso_persists_exactly" time="4.219"><failure message="TypeError: can't subtract offset-naive and offset-aware datetimes">backend/tests/backend_test.py:426: in test_create_flash_sale_with_utc_iso_persists_exactly
+    diff = abs((sent_start - srv_start).total_seconds())
+                ^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: can't subtract offset-naive and offset-aware datetimes</failure></testcase></testsuite></testsuites>
