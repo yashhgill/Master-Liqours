@@ -228,3 +228,19 @@ class HeroBanner(Base):
     order_position = Column(Integer, default=0)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class Brand(Base):
+    __tablename__ = 'brands'
+
+    brand_id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(255), nullable=False, unique=True)
+    short_name = Column(String(100), nullable=True)
+    subtitle = Column(String(255), nullable=True)
+    logo_url = Column(String(500), nullable=True)
+    color_hex = Column(String(20), nullable=True)
+    search_term = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+    order_position = Column(Integer, default=0)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)

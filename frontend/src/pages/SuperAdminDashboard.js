@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context';
-import { FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlassAlt, FaArrowUp, FaArrowDown } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -9,6 +9,7 @@ const TABS = [
   { id: 'banners', label: 'Hero Banners', icon: FaImage },
   { id: 'products', label: 'Products', icon: FaBoxOpen },
   { id: 'flash-sales', label: 'Flash Sales', icon: FaBolt },
+  { id: 'brands', label: 'Brands', icon: FaWineGlassAlt },
 ];
 
 const SuperAdminDashboard = () => {
@@ -17,13 +18,18 @@ const SuperAdminDashboard = () => {
   const [banners, setBanners] = useState([]);
   const [products, setProducts] = useState([]);
   const [flashSales, setFlashSales] = useState([]);
+  const [brands, setBrands] = useState([]);
   const [showBanner, setShowBanner] = useState(false);
   const [showProduct, setShowProduct] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
+  const [showBrand, setShowBrand] = useState(false);
+  const [editingBrand, setEditingBrand] = useState(null);
 
   const [bannerForm, setBannerForm] = useState({ title: '', subtitle: '', cta_text: '', cta_link: '', background_image: '', is_active: true, order_position: 0 });
   const [productForm, setProductForm] = useState({ name: '', price: 0, description: '', category: '', image_url: '', is_active: true });
   const [flashForm, setFlashForm] = useState({ product_id: '', discount_percentage: 0, start_time: '', end_time: '' });
+  const blankBrand = { name: '', short_name: '', subtitle: '', logo_url: '', color_hex: '#1a1a1a', search_term: '', is_active: true, order_position: 0 };
+  const [brandForm, setBrandForm] = useState(blankBrand);
 
   useEffect(() => { load(); }, [tab]);
 
@@ -35,9 +41,12 @@ const SuperAdminDashboard = () => {
       } else if (tab === 'products') {
         const r = await axios.get(`${API}/products`);
         setProducts(r.data);
-      } else {
+      } else if (tab === 'flash-sales') {
         const r = await axios.get(`${API}/admin/flash-sales?include_expired=true`, { withCredentials: true });
         setFlashSales(r.data);
+      } else if (tab === 'brands') {
+        const r = await axios.get(`${API}/admin/brands`, { withCredentials: true });
+        setBrands(r.data);
       }
     } catch (e) { console.error(e); }
   };
@@ -80,6 +89,43 @@ const SuperAdminDashboard = () => {
   const delBanner = async (id) => {
     if (!window.confirm('Delete banner?')) return;
     await axios.delete(`${API}/admin/hero-banners/${id}`, { withCredentials: true });
+    load();
+  };
+
+  // Brand CRUD
+  const saveBrand = async () => {
+    try {
+      if (editingBrand) {
+        await axios.put(`${API}/admin/brands/${editingBrand}`, brandForm, { withCredentials: true });
+      } else {
+        await axios.post(`${API}/admin/brands`, brandForm, { withCredentials: true });
+      }
+      setShowBrand(false);
+      setEditingBrand(null);
+      setBrandForm(blankBrand);
+      load();
+    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+  };
+  const editBrand = (b) => {
+    setEditingBrand(b.brand_id);
+    setBrandForm({
+      name: b.name || '', short_name: b.short_name || '', subtitle: b.subtitle || '',
+      logo_url: b.logo_url || '', color_hex: b.color_hex || '#1a1a1a',
+      search_term: b.search_term || '', is_active: !!b.is_active, order_position: b.order_position || 0,
+    });
+    setShowBrand(true);
+  };
+  const delBrand = async (id) => {
+    if (!window.confirm('Delete brand?')) return;
+    await axios.delete(`${API}/admin/brands/${id}`, { withCredentials: true });
+    load();
+  };
+  const moveBrand = async (b, delta) => {
+    await axios.put(`${API}/admin/brands/${b.brand_id}`, {
+      name: b.name, short_name: b.short_name, subtitle: b.subtitle, logo_url: b.logo_url,
+      color_hex: b.color_hex, search_term: b.search_term, is_active: b.is_active,
+      order_position: (b.order_position || 0) + delta,
+    }, { withCredentials: true });
     load();
   };
 
@@ -203,6 +249,83 @@ const SuperAdminDashboard = () => {
                 <div className="text-xs text-white/40 mt-1">
                   {new Date(s.start_time).toLocaleString()} → {new Date(s.end_time).toLocaleString()}
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'brands' && (
+        <div className="surface p-6" data-testid="admin-brands-panel">
+          <div className="flex justify-between mb-6 flex-wrap gap-3">
+            <h2 className="display-md">Brands ({brands.length})</h2>
+            <button
+              onClick={() => { setEditingBrand(null); setBrandForm(blankBrand); setShowBrand(!showBrand); }}
+              className="btn-pink"
+              data-testid="admin-add-brand-btn"
+            >
+              <FaPlus /> Add Brand
+            </button>
+          </div>
+
+          {showBrand && (
+            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 mb-6 grid grid-cols-1 md:grid-cols-2 gap-3" data-testid="admin-brand-form">
+              <input placeholder="Name (e.g. Johnnie Walker)" value={brandForm.name} onChange={(e) => setBrandForm({ ...brandForm, name: e.target.value })} className="input-dark" data-testid="brand-form-name" />
+              <input placeholder="Short Name (e.g. Walker)" value={brandForm.short_name} onChange={(e) => setBrandForm({ ...brandForm, short_name: e.target.value })} className="input-dark" />
+              <input placeholder="Subtitle (e.g. Striding Man)" value={brandForm.subtitle} onChange={(e) => setBrandForm({ ...brandForm, subtitle: e.target.value })} className="input-dark md:col-span-2" />
+              <input placeholder="Logo URL (PNG/SVG)" value={brandForm.logo_url} onChange={(e) => setBrandForm({ ...brandForm, logo_url: e.target.value })} className="input-dark md:col-span-2" />
+              <div className="flex gap-3 items-center">
+                <input type="color" value={brandForm.color_hex} onChange={(e) => setBrandForm({ ...brandForm, color_hex: e.target.value })} className="w-14 h-14 rounded-xl bg-transparent border border-white/10 cursor-pointer" />
+                <input placeholder="#hex" value={brandForm.color_hex} onChange={(e) => setBrandForm({ ...brandForm, color_hex: e.target.value })} className="input-dark flex-1" />
+              </div>
+              <input placeholder="Search Term (default = name)" value={brandForm.search_term} onChange={(e) => setBrandForm({ ...brandForm, search_term: e.target.value })} className="input-dark" />
+              <input type="number" placeholder="Order Position" value={brandForm.order_position} onChange={(e) => setBrandForm({ ...brandForm, order_position: parseInt(e.target.value || '0') })} className="input-dark" />
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={brandForm.is_active} onChange={(e) => setBrandForm({ ...brandForm, is_active: e.target.checked })} />
+                <span>Active (shown on home)</span>
+              </label>
+
+              {/* Live Preview */}
+              <div className="md:col-span-2 mt-2">
+                <div className="text-xs uppercase tracking-wider text-white/40 mb-2">Live Preview</div>
+                <div className="w-[220px] aspect-[4/5] rounded-3xl overflow-hidden relative">
+                  <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${brandForm.color_hex} 0%, ${brandForm.color_hex}cc 60%, ${brandForm.color_hex}88 100%)` }} />
+                  {brandForm.logo_url && (
+                    <img src={brandForm.logo_url} alt="" className="absolute inset-0 w-full h-full object-contain p-8 opacity-90" onError={(e) => { e.target.style.display = 'none'; }} />
+                  )}
+                  <div className="relative h-full flex flex-col justify-between p-6">
+                    <div className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/80">{brandForm.subtitle || 'Subtitle'}</div>
+                    {!brandForm.logo_url && (
+                      <div className="font-display text-4xl leading-[0.85] uppercase text-white">{brandForm.short_name || brandForm.name || 'Brand'}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="md:col-span-2 flex gap-2">
+                <button onClick={saveBrand} className="btn-lime" data-testid="brand-form-save">{editingBrand ? 'Update' : 'Create'}</button>
+                <button onClick={() => { setShowBrand(false); setEditingBrand(null); setBrandForm(blankBrand); }} className="btn-ghost">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {brands.map((b) => (
+              <div key={b.brand_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center gap-4" data-testid={`admin-brand-${b.brand_id}`}>
+                <div className="w-14 h-14 rounded-xl shrink-0 relative overflow-hidden" style={{ background: b.color_hex }}>
+                  {b.logo_url && <img src={b.logo_url} alt="" className="absolute inset-0 w-full h-full object-contain p-1.5" onError={(e) => { e.target.style.display = 'none'; }} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-display text-lg uppercase truncate">{b.name}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-white/40 truncate">{b.subtitle || '—'} · pos {b.order_position}</div>
+                  <div className={`text-[10px] uppercase font-bold ${b.is_active ? 'text-[#39ff14]' : 'text-white/30'}`}>{b.is_active ? 'Active' : 'Hidden'}</div>
+                </div>
+                <div className="flex flex-col gap-1 shrink-0">
+                  <button onClick={() => moveBrand(b, -1)} className="w-8 h-8 rounded-full border border-white/10 hover:border-[#39ff14] flex items-center justify-center" title="Move up"><FaArrowUp size={10} /></button>
+                  <button onClick={() => moveBrand(b, 1)} className="w-8 h-8 rounded-full border border-white/10 hover:border-[#39ff14] flex items-center justify-center" title="Move down"><FaArrowDown size={10} /></button>
+                </div>
+                <button onClick={() => editBrand(b)} className="text-[#00f0ff] hover:scale-110 transition-transform text-sm font-bold uppercase tracking-wider" data-testid={`admin-brand-edit-${b.brand_id}`}>Edit</button>
+                <button onClick={() => delBrand(b.brand_id)} className="text-[#ff007f] hover:scale-110 transition-transform" data-testid={`admin-brand-del-${b.brand_id}`}><FaTrash /></button>
               </div>
             ))}
           </div>

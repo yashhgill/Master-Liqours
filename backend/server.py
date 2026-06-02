@@ -24,6 +24,7 @@ from routes_newsletter import router as newsletter_router
 from routes_ai import router as ai_router
 from routes_staff import router as staff_router
 from routes_drink_reveal import router as drink_reveal_router
+from routes_brands import public_router as brands_public_router, admin_router as brands_admin_router, seed_default_brands
 
 # Load environment
 ROOT_DIR = Path(__file__).parent
@@ -313,6 +314,8 @@ api_router.include_router(newsletter_router)
 api_router.include_router(ai_router)
 api_router.include_router(staff_router)
 api_router.include_router(drink_reveal_router)
+api_router.include_router(brands_public_router)
+api_router.include_router(brands_admin_router)
 
 # Include main router
 app.include_router(api_router)
@@ -334,6 +337,18 @@ async def health_check():
 async def startup():
     logger.info("🚀 Masterliqours API started!")
     logger.info("📦 Domain: masterliqours.my")
+    # Ensure new tables exist + seed default brands
+    try:
+        from database import engine, AsyncSessionLocal
+        from models import Base
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with AsyncSessionLocal() as db:
+            n = await seed_default_brands(db)
+            if n:
+                logger.info(f"🍷 Seeded {n} default brands")
+    except Exception as e:
+        logger.exception("Startup table/seed failed: %s", e)
     logger.info("✅ All routes loaded")
 
 if __name__ == "__main__":

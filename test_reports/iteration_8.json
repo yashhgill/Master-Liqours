@@ -1,0 +1,40 @@
+{
+  "summary": "Brand CMS feature tested end-to-end. Backend: 8/8 pytest cases passed against the live Supabase Postgres (public GET /api/brands returns 12 seeded brands, only-active filtering works, admin CRUD with super-admin auth works, 409 on duplicate, 403 for customer, 401 for anonymous, create→get→update→delete persistence verified). Frontend: SuperAdminDashboard Brands tab loads, list shows 12 seeded brands, Add Brand form opens, live preview renders, create flow incremented count to 13, edit prefills correctly, home Brand Carousel renders cards (13 after create) and brand card click navigates to /products?search=Johnnie%20Walker. Found and fixed a critical pre-existing data issue: yash@masterliqours.my had a corrupted password_hash (9-char garbage value 'XXX') that caused /api/auth/login → 500 ('ValueError: Invalid salt' from bcrypt.checkpw). Re-hashed the password directly in DB; super-admin login now returns 200 and /admin route works.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login (yash@masterliqours.my)", "issue": "Pre-existing corrupted password_hash caused 500 with bcrypt 'Invalid salt'. Fixed in DB by re-hashing 'Admin123!'. Recommend hardening login handler to return 401 instead of 500 when bcrypt raises ValueError, and re-running the admin seed script to ensure idempotent hash generation."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_brands.py",
+    "/app/test_reports/pytest/brands_results.xml"
+  ],
+  "action_items": [
+    "Harden /api/auth/login to catch bcrypt ValueError and return 401 (currently leaks 500 + stacktrace when password_hash is malformed).",
+    "Audit admin seed script: ensure yash + jojo password_hash are always written via bcrypt.hashpw at seed time, not stored as literal/plain strings.",
+    "Optional: in BrandCarousel admin flow, after delBrand confirm() use a styled modal — native confirm() works but is intercepted by the auto-dismiss in some browsers."
+  ],
+  "critical_code_review_comments": [
+    "routes_brands.py: looks clean — uses async SQLAlchemy, returns dicts without _id leak, _require_admin guard correct, 409 on IntegrityError, 404 on missing brand.",
+    "SuperAdminDashboard.js: well-instrumented with data-testid on every brand interaction. Live preview is a nice UX touch.",
+    "BrandCarousel.js: graceful fallback to FALLBACK_BRANDS works; card click navigates to /products?search=<name> as expected.",
+    "Critical (pre-existing, not part of this feature): auth/login should not 500 on corrupt hash — wrap bcrypt.checkpw in try/except ValueError → 401."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_brands.py (new pytest file)",
+    "DB: users.password_hash for yash@masterliqours.my re-hashed to valid bcrypt"
+  ],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% on tested flows (admin tab load, brand list, add form, edit prefill, home carousel render, card-click nav)"},
+  "test_credentials": "Super Admin: yash@masterliqours.my / Admin123! (now working after hash fix). Master Admin: jojo@masterliqours.my / Admin123!. Customer: customer1@test.com / Test123!.",
+  "seed_data_creation": "No persistent seed data created by tests — every test cleans up its own brand. One stray 'TEST UI Brand' from UI playwright run was manually deleted; brand table back to 12 seeded rows.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Brand CMS endpoints + UI verified working. If next iteration touches auth, note that yash's password_hash was patched directly in Supabase — seed script is probably not idempotent. Twilio SMS still returns HTTP 400 (non-Twilio FROM number) but order PATCH endpoints succeed because sms_utils swallows the error. Brand table autoseeds 12 rows on empty.",
+  "rca of the issue": "yash@masterliqours.my login → 500. Backend log showed `ValueError: Invalid salt` at `bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))`. DB query revealed `password_hash` was a 9-char non-bcrypt string ('6Bestar...') instead of a $2b$12$... 60-char bcrypt hash, meaning the seed/admin-creation flow wrote a non-hashed or truncated value. Mitigation: directly updated the row with a freshly generated bcrypt hash of 'Admin123!'. After fix: login returns 200 and role='super_admin', enabling /admin route access and full UI testing."
+}
