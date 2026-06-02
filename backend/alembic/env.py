@@ -24,7 +24,7 @@ from models import *
 config = context.config
 
 # Set sqlalchemy.url from environment variable (sync URL without +asyncpg)
-DATABASE_URL = os.environ.get('DATABASE_URL', '').replace('postgresql+asyncpg://', 'postgresql://')
+DATABASE_URL = os.environ.get('DATABASE_URL', '').replace('postgresql+asyncpg://', 'postgresql://').replace('?pgbouncer=true', '')
 config.set_main_option('sqlalchemy.url', DATABASE_URL)
 
 # Interpret the config file for Python logging.

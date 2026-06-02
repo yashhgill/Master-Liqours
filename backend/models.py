@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from database import Base
@@ -7,6 +7,9 @@ import enum
 
 def generate_uuid():
     return str(uuid.uuid4())
+
+def utcnow():
+    return datetime.utcnow()
 
 # Enums
 class UserTier(str, enum.Enum):
@@ -43,7 +46,7 @@ class User(Base):
     referral_code = Column(String(50), nullable=True)
     assigned_staff_id = Column(String(36), ForeignKey('staff.staff_id'), nullable=True, index=True)
     picture = Column(String(500), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=utcnow)
     
     # Relationships
     assigned_staff = relationship('Staff', back_populates='customers', foreign_keys=[assigned_staff_id])
@@ -60,7 +63,7 @@ class UserSession(Base):
     user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, index=True)
     session_token = Column(String(500), unique=True, nullable=False, index=True)
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=utcnow)
     
     # Relationships
     user = relationship('User', back_populates='sessions')
@@ -76,7 +79,7 @@ class Staff(Base):
     qr_code_url = Column(String(500), nullable=True)
     whatsapp_number = Column(String(20), nullable=True)
     orders_count = Column(Integer, default=0)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=utcnow)
     
     # Relationships
     customers = relationship('User', back_populates='assigned_staff', foreign_keys=[User.assigned_staff_id])
@@ -95,7 +98,7 @@ class Product(Base):
     category = Column(String(100), nullable=False, index=True)
     image_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True, index=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=utcnow)
     staff_id = Column(String(36), ForeignKey('staff.staff_id'), nullable=True, index=True)
     
     # Relationships
@@ -112,7 +115,7 @@ class Stock(Base):
     product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)
     staff_id = Column(String(36), ForeignKey('staff.staff_id', ondelete='CASCADE'), nullable=False, index=True)
     quantity = Column(Integer, default=0)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=utcnow, onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     product = relationship('Product', back_populates='stock')
@@ -132,7 +135,7 @@ class Order(Base):
     discount_applied = Column(Float, default=0)
     shipping_discount = Column(Float, default=0)
     points_earned = Column(Integer, default=0)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
     
     # Relationships
     user = relationship('User', back_populates='orders')
@@ -163,7 +166,7 @@ class Reward(Base):
     points = Column(Integer, nullable=False)
     type = Column(String(50), nullable=False)  # 'earned', 'redeemed', 'bonus'
     description = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
     
     # Relationships
     user = relationship('User', back_populates='rewards')
@@ -178,7 +181,7 @@ class FlashSale(Base):
     start_time = Column(DateTime, nullable=False, index=True)
     end_time = Column(DateTime, nullable=False, index=True)
     is_active = Column(Boolean, default=True, index=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=utcnow)
     
     # Relationships
     product = relationship('Product', back_populates='flash_sales')
@@ -196,7 +199,7 @@ class DiscountCode(Base):
     used_count = Column(Integer, default=0)
     active = Column(Boolean, default=True, index=True)
     expires_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=utcnow)
 
 
 class NewsletterSubscriber(Base):
@@ -205,7 +208,7 @@ class NewsletterSubscriber(Base):
     subscriber_id = Column(String(36), primary_key=True, default=generate_uuid)
     email = Column(String(255), unique=True, nullable=False, index=True)
     subscribed = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=utcnow)
 
 
 class ChatMessage(Base):
@@ -215,7 +218,7 @@ class ChatMessage(Base):
     user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, index=True)
     role = Column(String(20), nullable=False)  # 'user' or 'assistant'
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
     
     # Relationships
     user = relationship('User', back_populates='chat_messages')

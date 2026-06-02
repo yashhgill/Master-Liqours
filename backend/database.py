@@ -9,8 +9,11 @@ load_dotenv(Path(__file__).parent / '.env')
 
 DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/masterliqours')
 
+# Remove pgbouncer=true for asyncpg
+DATABASE_URL_CLEAN = DATABASE_URL.replace('?pgbouncer=true', '')
+
 # Convert to async URL
-ASYNC_DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+asyncpg://')
+ASYNC_DATABASE_URL = DATABASE_URL_CLEAN.replace('postgresql://', 'postgresql+asyncpg://')
 
 # Create async engine with proper configuration for Supabase Transaction Pooler
 engine = create_async_engine(
