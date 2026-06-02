@@ -51,6 +51,11 @@ Premium Malaysian liquor e-commerce platform (`masterliqours.my`). Features requ
 ```
 
 ## ✅ Implemented (latest changes Feb 2026)
+- [Feb 2026] Hero carousel now reads live banners from `/api/hero-banners` with auto-rotate; falls back to `DEFAULT_HERO` slides when API empty.
+- [Feb 2026] Login page has "Continue with Google" button using Emergent Google Auth (redirects to `auth.emergentagent.com/?redirect=<origin>/dashboard`); `/pages/AuthCallback.js` consumes `#session_id=...` fragment and POSTs to `/api/auth/google-session`; AuthProvider skips `/me` check when callback in progress; `setUserDirect` exposed for direct user injection.
+- [Feb 2026] ProductCard now shows live HH:MM:SS countdown overlay on flash-sale products via `useCountdown(endTime)` hook; auto-hides when expired (data-testid: `countdown-{product_id}`).
+- [Feb 2026] Backend `/api/auth/google-session` accepts JSON `{session_id}` body, validates input (400/401), creates user with round-robin staff assignment.
+- [Feb 2026] Flash-sale creation now accepts both timezone-aware & naive datetimes (normalizes to naive UTC for DB).
 - [Feb 2026] Backend FastAPI + Supabase wired, seeded with real staff (Sam/Logen/Mukesh/Sharvin) + Jojo (Master) + Yash (Super) + 3 test customers.
 - [Feb 2026] All backend endpoints (auth, products, orders, admin, staff, AI, newsletter) verified — 18/18 backend tests PASS.
 - [Feb 2026] Order checkout returns `staff_whatsapp` + `staff_name` → Frontend Checkout success screen routes to the assigned staff's WhatsApp.
