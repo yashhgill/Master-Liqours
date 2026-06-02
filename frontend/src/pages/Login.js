@@ -46,6 +46,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                 required
+                data-testid="login-email-input"
               />
             </div>
             
@@ -57,6 +58,7 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                 required
+                data-testid="login-password-input"
               />
             </div>
             
@@ -64,6 +66,7 @@ const Login = () => {
               type="submit"
               disabled={loading}
               className="w-full btn-neon"
+              data-testid="login-submit-btn"
             >
               {loading ? 'Loading...' : 'Login'}
             </button>

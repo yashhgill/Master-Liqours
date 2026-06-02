@@ -121,7 +121,7 @@ async def login(
         path="/"
     )
     
-    return {"message": "Login berjaya!", "user": user}
+    return {"message": "Login berjaya!", "user": UserResponse.model_validate(user, from_attributes=True)}
 
 @api_router.post("/auth/google-session")
 async def google_auth_session(

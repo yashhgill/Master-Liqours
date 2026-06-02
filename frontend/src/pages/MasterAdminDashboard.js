@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context';
-import { FaTrendingUp, FaBox, FaUsers, FaBolt } from 'react-icons/fa';
+import { FaChartLine, FaBox, FaUsers, FaBolt } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -41,7 +41,7 @@ const MasterAdminDashboard = () => {
         <div className="card">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-pink-500/20 rounded-full flex items-center justify-center">
-              <FaTrendingUp className="text-pink-500" size={24} />
+              <FaChartLine className="text-pink-500" size={24} />
             </div>
             <div>
               <p className="text-gray-600">Total Sales</p>

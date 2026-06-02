@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context';
-import { FaFaShoppingBag, FaBolt } from 'react-icons/fa';
+import { FaShoppingBag, FaBolt } from 'react-icons/fa';
 
 const ProductCard = ({ product, flashSale }) => {
   const { addToCart } = useCart();
@@ -59,8 +59,9 @@ const ProductCard = ({ product, flashSale }) => {
           <button
             onClick={handleAddToCart}
             className="bg-black text-white px-4 py-2 rounded-lg hover:bg-pink-500 transition flex items-center space-x-2"
+            data-testid={`product-card-add-btn-${product.product_id}`}
           >
-            <FaFaShoppingBag size={18} />
+            <FaShoppingBag size={18} />
             <span>Add</span>
           </button>
         </div>

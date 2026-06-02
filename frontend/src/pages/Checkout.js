@@ -62,8 +62,9 @@ const Checkout = () => {
   };
   
   if (showWhatsApp && orderData) {
-    const staffPhone = '+60126884925'; // Default
-    const message = `Hi! I've placed order #${orderData.order_id.slice(0, 8)}. Total: RM${(finalTotal + shippingCost).toFixed(2)}`;
+    const staffPhone = (orderData.staff_whatsapp || '+60126884925').replace(/\+/g, '');
+    const staffName = orderData.staff_name || 'staff';
+    const message = `Hi ${staffName}! I've placed order #${orderData.order_id.slice(0, 8)}. Total: RM${(finalTotal + shippingCost).toFixed(2)}. Address: ${address}`;
     const whatsappUrl = `https://wa.me/${staffPhone}?text=${encodeURIComponent(message)}`;
     
     return (
@@ -79,7 +80,7 @@ const Checkout = () => {
             <p className="text-sm text-gray-600">Please transfer to staff & send screenshot</p>
           </div>
           
-          <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="btn-neon inline-block mb-4">
+          <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="btn-neon inline-block mb-4" data-testid="checkout-whatsapp-btn">
             Open WhatsApp to Pay
           </a>
           
@@ -163,6 +164,7 @@ const Checkout = () => {
             onClick={handleCheckout}
             disabled={loading}
             className="w-full btn-neon"
+            data-testid="checkout-place-order-btn"
           >
             {loading ? 'Processing...' : 'Place Order'}
           </button>

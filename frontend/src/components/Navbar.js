@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { FaLink, useNavigate } from 'react-router-dom';
-import { FauseAuth, useCart } from '../context';
-import { FaFaShoppingCart, FaBars, FaTimes, FaUser, FaSignOutAlt } from 'react-icons/fa';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth, useCart } from '../context';
+import { FaShoppingCart, FaBars, FaTimes, FaUser, FaSignOutAlt } from 'react-icons/fa';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const { cart } = useCart();
   const navigate = useNavigate();
-  const [mobileFaBarsOpen, setMobileFaBarsOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   
@@ -76,19 +76,19 @@ const Navbar = () => {
             )}
             
             {/* Mobile FaBars Button */}
-            <button onClick={() => setMobileFaBarsOpen(!mobileFaBarsOpen)} className="md:hidden text-white">
-              {mobileFaBarsOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
+            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-white">
+              {mobileMenuOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
             </button>
           </div>
         </div>
         
         {/* Mobile FaBars */}
-        {mobileFaBarsOpen && (
+        {mobileMenuOpen && (
           <div className="md:hidden py-4 space-y-2 border-t border-white/10">
-            <Link to="/" className="block py-2 text-white hover:text-pink-500 transition" onClick={() => setMobileFaBarsOpen(false)}>Home</Link>
-            <Link to="/products" className="block py-2 text-white hover:text-pink-500 transition" onClick={() => setMobileFaBarsOpen(false)}>Products</Link>
+            <Link to="/" className="block py-2 text-white hover:text-pink-500 transition" onClick={() => setMobileMenuOpen(false)}>Home</Link>
+            <Link to="/products" className="block py-2 text-white hover:text-pink-500 transition" onClick={() => setMobileMenuOpen(false)}>Products</Link>
             {user && (
-              <Link to={getDashboardLink()} className="block py-2 text-white hover:text-pink-500 transition" onClick={() => setMobileFaBarsOpen(false)}>Dashboard</Link>
+              <Link to={getDashboardLink()} className="block py-2 text-white hover:text-pink-500 transition" onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
             )}
           </div>
         )}

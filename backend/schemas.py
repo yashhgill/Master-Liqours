@@ -61,7 +61,7 @@ class CheckoutRequest(BaseModel):
 class OrderResponse(BaseModel):
     order_id: str
     user_id: str
-    staff_id: str
+    staff_id: Optional[str] = None
     total: float
     status: OrderStatus
     shipping_address: str
@@ -70,6 +70,8 @@ class OrderResponse(BaseModel):
     points_earned: int
     created_at: datetime
     items: List[dict]
+    staff_whatsapp: Optional[str] = None
+    staff_name: Optional[str] = None
 
 # Staff Schemas
 class StaffResponse(BaseModel):

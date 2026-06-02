@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { FaArrowRight, FaBolt, FaTrendingUp, FaTrophy } from 'react-icons/fa';
+import { FaArrowRight, FaBolt, FaChartLine, FaTrophy } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -111,7 +111,7 @@ const Home = () => {
             <div className="card-dark text-center">
               <div className="flex justify-center mb-4">
                 <div className="w-16 h-16 bg-cyan-500/20 rounded-full flex items-center justify-center">
-                  <FaTrendingUp className="text-cyan-500" size={32} />
+                  <FaChartLine className="text-cyan-500" size={32} />
                 </div>
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Best Prices</h3>

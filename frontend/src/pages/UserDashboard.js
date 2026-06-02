@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context';
-import { FaTrophy, FaBox, TrendingUp } from 'react-icons/fa';
+import { FaTrophy, FaBox, FaChartLine } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -62,7 +62,7 @@ const UserDashboard = () => {
         <div className="card">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
-              <FaTrendingUp className="text-purple-500" size={24} />
+              <FaChartLine className="text-purple-500" size={24} />
             </div>
             <div>
               <p className="text-gray-600">Points</p>

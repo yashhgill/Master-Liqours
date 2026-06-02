@@ -25,6 +25,10 @@ def calculate_tier_benefits(user: User, subtotal: float):
     
     return shipping_discount, product_discount
 
+def _clean_dict(obj):
+    """Remove SQLAlchemy internal state from a model __dict__"""
+    return {k: v for k, v in obj.__dict__.items() if not k.startswith('_')}
+
 @router.post("/checkout", response_model=OrderResponse)
 async def checkout(
     data: CheckoutRequest,
@@ -102,9 +106,21 @@ async def checkout(
     )
     order = result.scalar_one()
     
+    # Get staff details for WhatsApp
+    staff_whatsapp = None
+    staff_name = None
+    if order.staff_id:
+        staff_result = await db.execute(select(Staff).where(Staff.staff_id == order.staff_id))
+        staff = staff_result.scalar_one_or_none()
+        if staff:
+            staff_whatsapp = staff.whatsapp_number
+            staff_name = staff.name
+    
     return {
-        **order.__dict__,
-        "items": [item.__dict__ for item in order.order_items]
+        **_clean_dict(order),
+        "items": [_clean_dict(item) for item in order.order_items],
+        "staff_whatsapp": staff_whatsapp,
+        "staff_name": staff_name
     }
 
 @router.get("/my-orders", response_model=List[OrderResponse])
@@ -123,8 +139,8 @@ async def get_my_orders(
     
     return [
         {
-            **order.__dict__,
-            "items": [item.__dict__ for item in order.order_items]
+            **_clean_dict(order),
+            "items": [_clean_dict(item) for item in order.order_items]
         }
         for order in orders
     ]
@@ -151,8 +167,8 @@ async def get_order(
         raise HTTPException(status_code=403, detail="Tak ada akses")
     
     return {
-        **order.__dict__,
-        "items": [item.__dict__ for item in order.order_items]
+        **_clean_dict(order),
+        "items": [_clean_dict(item) for item in order.order_items]
     }
 
 @router.patch("/{order_id}/status")

@@ -112,6 +112,7 @@ const Register = () => {
               type="submit"
               disabled={loading}
               className="w-full btn-neon"
+              data-testid="register-submit-btn"
             >
               {loading ? 'Loading...' : 'Register'}
             </button>
