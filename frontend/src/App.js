@@ -1,8 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, CartProvider, useAuth } from './context';
+import AnnouncementBar from './components/AnnouncementBar';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import FloatingWhatsApp from './components/FloatingWhatsApp';
 import ChatWidget from './components/ChatWidget';
 import Home from './pages/Home';
 import Products from './pages/Products';
@@ -15,35 +17,19 @@ import UserDashboard from './pages/UserDashboard';
 import StaffDashboard from './pages/StaffDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import MasterAdminDashboard from './pages/MasterAdminDashboard';
-import '@/App.css';
 
 const ProtectedRoute = ({ children, roles = [] }) => {
   const { user, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-white text-2xl">Loading...</div>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    return <Navigate to="/login" />;
-  }
-  
-  if (roles.length > 0 && !roles.includes(user.role)) {
-    return <Navigate to="/" />;
-  }
-  
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-white/60">Loading...</div>;
+  if (!user) return <Navigate to="/login" />;
+  if (roles.length > 0 && !roles.includes(user.role)) return <Navigate to="/" />;
   return children;
 };
 
 function AppContent() {
-  const { user } = useAuth();
-  
   return (
-    <div className="App min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[#050505]">
+      <AnnouncementBar />
       <Navbar />
       <main className="flex-grow">
         <Routes>
@@ -53,30 +39,16 @@ function AppContent() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          
-          <Route path="/checkout" element={
-            <ProtectedRoute><Checkout /></ProtectedRoute>
-          } />
-          
-          <Route path="/dashboard" element={
-            <ProtectedRoute roles={['customer']}><UserDashboard /></ProtectedRoute>
-          } />
-          
-          <Route path="/staff" element={
-            <ProtectedRoute roles={['staff']}><StaffDashboard /></ProtectedRoute>
-          } />
-          
-          <Route path="/admin" element={
-            <ProtectedRoute roles={['super_admin']}><SuperAdminDashboard /></ProtectedRoute>
-          } />
-          
-          <Route path="/master" element={
-            <ProtectedRoute roles={['master_admin']}><MasterAdminDashboard /></ProtectedRoute>
-          } />
+          <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute roles={['customer']}><UserDashboard /></ProtectedRoute>} />
+          <Route path="/staff" element={<ProtectedRoute roles={['staff']}><StaffDashboard /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute roles={['super_admin']}><SuperAdminDashboard /></ProtectedRoute>} />
+          <Route path="/master" element={<ProtectedRoute roles={['master_admin']}><MasterAdminDashboard /></ProtectedRoute>} />
         </Routes>
       </main>
       <Footer />
-      {user && <ChatWidget />}
+      <FloatingWhatsApp />
+      <ChatWidget />
     </div>
   );
 }

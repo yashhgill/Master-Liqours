@@ -1,134 +1,87 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context';
-import { FaTrophy, FaBox, FaChartLine } from 'react-icons/fa';
+import { FaTrophy, FaBox, FaChartLine, FaGem } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const UserDashboard = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
-  const [rewards, setRewards] = useState([]);
-  
+
   useEffect(() => {
-    loadData();
+    axios.get(`${API}/orders/my-orders`, { withCredentials: true })
+      .then((r) => setOrders(r.data)).catch(() => {});
   }, []);
-  
-  const loadData = async () => {
-    try {
-      const [ordersRes, rewardsRes] = await Promise.all([
-        axios.get(`${API}/orders/my-orders`, { withCredentials: true }),
-        axios.get(`${API}/users/rewards`, { withCredentials: true })
-      ]);
-      setOrders(ordersRes.data);
-      setRewards(rewardsRes.data);
-    } catch (error) {
-      console.error('Failed to load:', error);
-    }
-  };
-  
-  const getTierProgress = () => {
-    if (user.tier === 'platinum') return 100;
-    if (user.tier === 'gold') return Math.min(100, (user.points / 10000) * 100);
-    return Math.min(100, (user.points / 5000) * 100);
-  };
-  
-  const getNextTier = () => {
-    if (user.tier === 'platinum') return null;
-    if (user.tier === 'gold') return { name: 'Platinum', points: 10000 };
-    return { name: 'Gold', points: 5000 };
-  };
-  
-  const nextTier = getNextTier();
-  
+
+  const nextTier = user?.tier === 'platinum' ? null : user?.tier === 'gold' ? { name: 'Platinum', goal: 10000 } : { name: 'Gold', goal: 5000 };
+  const progress = nextTier ? Math.min(100, ((user.points || 0) / nextTier.goal) * 100) : 100;
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold gradient-text mb-8">Dashboard</h1>
-      
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="card">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-pink-500/20 rounded-full flex items-center justify-center">
-              <FaTrophy className="text-pink-500" size={24} />
-            </div>
-            <div>
-              <p className="text-gray-600">Your Tier</p>
-              <p className="text-2xl font-bold">{user.tier.toUpperCase()}</p>
-            </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12">
+      <div className="eyebrow mb-3">My Account</div>
+      <h1 className="display-xl mb-2">Hi <span className="neon-pink-text">{user?.name}</span></h1>
+      <p className="text-white/60 mb-10">Welcome back boss. Here's your shopping recap.</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+        <div className="surface p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="eyebrow !mb-0">Tier</div>
+            <FaTrophy className="text-[#ffd700]" />
           </div>
+          <div className="display-lg uppercase">{user?.tier}</div>
         </div>
-        
-        <div className="card">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
-              <FaChartLine className="text-purple-500" size={24} />
-            </div>
-            <div>
-              <p className="text-gray-600">Points</p>
-              <p className="text-2xl font-bold">{user.points}</p>
-            </div>
+        <div className="surface p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="eyebrow !mb-0">Points</div>
+            <FaChartLine className="text-[#00f0ff]" />
           </div>
+          <div className="display-lg neon-cyan-text">{user?.points || 0}</div>
         </div>
-        
-        <div className="card">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center">
-              <FaBox className="text-cyan-500" size={24} />
-            </div>
-            <div>
-              <p className="text-gray-600">Total Orders</p>
-              <p className="text-2xl font-bold">{orders.length}</p>
-            </div>
+        <div className="surface p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="eyebrow !mb-0">Orders</div>
+            <FaBox className="text-[#39ff14]" />
           </div>
+          <div className="display-lg neon-lime-text">{orders.length}</div>
         </div>
       </div>
-      
-      {/* Tier Progress */}
+
       {nextTier && (
-        <div className="card mb-8">
-          <h2 className="text-xl font-bold mb-4">Progress to {nextTier.name}</h2>
-          <div className="w-full bg-gray-200 rounded-full h-4 mb-2">
-            <div
-              className="bg-gradient-to-r from-pink-500 to-purple-600 h-4 rounded-full transition-all"
-              style={{ width: `${getTierProgress()}%` }}
-            />
+        <div className="surface p-6 mb-10">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="eyebrow !mb-1">Progress</div>
+              <div className="font-bold">Climb to {nextTier.name}</div>
+            </div>
+            <FaGem className="text-[#00f0ff]" size={20} />
           </div>
-          <p className="text-sm text-gray-600">
-            {nextTier.points - user.points} points to {nextTier.name} tier!
-          </p>
+          <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#ff007f] via-[#ffd700] to-[#00f0ff]" style={{ width: `${progress}%` }} />
+          </div>
+          <div className="text-xs text-white/50 mt-2">{Math.max(0, nextTier.goal - (user?.points || 0))} points lagi to {nextTier.name} tier!</div>
         </div>
       )}
-      
-      {/* Recent Orders */}
-      <div className="card">
-        <h2 className="text-2xl font-bold mb-6">Recent Orders</h2>
-        
+
+      <div className="surface p-6">
+        <h2 className="display-md mb-6">Recent Orders</h2>
         {orders.length === 0 ? (
-          <p className="text-gray-600 text-center py-8">No orders yet. Start shopping!</p>
+          <div className="text-center py-12 text-white/40">No orders yet boss. Start shopping lah!</div>
         ) : (
-          <div className="space-y-4">
-            {orders.slice(0, 5).map(order => (
-              <div key={order.order_id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <p className="font-bold">Order #{order.order_id.slice(0, 8)}</p>
-                    <p className="text-sm text-gray-600">
-                      {new Date(order.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                    order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                    order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                    'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {order.status}
-                  </span>
+          <div className="space-y-3">
+            {orders.slice(0, 8).map((o) => (
+              <div key={o.order_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                  <div className="font-bold">#{o.order_id.slice(0, 8).toUpperCase()}</div>
+                  <div className="text-xs text-white/50">{new Date(o.created_at).toLocaleDateString()} · {o.points_earned}pts earned</div>
                 </div>
-                <p className="text-2xl font-bold text-pink-600">RM{order.total.toFixed(2)}</p>
-                <p className="text-sm text-gray-600 mt-2">
-                  +{order.points_earned} points earned!
-                </p>
+                <div className="text-right">
+                  <div className="font-display text-xl neon-pink-text">RM{o.total.toFixed(2)}</div>
+                  <span className={`inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded-full mt-1 ${
+                    o.status === 'delivered' ? 'bg-[#39ff14]/20 text-[#39ff14]' :
+                    o.status === 'cancelled' ? 'bg-[#ff007f]/20 text-[#ff007f]' : 'bg-[#ffd700]/20 text-[#ffd700]'
+                  }`}>{o.status}</span>
+                </div>
               </div>
             ))}
           </div>

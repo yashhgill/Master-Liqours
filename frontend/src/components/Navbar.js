@@ -1,99 +1,192 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useCart } from '../context';
-import { FaShoppingCart, FaBars, FaTimes, FaUser, FaSignOutAlt } from 'react-icons/fa';
+import {
+  FaSearch, FaShoppingBag, FaUser, FaBars, FaTimes, FaSignOutAlt, FaChevronDown,
+} from 'react-icons/fa';
+
+const categories = ['Wine', 'Beer', 'Whiskey', 'Gin', 'Rum', 'Vodka'];
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const { cart } = useCart();
   const navigate = useNavigate();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
-  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  
-  const handleLogout = async () => {
-    await logout();
-    navigate('/');
-  };
-  
-  const getDashboardLink = () => {
-    if (!user) return null;
-    switch(user.role) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [catOpen, setCatOpen] = useState(false);
+
+  const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+
+  const dashLink = () => {
+    if (!user) return '/login';
+    switch (user.role) {
       case 'master_admin': return '/master';
       case 'super_admin': return '/admin';
       case 'staff': return '/staff';
       default: return '/dashboard';
     }
   };
-  
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (search.trim()) navigate(`/products?search=${encodeURIComponent(search.trim())}`);
+  };
+
   return (
-    <nav className="bg-black/95 backdrop-blur-sm border-b border-white/10 sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold gradient-text">Masterliqours</span>
-          </Link>
-          
-          {/* Desktop FaBars */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="text-white hover:text-pink-500 transition">Home</Link>
-            <Link to="/products" className="text-white hover:text-pink-500 transition">Products</Link>
-            {user && (
-              <Link to={getDashboardLink()} className="text-white hover:text-pink-500 transition">
-                Dashboard
+    <header className="sticky top-0 z-40 bg-[#050505]/95 backdrop-blur-xl border-b border-white/10">
+      {/* Top row: logo + search + account + cart */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-4 flex items-center gap-4 lg:gap-8">
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-3 shrink-0" data-testid="nav-logo">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#ffd700] to-[#b8860b] flex items-center justify-center text-black font-black text-xl shadow-[0_0_25px_rgba(255,215,0,0.35)]">
+            M
+          </div>
+          <div className="hidden sm:block leading-none">
+            <div className="text-[10px] uppercase tracking-[0.35em] text-[#ffd700]/80">Premium Liquor</div>
+            <div className="logo-text text-3xl">Masterliqours</div>
+          </div>
+        </Link>
+
+        {/* Search */}
+        <form
+          onSubmit={handleSearch}
+          className="hidden md:flex flex-1 max-w-2xl relative"
+        >
+          <FaSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-white/40" size={16} />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search bottles, brands, categories..."
+            className="w-full bg-white text-black rounded-full pl-12 pr-6 py-3 placeholder:text-black/40 outline-none border-2 border-transparent focus:border-[#ff007f] transition-all"
+            data-testid="nav-search-input"
+          />
+        </form>
+
+        {/* Right actions */}
+        <div className="flex items-center gap-3 ml-auto">
+          {user ? (
+            <div className="hidden md:flex items-center gap-2">
+              <Link
+                to={dashLink()}
+                className="flex items-center gap-2 px-3 py-2 rounded-full border border-white/15 hover:border-[#ff007f] text-sm font-semibold transition-all"
+                data-testid="nav-account"
+              >
+                <FaUser size={14} className="text-[#ffd700]" />
+                <span className="max-w-[100px] truncate">{user.name}</span>
               </Link>
+              <button
+                onClick={async () => { await logout(); navigate('/'); }}
+                className="p-2.5 rounded-full border border-white/15 hover:border-[#ff007f] transition-all"
+                title="Logout"
+                data-testid="nav-logout-btn"
+              >
+                <FaSignOutAlt size={14} />
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              className="hidden md:inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/15 hover:border-[#ff007f] text-sm font-bold transition-all"
+              data-testid="nav-login-btn"
+            >
+              <FaUser size={14} className="text-[#ffd700]" />
+              <span>Sign In</span>
+            </Link>
+          )}
+
+          <Link to="/cart" className="relative p-3 rounded-full bg-white text-black hover:bg-[#ff007f] hover:text-white transition-all" data-testid="nav-cart-btn">
+            <FaShoppingBag size={18} />
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#39ff14] text-black text-[10px] font-black rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
+                {cartCount}
+              </span>
+            )}
+          </Link>
+
+          <button
+            onClick={() => setOpen(!open)}
+            className="lg:hidden p-3 rounded-full border border-white/15"
+            data-testid="nav-mobile-toggle"
+          >
+            {open ? <FaTimes size={16} /> : <FaBars size={16} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Bottom row: menu */}
+      <div className="hidden lg:block border-t border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center gap-8 py-3 text-sm font-bold uppercase tracking-wider">
+          <Link to="/products?promo=1" className="text-[#ff007f] hover:text-[#39ff14] transition-colors" data-testid="nav-promotions">Promotions</Link>
+          <Link to="/products" className="hover:text-[#ffd700] transition-colors" data-testid="nav-all-products">All Products</Link>
+          <div
+            className="relative"
+            onMouseEnter={() => setCatOpen(true)}
+            onMouseLeave={() => setCatOpen(false)}
+          >
+            <button className="flex items-center gap-1 hover:text-[#ffd700] transition-colors" data-testid="nav-categories">
+              Categories <FaChevronDown size={10} />
+            </button>
+            {catOpen && (
+              <div className="absolute left-0 top-full pt-2 z-50">
+                <div className="surface p-3 min-w-[200px] grid gap-1">
+                  {categories.map((c) => (
+                    <Link
+                      key={c}
+                      to={`/products?category=${encodeURIComponent(c)}`}
+                      className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-[#39ff14] transition-colors"
+                    >
+                      {c}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
-          
-          {/* Right Side */}
-          <div className="flex items-center space-x-4">
-            {/* Cart */}
-            <Link to="/cart" className="relative">
-              <button className="p-2 text-white hover:text-pink-500 transition">
-                <FaShoppingCart size={24} />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {cartCount}
-                  </span>
-                )}
-              </button>
-            </Link>
-            
-            {/* FaUser FaBars */}
-            {user ? (
-              <div className="flex items-center space-x-2">
-                <Link to={getDashboardLink()} className="hidden md:flex items-center space-x-2 text-white hover:text-pink-500 transition">
-                  <FaUser size={20} />
-                  <span>{user.name}</span>
-                </Link>
-                <button onClick={handleLogout} className="p-2 text-white hover:text-red-500 transition" title="Logout">
-                  <FaSignOutAlt size={20} />
-                </button>
-              </div>
-            ) : (
-              <Link to="/login" className="btn-primary text-sm">Login</Link>
+          <Link to="/products" className="hover:text-[#ffd700] transition-colors" data-testid="nav-brands">Brands</Link>
+          <Link to="/fast-delivery" className="hover:text-[#ffd700] transition-colors">Fast Delivery</Link>
+          <div className="flex-1" />
+          <Link to="/rewards" className="text-[#ffd700] hover:text-[#39ff14] transition-colors">Rewards</Link>
+          <Link to="/products?bulk=1" className="hover:text-[#ffd700] transition-colors">Bulk Purchase</Link>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
+      {open && (
+        <div className="lg:hidden border-t border-white/10 bg-[#050505]">
+          <div className="px-4 py-4 space-y-2">
+            <form onSubmit={handleSearch} className="relative">
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-black/40" size={14} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search lah..."
+                className="w-full bg-white text-black rounded-full pl-10 pr-4 py-2.5 outline-none"
+              />
+            </form>
+            <Link to="/products" onClick={() => setOpen(false)} className="block py-3 border-b border-white/5 uppercase font-bold text-sm tracking-wider">All Products</Link>
+            {categories.map((c) => (
+              <Link
+                key={c}
+                to={`/products?category=${encodeURIComponent(c)}`}
+                onClick={() => setOpen(false)}
+                className="block py-2.5 border-b border-white/5 text-sm"
+              >
+                {c}
+              </Link>
+            ))}
+            <Link to="/rewards" onClick={() => setOpen(false)} className="block py-3 text-[#ffd700] font-bold uppercase text-sm tracking-wider">Rewards</Link>
+            {!user && <Link to="/login" onClick={() => setOpen(false)} className="block py-3 text-[#39ff14] font-bold uppercase text-sm tracking-wider">Sign In</Link>}
+            {user && (
+              <>
+                <Link to={dashLink()} onClick={() => setOpen(false)} className="block py-3 text-[#ffd700] font-bold uppercase text-sm tracking-wider">Dashboard</Link>
+                <button onClick={async () => { await logout(); setOpen(false); navigate('/'); }} className="block w-full text-left py-3 text-[#ff007f] font-bold uppercase text-sm tracking-wider">Logout</button>
+              </>
             )}
-            
-            {/* Mobile FaBars Button */}
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-white">
-              {mobileMenuOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
-            </button>
           </div>
         </div>
-        
-        {/* Mobile FaBars */}
-        {mobileMenuOpen && (
-          <div className="md:hidden py-4 space-y-2 border-t border-white/10">
-            <Link to="/" className="block py-2 text-white hover:text-pink-500 transition" onClick={() => setMobileMenuOpen(false)}>Home</Link>
-            <Link to="/products" className="block py-2 text-white hover:text-pink-500 transition" onClick={() => setMobileMenuOpen(false)}>Products</Link>
-            {user && (
-              <Link to={getDashboardLink()} className="block py-2 text-white hover:text-pink-500 transition" onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
-            )}
-          </div>
-        )}
-      </div>
-    </nav>
+      )}
+    </header>
   );
 };
 

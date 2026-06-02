@@ -9,120 +9,75 @@ const MasterAdminDashboard = () => {
   const { user } = useAuth();
   const [analytics, setAnalytics] = useState(null);
   const [orders, setOrders] = useState([]);
-  
+
   useEffect(() => {
-    loadData();
+    Promise.all([
+      axios.get(`${API}/admin/analytics`, { withCredentials: true }),
+      axios.get(`${API}/admin/all-orders`, { withCredentials: true }),
+    ]).then(([a, o]) => { setAnalytics(a.data); setOrders(o.data); }).catch(() => {});
   }, []);
-  
-  const loadData = async () => {
-    try {
-      const [analyticsRes, ordersRes] = await Promise.all([
-        axios.get(`${API}/admin/analytics`, { withCredentials: true }),
-        axios.get(`${API}/admin/all-orders`, { withCredentials: true })
-      ]);
-      setAnalytics(analyticsRes.data);
-      setOrders(ordersRes.data);
-    } catch (error) {
-      console.error('Failed to load:', error);
-    }
-  };
-  
-  if (!analytics) {
-    return <div className="container mx-auto px-4 py-20 text-center text-white">Loading...</div>;
-  }
-  
+
+  if (!analytics) return <div className="max-w-7xl mx-auto px-4 py-20 text-center text-white/60">Loading boss...</div>;
+
+  const stats = [
+    { label: 'Total Sales', val: `RM${(analytics.total_sales || 0).toFixed(2)}`, icon: FaChartLine, color: '#ff007f' },
+    { label: 'Total Orders', val: analytics.total_orders || 0, icon: FaBox, color: '#00f0ff' },
+    { label: 'Pending', val: analytics.pending_orders || 0, icon: FaUsers, color: '#ffd700' },
+    { label: 'Flash Sales', val: analytics.active_flash_sales || 0, icon: FaBolt, color: '#39ff14' },
+  ];
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold gradient-text mb-8">Master Admin Dashboard</h1>
-      <p className="text-white mb-8">Welcome, Boss {user.name}! Full system control.</p>
-      
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="card">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-pink-500/20 rounded-full flex items-center justify-center">
-              <FaChartLine className="text-pink-500" size={24} />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12">
+      <div className="eyebrow mb-3">Boss Console</div>
+      <h1 className="display-xl mb-2">Welcome <span className="neon-pink-text">{user?.name}</span></h1>
+      <p className="text-white/60 mb-10">Full system view — sales, staff, orders, all here.</p>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        {stats.map((s) => (
+          <div key={s.label} className="surface p-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="eyebrow !mb-0">{s.label}</div>
+              <s.icon style={{ color: s.color }} />
             </div>
-            <div>
-              <p className="text-gray-600">Total Sales</p>
-              <p className="text-2xl font-bold">RM{analytics.total_sales.toFixed(2)}</p>
-            </div>
+            <div className="display-lg" style={{ color: s.color, textShadow: `0 0 25px ${s.color}55` }}>{s.val}</div>
           </div>
-        </div>
-        
-        <div className="card">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
-              <FaBox className="text-purple-500" size={24} />
-            </div>
-            <div>
-              <p className="text-gray-600">Total Orders</p>
-              <p className="text-2xl font-bold">{analytics.total_orders}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center">
-              <FaUsers className="text-yellow-500" size={24} />
-            </div>
-            <div>
-              <p className="text-gray-600">Pending Orders</p>
-              <p className="text-2xl font-bold">{analytics.pending_orders}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center">
-              <FaBolt className="text-cyan-500" size={24} />
-            </div>
-            <div>
-              <p className="text-gray-600">Active Flash Sales</p>
-              <p className="text-2xl font-bold">{analytics.active_flash_sales}</p>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
-      
-      {/* Staff Sales */}
-      <div className="card mb-8">
-        <h2 className="text-2xl font-bold mb-6">Sales by Staff</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {analytics.staff_sales.map((staff, idx) => (
-            <div key={idx} className="border border-gray-200 p-4 rounded-lg">
-              <h3 className="font-bold text-lg">{staff.name}</h3>
-              <p className="text-2xl font-bold text-pink-600">RM{staff.sales?.toFixed(2) || '0.00'}</p>
-              <p className="text-sm text-gray-600">{staff.orders} orders</p>
-            </div>
-          ))}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="surface p-6">
+          <h2 className="display-md mb-5">Sales by Staff</h2>
+          <div className="space-y-3">
+            {(analytics.staff_sales || []).map((s, i) => (
+              <div key={i} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex justify-between">
+                <div>
+                  <div className="font-bold">{s.name}</div>
+                  <div className="text-xs text-white/50">{s.orders || 0} orders</div>
+                </div>
+                <div className="font-display text-xl neon-pink-text">RM{(s.sales || 0).toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-      
-      {/* Recent Orders */}
-      <div className="card">
-        <h2 className="text-2xl font-bold mb-6">All Orders</h2>
-        <div className="space-y-4">
-          {orders.slice(0, 10).map(order => (
-            <div key={order.order_id} className="border border-gray-200 p-4 rounded-lg flex justify-between items-center">
-              <div>
-                <p className="font-bold">Order #{order.order_id.slice(0, 8)}</p>
-                <p className="text-sm text-gray-600">{new Date(order.created_at).toLocaleString()}</p>
+
+        <div className="surface p-6">
+          <h2 className="display-md mb-5">Recent Orders</h2>
+          <div className="space-y-3">
+            {orders.slice(0, 8).map((o) => (
+              <div key={o.order_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex justify-between">
+                <div>
+                  <div className="font-bold">#{o.order_id.slice(0, 8)}</div>
+                  <div className="text-xs text-white/50">{new Date(o.created_at).toLocaleDateString()}</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-display text-xl neon-pink-text">RM{o.total.toFixed(2)}</div>
+                  <span className={`text-[10px] uppercase font-bold ${
+                    o.status === 'delivered' ? 'text-[#39ff14]' : o.status === 'cancelled' ? 'text-[#ff007f]' : 'text-[#ffd700]'
+                  }`}>{o.status}</span>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-xl font-bold text-pink-600">RM{order.total.toFixed(2)}</p>
-                <span className={`text-sm px-2 py-1 rounded-full ${
-                  order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                  order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                  'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {order.status}
-                </span>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>

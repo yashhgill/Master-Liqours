@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth, useCart } from '../context';
+import { FaWhatsapp, FaCheckCircle, FaArrowRight, FaTrophy } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -11,163 +12,142 @@ const Checkout = () => {
   const navigate = useNavigate();
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showWhatsApp, setShowWhatsApp] = useState(false);
-  const [orderData, setOrderData] = useState(null);
-  
-  // Calculate benefits
-  const getTierBenefits = () => {
-    if (user.tier === 'platinum') {
-      return { shipping: 100, discount: total * 0.03 };
-    } else if (user.tier === 'gold') {
-      return { shipping: 50, discount: 0 };
-    }
+  const [done, setDone] = useState(null);
+
+  const benefits = (() => {
+    if (user?.tier === 'platinum') return { shipping: 100, discount: total * 0.03 };
+    if (user?.tier === 'gold') return { shipping: 50, discount: 0 };
     return { shipping: 0, discount: 0 };
-  };
-  
-  const benefits = getTierBenefits();
+  })();
   const finalTotal = total - benefits.discount;
-  const shippingCost = Math.max(0, 15 - benefits.shipping); // Base shipping RM15
-  
-  const handleCheckout = async () => {
-    if (!address.trim()) {
-      alert('Please enter shipping address');
-      return;
-    }
-    
+  const shippingCost = Math.max(0, 15 - benefits.shipping);
+  const grandTotal = finalTotal + shippingCost;
+
+  const placeOrder = async () => {
+    if (!address.trim()) { alert('Enter your delivery address lah boss'); return; }
     setLoading(true);
     try {
-      const items = cart.map(item => ({
-        product_id: item.product_id,
-        quantity: item.quantity
-      }));
-      
-      const res = await axios.post(
-        `${API}/orders/checkout`,
-        { items, shipping_address: address },
-        { withCredentials: true }
-      );
-      
-      setOrderData(res.data);
-      setShowWhatsApp(true);
-    } catch (error) {
-      alert('Checkout failed: ' + (error.response?.data?.detail || 'Error'));
-    } finally {
-      setLoading(false);
-    }
+      const res = await axios.post(`${API}/orders/checkout`, {
+        items: cart.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
+        shipping_address: address,
+      }, { withCredentials: true });
+      setDone(res.data);
+    } catch (e) {
+      alert('Checkout failed: ' + (e.response?.data?.detail || 'Try again lah'));
+    } finally { setLoading(false); }
   };
-  
-  const completeOrder = () => {
-    clearCart();
-    navigate('/dashboard');
-  };
-  
-  if (showWhatsApp && orderData) {
-    const staffPhone = (orderData.staff_whatsapp || '+60126884925').replace(/\+/g, '');
-    const staffName = orderData.staff_name || 'staff';
-    const message = `Hi ${staffName}! I've placed order #${orderData.order_id.slice(0, 8)}. Total: RM${(finalTotal + shippingCost).toFixed(2)}. Address: ${address}`;
-    const whatsappUrl = `https://wa.me/${staffPhone}?text=${encodeURIComponent(message)}`;
-    
+
+  if (done) {
+    const phone = (done.staff_whatsapp || '+60126884925').replace(/\D/g, '');
+    const staffName = done.staff_name || 'Staff';
+    const msg = `Hi ${staffName}! Order #${done.order_id.slice(0, 8)} placed. Total RM${grandTotal.toFixed(2)}. Address: ${address}`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto card text-center">
-          <h2 className="text-3xl font-bold mb-6 gradient-text">Order Placed! 🎉</h2>
-          <p className="text-gray-600 mb-4">Order ID: #{orderData.order_id.slice(0, 8)}</p>
-          <p className="text-gray-600 mb-8">Now, please proceed dengan payment via WhatsApp:</p>
-          
-          <div className="bg-pink-50 p-6 rounded-lg mb-8">
-            <p className="text-lg font-bold mb-2">Total Amount:</p>
-            <p className="text-4xl font-bold text-pink-600 mb-4">RM{(finalTotal + shippingCost).toFixed(2)}</p>
-            <p className="text-sm text-gray-600">Please transfer to staff & send screenshot</p>
+      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
+        <div className="surface p-10 lg:p-14" style={{ borderColor: 'rgba(37,211,102,0.35)', boxShadow:'0 0 50px rgba(37,211,102,0.15)' }}>
+          <FaCheckCircle size={56} className="text-[#39ff14] mx-auto mb-6" />
+          <div className="eyebrow mb-3">Order Confirmed</div>
+          <h1 className="display-xl mb-4">Settle via WhatsApp boss!</h1>
+          <p className="text-white/60 mb-8">Order ID #{done.order_id.slice(0, 8).toUpperCase()}</p>
+
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 mb-8">
+            <div className="text-xs uppercase tracking-[0.25em] text-white/40 mb-2">Total to Pay</div>
+            <div className="display-mega neon-pink-text" style={{fontSize:'3.5rem',lineHeight:1}}>RM{grandTotal.toFixed(2)}</div>
+            <div className="mt-6 pt-6 border-t border-white/10">
+              <div className="text-xs uppercase tracking-[0.25em] text-white/40 mb-2">Your Assigned Staff</div>
+              <div className="display-md neon-lime-text" data-testid="checkout-assigned-staff">{staffName}</div>
+              <div className="text-sm text-white/50 mt-1">+{phone}</div>
+            </div>
           </div>
-          
-          <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="btn-neon inline-block mb-4" data-testid="checkout-whatsapp-btn">
-            Open WhatsApp to Pay
+
+          <a href={url} target="_blank" rel="noopener noreferrer" className="btn-whatsapp w-full" data-testid="checkout-whatsapp-btn">
+            <FaWhatsapp size={20} /> Open WhatsApp & Pay
           </a>
-          
-          <button onClick={completeOrder} className="block w-full btn-outline">
-            I've Sent Payment
+
+          <button onClick={() => { clearCart(); navigate('/dashboard'); }} className="block mt-4 text-sm text-white/50 hover:text-[#ff007f] mx-auto" data-testid="checkout-done-btn">
+            I've sent payment →
           </button>
         </div>
       </div>
     );
   }
-  
+
+  if (cart.length === 0) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-24 text-center">
+        <h1 className="display-xl mb-4">Cart kosong lah</h1>
+        <Link to="/products" className="btn-pink">Browse Products</Link>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold gradient-text mb-8">Checkout</h1>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Checkout Form */}
-        <div className="lg:col-span-2 card">
-          <h2 className="text-2xl font-bold mb-6">Shipping Address</h2>
-          
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12">
+      <div className="eyebrow mb-3">Step 2 of 2</div>
+      <h1 className="display-xl mb-10"><span className="neon-pink-text">Checkout</span> · Settle</h1>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
+        <div className="surface p-8">
+          <h2 className="display-md mb-6">Delivery Address</h2>
           <textarea
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder="Enter your full address"
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-            rows={4}
+            placeholder="Enter full address — block, street, postcode, city"
+            rows={5}
+            className="input-dark resize-none"
             required
+            data-testid="checkout-address-input"
           />
-          
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-bold mb-2">Your Tier: {user.tier.toUpperCase()} 🏆</h3>
-            <p className="text-sm text-gray-600">Points: {user.points}</p>
-            {benefits.shipping > 0 && (
-              <p className="text-green-600 font-semibold">✓ RM{benefits.shipping} off shipping!</p>
-            )}
-            {benefits.discount > 0 && (
-              <p className="text-green-600 font-semibold">✓ 3% discount on products!</p>
-            )}
-          </div>
+
+          {user && (
+            <div className="mt-6 p-5 bg-[#0a0a0a] rounded-2xl border border-white/10 flex items-center gap-4">
+              <FaTrophy className="text-[#ffd700]" size={20} />
+              <div>
+                <div className="text-xs uppercase tracking-wider text-white/40">Your Tier</div>
+                <div className="font-display text-xl uppercase">{user.tier} · {user.points}pts</div>
+              </div>
+              <div className="ml-auto text-right">
+                {benefits.shipping > 0 && <div className="text-[#39ff14] text-xs font-bold">RM{benefits.shipping} off shipping</div>}
+                {benefits.discount > 0 && <div className="text-[#39ff14] text-xs font-bold">3% product discount</div>}
+              </div>
+            </div>
+          )}
         </div>
-        
-        {/* Order Summary */}
-        <div className="card h-fit">
-          <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
-          
-          <div className="space-y-2 mb-4">
-            {cart.map(item => (
-              <div key={item.product_id} className="flex justify-between text-sm">
-                <span>{item.name} x{item.quantity}</span>
-                <span>RM{(item.price * item.quantity).toFixed(2)}</span>
+
+        <div className="surface p-6 h-fit sticky top-32">
+          <div className="eyebrow mb-4">Summary</div>
+          <h2 className="display-md mb-6">Order Recap</h2>
+
+          <div className="space-y-2 mb-4 max-h-48 overflow-y-auto pr-2">
+            {cart.map((i) => (
+              <div key={i.product_id} className="flex justify-between text-sm">
+                <span className="text-white/70 truncate pr-2">{i.name} ×{i.quantity}</span>
+                <span className="font-bold shrink-0">RM{(i.price * i.quantity).toFixed(2)}</span>
               </div>
             ))}
           </div>
-          
-          <div className="space-y-2 mb-4 pb-4 border-t pt-4">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>RM{total.toFixed(2)}</span>
-            </div>
-            {benefits.discount > 0 && (
-              <div className="flex justify-between text-green-600">
-                <span>Discount (3%)</span>
-                <span>-RM{benefits.discount.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span>Shipping</span>
+
+          <div className="space-y-2 py-4 border-y border-white/10">
+            <div className="flex justify-between text-sm"><span className="text-white/60">Subtotal</span><span>RM{total.toFixed(2)}</span></div>
+            {benefits.discount > 0 && <div className="flex justify-between text-sm text-[#39ff14]"><span>Tier discount (3%)</span><span>-RM{benefits.discount.toFixed(2)}</span></div>}
+            <div className="flex justify-between text-sm">
+              <span className="text-white/60">Shipping</span>
               <span>
-                {benefits.shipping > 0 && <span className="line-through text-gray-400 mr-2">RM15</span>}
+                {benefits.shipping > 0 && <span className="line-through text-white/30 mr-2 text-xs">RM15</span>}
                 RM{shippingCost.toFixed(2)}
               </span>
             </div>
           </div>
-          
-          <div className="flex justify-between text-xl font-bold mb-6 pt-4 border-t">
-            <span>Total</span>
-            <span className="text-pink-600">RM{(finalTotal + shippingCost).toFixed(2)}</span>
+
+          <div className="flex justify-between items-baseline mt-4 mb-6">
+            <span className="text-xs uppercase tracking-wider text-white/50">Total</span>
+            <span className="display-lg neon-pink-text">RM{grandTotal.toFixed(2)}</span>
           </div>
-          
-          <button
-            onClick={handleCheckout}
-            disabled={loading}
-            className="w-full btn-neon"
-            data-testid="checkout-place-order-btn"
-          >
-            {loading ? 'Processing...' : 'Place Order'}
+
+          <button onClick={placeOrder} disabled={loading} className="btn-pink w-full disabled:opacity-50" data-testid="checkout-place-order-btn">
+            {loading ? 'Processing...' : <>Place Order <FaArrowRight size={14} /></>}
           </button>
+          <p className="text-xs text-white/40 text-center mt-3">Payment settled via WhatsApp after order placed</p>
         </div>
       </div>
     </div>

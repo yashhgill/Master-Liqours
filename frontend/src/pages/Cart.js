@@ -1,98 +1,80 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context';
-import { FaTrash, FaPlus, FaMinus } from 'react-icons/fa';
+import { FaTrash, FaPlus, FaMinus, FaArrowRight, FaShoppingBag } from 'react-icons/fa';
 
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, total } = useCart();
   const navigate = useNavigate();
-  
+
   if (cart.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-4xl font-bold text-white mb-4">Your Cart is Empty</h1>
-        <p className="text-gray-400 mb-8">Add some products untuk start shopping!</p>
-        <button onClick={() => navigate('/products')} className="btn-neon">
-          Browse Products
-        </button>
+      <div className="max-w-3xl mx-auto px-4 py-24 text-center">
+        <FaShoppingBag size={48} className="text-white/30 mx-auto mb-6" />
+        <h1 className="display-xl mb-4">Cart kosong lah boss</h1>
+        <p className="text-white/60 mb-8">Browse our premium drops & add a few bottles untuk start.</p>
+        <Link to="/products" className="btn-pink" data-testid="cart-empty-shop-btn">Browse Products <FaArrowRight size={14} /></Link>
       </div>
     );
   }
-  
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold gradient-text mb-8">Shopping Cart</h1>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Cart Items */}
-        <div className="lg:col-span-2 space-y-4">
-          {cart.map(item => (
-            <div key={item.product_id} className="card flex items-center space-x-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12">
+      <div className="eyebrow mb-3">Step 1 of 2</div>
+      <h1 className="display-xl mb-10">Your <span className="neon-pink-text">Cart</span></h1>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
+        <div className="space-y-3">
+          {cart.map((item) => (
+            <div key={item.product_id} className="surface p-4 flex items-center gap-4" data-testid={`cart-item-${item.product_id}`}>
               <img
-                src={item.image_url || 'https://via.placeholder.com/100'}
+                src={item.image_url || 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=200'}
                 alt={item.name}
-                className="w-24 h-24 object-cover rounded-lg"
-                onError={(e) => e.target.src = 'https://via.placeholder.com/100'}
+                className="w-24 h-24 rounded-2xl object-cover bg-white"
+                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=200'; }}
               />
-              
-              <div className="flex-grow">
-                <h3 className="text-lg font-bold">{item.name}</h3>
-                <p className="text-gray-600">{item.category}</p>
-                <p className="text-pink-600 font-bold">RM{item.price.toFixed(2)}</p>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs uppercase tracking-wider text-white/50 mb-1">{item.category}</div>
+                <h3 className="font-display text-xl uppercase truncate">{item.name}</h3>
+                <div className="text-[#ff007f] font-display text-2xl mt-1">RM{item.price.toFixed(2)}</div>
               </div>
-              
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
-                  className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
-                >
-                  <FaMinus size={16} />
-                </button>
-                <span className="w-12 text-center font-bold">{item.quantity}</span>
-                <button
-                  onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
-                  className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
-                >
-                  <FaPlus size={16} />
-                </button>
+              <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-full p-1">
+                <button onClick={() => updateQuantity(item.product_id, item.quantity - 1)} className="w-8 h-8 rounded-full hover:bg-white/5 flex items-center justify-center"><FaMinus size={10} /></button>
+                <div className="font-bold w-8 text-center">{item.quantity}</div>
+                <button onClick={() => updateQuantity(item.product_id, item.quantity + 1)} className="w-8 h-8 rounded-full hover:bg-white/5 flex items-center justify-center"><FaPlus size={10} /></button>
               </div>
-              
-              <button
-                onClick={() => removeFromCart(item.product_id)}
-                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
-              >
-                <FaTrash size={20} />
+              <button onClick={() => removeFromCart(item.product_id)} className="w-10 h-10 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center transition-all" data-testid={`cart-remove-${item.product_id}`}>
+                <FaTrash size={12} />
               </button>
             </div>
           ))}
         </div>
-        
+
         {/* Summary */}
-        <div className="card h-fit">
-          <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
-          
-          <div className="space-y-2 mb-4 pb-4 border-b">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
+        <div className="surface p-6 h-fit sticky top-32">
+          <div className="eyebrow mb-4">Summary</div>
+          <h2 className="display-lg mb-6">Order Total</h2>
+
+          <div className="space-y-3 pb-4 border-b border-white/10 mb-4">
+            <div className="flex justify-between text-sm">
+              <span className="text-white/60">Subtotal</span>
               <span className="font-bold">RM{total.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-gray-600">
-              <span>Shipping</span>
-              <span>Calculated at checkout</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-white/60">Shipping</span>
+              <span className="text-white/50 text-xs">Calculated at checkout</span>
             </div>
           </div>
-          
-          <div className="flex justify-between text-xl font-bold mb-6">
-            <span>Total</span>
-            <span className="text-pink-600">RM{total.toFixed(2)}</span>
+
+          <div className="flex justify-between items-baseline mb-6">
+            <span className="text-xs uppercase tracking-wider text-white/50">Total</span>
+            <span className="display-lg neon-pink-text">RM{total.toFixed(2)}</span>
           </div>
-          
-          <button
-            onClick={() => navigate('/checkout')}
-            className="w-full btn-neon"
-          >
-            Proceed to Checkout
+
+          <button onClick={() => navigate('/checkout')} className="btn-pink w-full" data-testid="cart-checkout-btn">
+            Checkout <FaArrowRight size={14} />
           </button>
+          <Link to="/products" className="block text-center mt-3 text-sm text-white/60 hover:text-[#ff007f] transition-colors">Continue Shopping</Link>
         </div>
       </div>
     </div>

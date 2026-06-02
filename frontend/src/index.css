@@ -2,168 +2,232 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg: #050505;
+  --surface: #121212;
+  --surface-2: #1a1a1a;
+  --text: #ffffff;
+  --text-dim: #a3a3a3;
+  --text-muted: #737373;
+  --pink: #ff007f;
+  --pink-strong: #e60073;
+  --cyan: #00f0ff;
+  --lime: #39ff14;
+  --wa-green: #25d366;
+  --gold: #ffd700;
+}
+
 @layer base {
+  html, body {
+    @apply bg-[#050505] text-white antialiased;
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
   body {
-    @apply bg-black text-white antialiased;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(255, 0, 127, 0.06), transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(0, 240, 255, 0.05), transparent 45%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: var(--pink);
+    color: #fff;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Bebas Neue', 'Outfit', sans-serif;
+    letter-spacing: 0.01em;
   }
 }
 
 @layer components {
-  /* Neon glow effects for accents */
-  .neon-pink {
-    @apply text-pink-500;
-    text-shadow: 0 0 10px rgba(236, 72, 153, 0.6);
+  /* === Typography === */
+  .display-mega {
+    font-family: 'Bebas Neue', sans-serif;
+    @apply text-6xl sm:text-7xl lg:text-8xl xl:text-9xl leading-[0.9] uppercase tracking-tight;
   }
-  
-  .neon-cyan {
-    @apply text-cyan-400;
-    text-shadow: 0 0 10px rgba(34, 211, 238, 0.6);
+
+  .display-xl {
+    font-family: 'Bebas Neue', sans-serif;
+    @apply text-4xl sm:text-5xl lg:text-7xl leading-[0.95] uppercase tracking-tight;
   }
-  
-  .neon-purple {
-    @apply text-purple-500;
-    text-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
+
+  .display-lg {
+    font-family: 'Bebas Neue', sans-serif;
+    @apply text-3xl sm:text-4xl lg:text-5xl leading-[0.95] uppercase tracking-tight;
   }
-  
-  .neon-green {
-    @apply text-green-400;
-    text-shadow: 0 0 10px rgba(74, 222, 128, 0.6);
+
+  .display-md {
+    font-family: 'Bebas Neue', sans-serif;
+    @apply text-2xl sm:text-3xl leading-tight uppercase tracking-tight;
   }
-  
-  /* Buttons with neon accents */
-  .btn-primary {
-    @apply px-6 py-3 rounded-lg font-semibold transition-all duration-300;
-    @apply bg-white text-black hover:bg-gray-100;
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+
+  .eyebrow {
+    @apply text-xs uppercase tracking-[0.25em] font-bold text-[#ffd700];
   }
-  
-  .btn-primary:hover {
-    box-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
-    transform: translateY(-2px);
+
+  .neon-cyan-text {
+    color: #00f0ff;
+    text-shadow: 0 0 18px rgba(0, 240, 255, 0.55), 0 0 40px rgba(0, 240, 255, 0.25);
   }
-  
-  .btn-neon {
-    @apply px-6 py-3 rounded-lg font-semibold transition-all duration-300;
-    @apply bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700;
-    @apply text-white;
-    box-shadow: 0 0 20px rgba(236, 72, 153, 0.4);
+
+  .neon-lime-text {
+    color: #39ff14;
+    text-shadow: 0 0 18px rgba(57, 255, 20, 0.55), 0 0 40px rgba(57, 255, 20, 0.25);
   }
-  
-  .btn-neon:hover {
-    box-shadow: 0 0 30px rgba(236, 72, 153, 0.6);
-    transform: translateY(-2px);
+
+  .neon-pink-text {
+    color: #ff007f;
+    text-shadow: 0 0 18px rgba(255, 0, 127, 0.55), 0 0 40px rgba(255, 0, 127, 0.25);
   }
-  
-  .btn-outline {
-    @apply px-6 py-3 rounded-lg font-semibold transition-all duration-300;
-    @apply border-2 border-white text-white hover:bg-white hover:text-black;
+
+  .text-glow-white {
+    text-shadow: 0 0 24px rgba(255, 255, 255, 0.35);
   }
-  
-  /* Cards with white/dark contrast */
-  .card {
-    @apply bg-white text-black rounded-xl p-6 shadow-lg;
-    @apply transition-all duration-300;
+
+  /* === Buttons === */
+  .btn-pink {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-bold uppercase tracking-wider text-sm text-white transition-all;
+    background: #ff007f;
+    box-shadow: 0 8px 24px -8px rgba(255, 0, 127, 0.6);
   }
-  
-  .card:hover {
-    @apply shadow-2xl;
-    transform: translateY(-4px);
+  .btn-pink:hover {
+    background: #e60073;
+    box-shadow: 0 0 0 4px rgba(255, 0, 127, 0.15), 0 12px 30px -8px rgba(255, 0, 127, 0.7);
+    transform: translateY(-1px);
   }
-  
-  .card-dark {
-    @apply bg-gray-900/80 backdrop-blur-sm border border-white/10 rounded-xl p-6;
-    @apply transition-all duration-300;
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-bold uppercase tracking-wider text-sm text-white transition-all border border-white/20;
   }
-  
-  .card-dark:hover {
-    @apply border-pink-500/50;
-    box-shadow: 0 4px 30px rgba(236, 72, 153, 0.2);
-    transform: translateY(-4px);
+  .btn-ghost:hover {
+    @apply border-white bg-white text-black;
   }
-  
-  /* Product cards */
-  .product-card {
-    @apply bg-white/95 text-black rounded-xl overflow-hidden shadow-lg;
-    @apply transition-all duration-300 hover:shadow-2xl;
+
+  .btn-lime {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-bold uppercase tracking-wider text-sm text-black transition-all;
+    background: #39ff14;
+    box-shadow: 0 8px 24px -8px rgba(57, 255, 20, 0.6);
   }
-  
-  .product-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 10px 40px rgba(236, 72, 153, 0.3);
+  .btn-lime:hover {
+    box-shadow: 0 0 0 4px rgba(57, 255, 20, 0.18), 0 12px 30px -8px rgba(57, 255, 20, 0.7);
+    transform: translateY(-1px);
   }
-  
-  /* Gradient text */
-  .gradient-text {
-    @apply bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent;
+
+  .btn-whatsapp {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-bold uppercase tracking-wider text-sm text-white transition-all;
+    background: #25d366;
+    box-shadow: 0 8px 24px -8px rgba(37, 211, 102, 0.6);
   }
-  
-  /* Input fields */
-  .input-field {
-    @apply w-full px-4 py-3 rounded-lg;
-    @apply bg-white/10 border border-white/20 text-white;
-    @apply focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20;
-    @apply transition-all duration-300;
+  .btn-whatsapp:hover {
+    background: #1ebd5a;
+    box-shadow: 0 0 0 4px rgba(37, 211, 102, 0.18), 0 12px 30px -8px rgba(37, 211, 102, 0.7);
+    transform: translateY(-1px);
   }
-  
-  .input-field::placeholder {
-    @apply text-gray-400;
+
+  /* === Surfaces === */
+  .surface {
+    @apply bg-[#121212] border border-white/10 rounded-3xl;
+  }
+  .surface-2 {
+    @apply bg-[#1a1a1a] border border-white/10 rounded-3xl;
+  }
+  .surface-white {
+    @apply bg-white text-black rounded-3xl;
+  }
+
+  /* === Inputs === */
+  .input-dark {
+    @apply w-full bg-[#121212] border border-white/10 rounded-2xl px-5 py-4 text-white placeholder:text-white/40 transition-all;
+  }
+  .input-dark:focus {
+    @apply outline-none border-[#ff007f];
+    box-shadow: 0 0 0 4px rgba(255, 0, 127, 0.15);
+  }
+
+  /* === Logo === */
+  .logo-text {
+    font-family: 'Bebas Neue', sans-serif;
+    background: linear-gradient(135deg, #ffd700 0%, #fff7c2 50%, #ffd700 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 30px rgba(255, 215, 0, 0.25);
+    letter-spacing: 0.02em;
+  }
+
+  /* === Floating WhatsApp === */
+  .wa-float {
+    @apply fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full pl-5 pr-6 py-3.5 font-bold text-white transition-all;
+    background: #25d366;
+    box-shadow: 0 12px 40px -8px rgba(37, 211, 102, 0.65), 0 0 0 6px rgba(37, 211, 102, 0.12);
+  }
+  .wa-float:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 16px 50px -8px rgba(37, 211, 102, 0.85), 0 0 0 8px rgba(37, 211, 102, 0.18);
+  }
+
+  /* === Section labels === */
+  .section-label {
+    @apply inline-flex items-center gap-3 mb-6;
+  }
+  .section-label::before {
+    content: "✦";
+    color: #ffd700;
+  }
+
+  /* === Product Card === */
+  .product-card-white {
+    @apply bg-white text-black rounded-3xl overflow-hidden shadow-2xl transition-all duration-300;
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.6);
+  }
+  .product-card-white:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 30px 60px -20px rgba(255, 0, 127, 0.35), 0 10px 30px -10px rgba(0, 240, 255, 0.2);
+  }
+
+  /* === Category Tile === */
+  .category-tile {
+    @apply relative rounded-3xl overflow-hidden border border-white/10 transition-all duration-300 group;
+    min-height: 320px;
+  }
+  .category-tile:hover {
+    border-color: rgba(57, 255, 20, 0.5);
+    box-shadow: 0 0 50px -10px rgba(57, 255, 20, 0.35);
   }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 10px;
+/* === Animations === */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 22s linear infinite;
 }
 
-::-webkit-scrollbar-track {
-  @apply bg-black;
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(255, 0, 127, 0.5); }
+  50% { box-shadow: 0 0 40px rgba(255, 0, 127, 0.8); }
+}
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
 }
 
-::-webkit-scrollbar-thumb {
-  @apply bg-white/20 rounded-full;
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fadeUp 0.7s ease-out both;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-white/40;
-}
+/* === Scrollbar === */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #050505; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 0, 127, 0.5); }
 
-/* Animations */
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-
-.float-animation {
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes pulse-border {
-  0%, 100% { border-color: rgba(255, 255, 255, 0.2); }
-  50% { border-color: rgba(236, 72, 153, 0.5); }
-}
-
-.pulse-border {
-  animation: pulse-border 2s ease-in-out infinite;
-}
-
-/* Shine effect */
-.shine {
-  position: relative;
-  overflow: hidden;
-}
-
-.shine::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s;
-}
-
-.shine:hover::before {
-  left: 100%;
-}
+/* Hide emergent badge if user prefers cleaner look — kept by default per platform rules */

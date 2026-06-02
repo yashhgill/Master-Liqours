@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context';
+import { FaArrowRight } from 'react-icons/fa';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -9,76 +10,60 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-  
-  const handleSubmit = async (e) => {
+
+  const submit = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-    
+    setError(''); setLoading(true);
     try {
       await login(email, password);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
+      setError(err.response?.data?.detail || 'Cannot login lah, try again');
+    } finally { setLoading(false); }
   };
-  
+
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full">
-        <div className="card">
-          <h2 className="text-3xl font-bold text-center mb-8 gradient-text">Login</h2>
-          
+    <div className="min-h-[80vh] grid grid-cols-1 lg:grid-cols-2">
+      {/* Left visual */}
+      <div className="hidden lg:block relative overflow-hidden">
+        <img src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=1200" alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-br from-black via-black/70 to-[#ff007f]/30" />
+        <div className="relative z-10 p-12 lg:p-16 h-full flex flex-col justify-end">
+          <div className="eyebrow mb-4">Welcome Back Boss</div>
+          <h1 className="display-mega text-glow-white mb-4">Sign in &<br/><span className="neon-pink-text">drink up.</span></h1>
+          <p className="text-white/70 max-w-md">Login dengan account anda untuk track orders, earn points & climb tiers.</p>
+        </div>
+      </div>
+
+      {/* Form */}
+      <div className="flex items-center justify-center p-6 lg:p-16">
+        <div className="w-full max-w-md">
+          <div className="eyebrow mb-3">Sign In</div>
+          <h2 className="display-xl mb-8">Welcome Back.</h2>
+
           {error && (
-            <div className="bg-red-500/20 border border-red-500 text-red-500 px-4 py-3 rounded-lg mb-4">
+            <div className="bg-[#ff007f]/10 border border-[#ff007f]/40 text-[#ff007f] px-5 py-4 rounded-2xl mb-5 text-sm" data-testid="login-error">
               {error}
             </div>
           )}
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
+
+          <form onSubmit={submit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                required
-                data-testid="login-email-input"
-              />
+              <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Email</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="input-dark" data-testid="login-email-input" />
             </div>
-            
             <div>
-              <label className="block text-sm font-medium mb-2">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                required
-                data-testid="login-password-input"
-              />
+              <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Password</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="input-dark" data-testid="login-password-input" />
             </div>
-            
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn-neon"
-              data-testid="login-submit-btn"
-            >
-              {loading ? 'Loading...' : 'Login'}
+            <button type="submit" disabled={loading} className="btn-pink w-full disabled:opacity-50" data-testid="login-submit-btn">
+              {loading ? 'Logging in...' : <>Sign In <FaArrowRight size={14} /></>}
             </button>
           </form>
-          
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">
-              Belum ada account?{' '}
-              <Link to="/register" className="text-pink-500 hover:text-pink-600 font-semibold">
-                Register sini
-              </Link>
-            </p>
+
+          <div className="mt-8 text-center text-sm text-white/60">
+            Belum ada account?{' '}
+            <Link to="/register" className="text-[#ff007f] font-bold hover:underline">Register sini</Link>
           </div>
         </div>
       </div>
