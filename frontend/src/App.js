@@ -1,55 +1,95 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
-import { HOME } from "@/constants/testIds";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, CartProvider, useAuth } from './context';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import ChatWidget from './components/ChatWidget';
+import Home from './pages/Home';
+import Products from './pages/Products';
+import ProductDetail from './pages/ProductDetail';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import UserDashboard from './pages/UserDashboard';
+import StaffDashboard from './pages/StaffDashboard';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import MasterAdminDashboard from './pages/MasterAdminDashboard';
+import '@/App.css';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const ProtectedRoute = ({ children, roles = [] }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-white text-2xl">Loading...</div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (roles.length > 0 && !roles.includes(user.role)) {
+    return <Navigate to="/" />;
+  }
+  
+  return children;
+};
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
+function AppContent() {
+  const { user } = useAuth();
+  
   return (
-    <div>
-      <header className="App-header">
-        <a
-          data-testid={HOME.emergentLink}
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
+    <div className="App min-h-screen flex flex-col">
+      <Navbar />
+      <main className="flex-grow">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          
+          <Route path="/checkout" element={
+            <ProtectedRoute><Checkout /></ProtectedRoute>
+          } />
+          
+          <Route path="/dashboard" element={
+            <ProtectedRoute roles={['customer']}><UserDashboard /></ProtectedRoute>
+          } />
+          
+          <Route path="/staff" element={
+            <ProtectedRoute roles={['staff']}><StaffDashboard /></ProtectedRoute>
+          } />
+          
+          <Route path="/admin" element={
+            <ProtectedRoute roles={['super_admin']}><SuperAdminDashboard /></ProtectedRoute>
+          } />
+          
+          <Route path="/master" element={
+            <ProtectedRoute roles={['master_admin']}><MasterAdminDashboard /></ProtectedRoute>
+          } />
+        </Routes>
+      </main>
+      <Footer />
+      {user && <ChatWidget />}
     </div>
   );
-};
+}
 
 function App() {
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <Router>
+      <AuthProvider>
+        <CartProvider>
+          <AppContent />
+        </CartProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 
