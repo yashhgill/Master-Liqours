@@ -4,6 +4,7 @@ import { useAuth } from '../context';
 import {
   FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlassAlt,
   FaArrowUp, FaArrowDown, FaPen, FaFileCsv, FaDownload, FaSpinner,
+  FaUsers, FaKey, FaCopy, FaWhatsapp,
 } from 'react-icons/fa';
 import ImageUploader from '../components/ImageUploader';
 import { resolveImageUrl } from '../lib/imageUrl';
@@ -15,6 +16,7 @@ const TABS = [
   { id: 'products', label: 'Products', icon: FaBoxOpen },
   { id: 'flash-sales', label: 'Flash Sales', icon: FaBolt },
   { id: 'brands', label: 'Brands', icon: FaWineGlassAlt },
+  { id: 'staff', label: 'Staff', icon: FaUsers },
 ];
 
 const CATEGORIES = ['Wine', 'Beer', 'Whiskey', 'Gin', 'Rum', 'Vodka', 'Champagne', 'Tequila', 'Sake', 'Cognac'];
@@ -23,6 +25,7 @@ const blankProduct = { name: '', price: '', description: '', category: '', image
 const blankBanner = { title: '', subtitle: '', cta_text: '', cta_link: '', background_image: '', is_active: true, order_position: 0 };
 const blankBrand = { name: '', short_name: '', subtitle: '', logo_url: '', color_hex: '#1a1a1a', search_term: '', is_active: true, order_position: 0 };
 const blankFlash = { product_id: '', discount_percentage: 10, start_time: '', end_time: '' };
+const blankStaff = { name: '', email: '', whatsapp_number: '', referral_code: '' };
 
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
@@ -32,12 +35,17 @@ const SuperAdminDashboard = () => {
   const [products, setProducts] = useState([]);
   const [flashSales, setFlashSales] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [staff, setStaff] = useState([]);
 
   // Forms
   const [bannerForm, setBannerForm] = useState(blankBanner);
   const [productForm, setProductForm] = useState(blankProduct);
   const [brandForm, setBrandForm] = useState(blankBrand);
   const [flashForm, setFlashForm] = useState(blankFlash);
+  const [staffForm, setStaffForm] = useState(blankStaff);
+  const [showStaff, setShowStaff] = useState(false);
+  const [editingStaff, setEditingStaff] = useState(null);
+  const [staffSecret, setStaffSecret] = useState(null); // {email, password}
 
   // Visibility & edit state
   const [showBanner, setShowBanner] = useState(false);
@@ -71,6 +79,9 @@ const SuperAdminDashboard = () => {
       } else if (tab === 'brands') {
         const r = await axios.get(`${API}/admin/brands`, { withCredentials: true });
         setBrands(r.data);
+      } else if (tab === 'staff') {
+        const r = await axios.get(`${API}/admin/staff`, { withCredentials: true });
+        setStaff(r.data);
       }
     } catch (e) { console.error(e); }
   };
@@ -182,6 +193,44 @@ const SuperAdminDashboard = () => {
       ...b, order_position: (b.order_position || 0) + delta,
     }, { withCredentials: true });
     load();
+  };
+
+  // === STAFF ===
+  const saveStaff = async () => {
+    try {
+      if (editingStaff) {
+        await axios.put(`${API}/admin/staff/${editingStaff}`, {
+          name: staffForm.name,
+          whatsapp_number: staffForm.whatsapp_number || null,
+          referral_code: staffForm.referral_code || null,
+        }, { withCredentials: true });
+      } else {
+        const res = await axios.post(`${API}/admin/staff`, staffForm, { withCredentials: true });
+        setStaffSecret({ email: res.data.email, password: res.data.temp_password, name: res.data.name, referral: res.data.referral_code });
+      }
+      setShowStaff(false); setEditingStaff(null); setStaffForm(blankStaff);
+      load();
+    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+  };
+  const editStaff = (s) => {
+    setEditingStaff(s.staff_id);
+    setStaffForm({ name: s.name || '', email: s.email || '', whatsapp_number: s.whatsapp_number || '', referral_code: s.referral_code || '' });
+    setShowStaff(true);
+  };
+  const delStaff = async (id) => {
+    if (!window.confirm('Delete this staff? Orders will be unassigned.')) return;
+    await axios.delete(`${API}/admin/staff/${id}`, { withCredentials: true });
+    load();
+  };
+  const resetStaffPw = async (id) => {
+    try {
+      const res = await axios.post(`${API}/admin/staff/${id}/reset-password`, {}, { withCredentials: true });
+      const s = staff.find((x) => x.staff_id === id);
+      setStaffSecret({ email: s?.email, password: res.data.temp_password, name: s?.name, referral: s?.referral_code });
+    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+  };
+  const copyToClipboard = (text) => {
+    navigator.clipboard?.writeText(text);
   };
 
   // === FLASH SALES ===
@@ -507,6 +556,119 @@ const SuperAdminDashboard = () => {
               </div>
             ))}
           </div>
+        </div>
+      )}
+      {/* === STAFF === */}
+      {tab === 'staff' && (
+        <div className="surface p-6" data-testid="admin-staff-panel">
+          <div className="flex justify-between mb-6 flex-wrap gap-3">
+            <div>
+              <h2 className="display-md">Staff Team ({staff.length})</h2>
+              <p className="text-xs text-white/50 mt-1">Add staff with email + referral code. They'll get login credentials to manage their orders.</p>
+            </div>
+            <button onClick={() => { setEditingStaff(null); setStaffForm(blankStaff); setShowStaff(!showStaff); }} className="btn-pink" data-testid="admin-add-staff-btn">
+              <FaPlus /> Add Staff
+            </button>
+          </div>
+
+          {/* One-time credentials reveal */}
+          {staffSecret && (
+            <div className="bg-[#39ff14]/10 border-2 border-[#39ff14]/40 rounded-2xl p-5 mb-6" data-testid="staff-credentials-reveal">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="eyebrow !text-[#39ff14] mb-2">✓ Credentials Generated · Share Once</div>
+                  <h3 className="display-md mb-3">{staffSecret.name}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="bg-black/40 rounded-xl p-3">
+                      <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Email</div>
+                      <div className="flex items-center justify-between gap-2">
+                        <code className="text-[#00f0ff] truncate">{staffSecret.email}</code>
+                        <button onClick={() => copyToClipboard(staffSecret.email)} className="text-white/40 hover:text-white shrink-0"><FaCopy size={12} /></button>
+                      </div>
+                    </div>
+                    <div className="bg-black/40 rounded-xl p-3">
+                      <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Temp Password</div>
+                      <div className="flex items-center justify-between gap-2">
+                        <code className="text-[#ff007f] truncate font-bold">{staffSecret.password}</code>
+                        <button onClick={() => copyToClipboard(staffSecret.password)} className="text-white/40 hover:text-white shrink-0" data-testid="staff-copy-password"><FaCopy size={12} /></button>
+                      </div>
+                    </div>
+                    {staffSecret.referral && (
+                      <div className="bg-black/40 rounded-xl p-3 md:col-span-2">
+                        <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Referral Code</div>
+                        <div className="flex items-center justify-between gap-2">
+                          <code className="text-[#ffd700] font-bold">{staffSecret.referral}</code>
+                          <button onClick={() => copyToClipboard(staffSecret.referral)} className="text-white/40 hover:text-white shrink-0"><FaCopy size={12} /></button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-white/50 mt-3">📲 Share these via WhatsApp/email. The password won't be shown again — only resetable.</p>
+                </div>
+                <button onClick={() => setStaffSecret(null)} className="text-white/50 hover:text-white shrink-0" data-testid="staff-dismiss-creds">×</button>
+              </div>
+            </div>
+          )}
+
+          {showStaff && (
+            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 mb-6 space-y-3" data-testid="admin-staff-form">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Name</label>
+                  <input value={staffForm.name} onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })} className="input-dark" placeholder="e.g. Sam" data-testid="staff-form-name" />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Email {editingStaff && <span className="text-white/30 normal-case">(locked)</span>}</label>
+                  <input type="email" value={staffForm.email} onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })} disabled={!!editingStaff} className="input-dark disabled:opacity-50" placeholder="sam@masterliqours.my" data-testid="staff-form-email" />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">WhatsApp Number</label>
+                  <input value={staffForm.whatsapp_number} onChange={(e) => setStaffForm({ ...staffForm, whatsapp_number: e.target.value })} className="input-dark" placeholder="+60123456789" data-testid="staff-form-wa" />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-[#ffd700] block mb-2">Referral Code <span className="text-white/30 normal-case">(auto-generated if blank)</span></label>
+                  <input value={staffForm.referral_code} onChange={(e) => setStaffForm({ ...staffForm, referral_code: e.target.value.toUpperCase() })} className="input-dark" placeholder="SAM001" data-testid="staff-form-referral" />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={saveStaff} className="btn-lime" data-testid="staff-form-save">{editingStaff ? 'Update' : 'Create Staff'}</button>
+                <button onClick={() => { setShowStaff(false); setEditingStaff(null); setStaffForm(blankStaff); }} className="btn-ghost">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {staff.length === 0 ? (
+            <div className="text-center py-16 text-white/40">
+              <FaUsers size={32} className="mx-auto mb-4 text-white/20" />
+              <div className="font-bold mb-2">No staff yet boss.</div>
+              <div className="text-xs">Click "Add Staff" to onboard your team members.</div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {staff.map((s) => (
+                <div key={s.staff_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center gap-4" data-testid={`admin-staff-${s.staff_id}`}>
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#ff007f] to-[#00f0ff] flex items-center justify-center font-display text-xl shrink-0">
+                    {s.name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-display text-lg uppercase truncate">{s.name}</div>
+                    <div className="text-xs text-white/50 truncate">{s.email}</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] uppercase tracking-wider bg-[#ffd700]/15 text-[#ffd700] px-2 py-0.5 rounded-full font-bold">{s.referral_code}</span>
+                      {s.whatsapp_number && (
+                        <a href={`https://wa.me/${s.whatsapp_number.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" className="text-[#39ff14] hover:scale-110 transition-transform"><FaWhatsapp size={12} /></a>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button onClick={() => resetStaffPw(s.staff_id)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#ffd700] hover:text-[#ffd700] flex items-center justify-center" title="Reset password" data-testid={`staff-reset-${s.staff_id}`}><FaKey size={11} /></button>
+                    <button onClick={() => editStaff(s)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center" title="Edit" data-testid={`staff-edit-${s.staff_id}`}><FaPen size={11} /></button>
+                    <button onClick={() => delStaff(s.staff_id)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center" title="Delete" data-testid={`staff-del-${s.staff_id}`}><FaTrash size={11} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

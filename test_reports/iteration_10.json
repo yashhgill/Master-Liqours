@@ -1,0 +1,45 @@
+{
+  "summary": "Full backend + frontend testing of new Staff Management feature (Iteration 10). 11/12 backend tests pass; 1 backend bug found (explicit duplicate referral_code silently regenerates instead of returning 409). Frontend UI exercised end-to-end via Playwright on /admin: 5th 'Staff' tab present, empty state shown, Add Staff form opens with name/email/whatsapp/referral fields, submit creates staff and reveals green credentials card (email + 10-char temp password + referral code + copy buttons + dismiss), staff row renders with avatar+badge, Edit prefills form with email LOCKED, Reset Password works and re-displays new credentials card, Delete via confirm dialog removes the staff. Old staff (Sam/Logen/Mukesh/Sharvin) confirmed absent. Regression spot-check: /api/brands=12, /api/hero-banners=1, /api/drink-reveal/today active, /api/products=13 — all green. Leftover test data cleaned up (DB has 0 staff at end).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/admin/staff",
+        "issue": "When admin explicitly supplies a referral_code that already exists, server SILENTLY regenerates a new random referral instead of returning 409 'Referral code dah dipakai'. Logic in routes_admin_staff.py lines 74-80: `while True: ... referral = _gen_referral(data.name)` overwrites the user-provided code. Spec required 409. The duplicate-EMAIL case works correctly (returns 409)."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_admin_staff.py",
+    "/app/test_reports/pytest/staff_results.xml"
+  ],
+  "action_items": [
+    "Fix POST /api/admin/staff so that an explicit duplicate referral_code returns HTTP 409 'Referral code dah dipakai' instead of silently regenerating. Suggested patch in routes_admin_staff.py: if data.referral_code was provided, do a uniqueness check and raise 409; only auto-regenerate when referral was auto-generated from name."
+  ],
+  "critical_code_review_comments": [
+    "routes_admin_staff.py L74-80: explicit user-supplied referral_code is overwritten on collision — violates contract and surprises admin who chose a specific code.",
+    "routes_admin_staff.py POST creates Staff + linked User row; uses bcrypt hash and standard UserRole.STAFF — clean.",
+    "Order.staff_id and Product.staff_id nullable=True with ON DELETE SET NULL confirmed by DELETE test (Yash deleted staff, no FK errors, listing shows 0).",
+    "Frontend SuperAdminDashboard.js: all required data-testid attributes present (admin-tab-staff, admin-staff-panel, admin-add-staff-btn, admin-staff-form, staff-form-name/email/wa/referral/save, staff-credentials-reveal, staff-copy-password, staff-dismiss-creds, admin-staff-{id}, staff-edit/reset/del-{id}).",
+    "Frontend correctly disables email field on edit mode (verified is_disabled()=True with prefilled value).",
+    "Login form has both header search input and login inputs — first attempt of any future Playwright login on this app should target inputs by type=\"email\" / type=\"password\" or specific data-testid (not by index) to avoid filling the search bar."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_staff.py (new file — 12 pytest cases)"
+  ],
+  "success_rate": {
+    "backend": "92% (11/12 pytest cases pass)",
+    "frontend": "100% (all required UI flows verified: tab, empty state, create + creds reveal, copy/dismiss, row render, edit-with-locked-email, reset password reveal, delete confirm dialog)"
+  },
+  "test_credentials": "Used credentials from /app/memory/test_credentials.md — yash@masterliqours.my / Admin123! (super admin), customer1@test.com / Test123! (customer for 403 test). All worked.",
+  "seed_data_creation": "Backend tests created several TEST_-prefixed staff (auto-cleaned by module-scope teardown fixture). UI test created 1 staff (UISam12367) which was deleted manually after testing. Final DB state: GET /api/admin/staff returns []. No leftover test data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Staff Management MVP is essentially complete. One backend bug remains: duplicate explicit referral_code does not return 409 (silently regenerates). All other staff CRUD + UI flows work. Regression endpoints (brands, hero-banners, drink-reveal, products) confirmed unaffected. Old staff Sam/Logen/Mukesh/Sharvin are confirmed gone. Hero banner endpoint is /api/hero-banners (NOT /api/hero/banners — note the dash).",
+  "rca_of_the_issue": "Root cause for duplicate-referral bug: in /app/backend/routes_admin_staff.py the code `referral = (data.referral_code or _gen_referral(data.name)).upper()` is followed by a `while True` loop that on collision calls `_gen_referral(data.name)` again. The loop does not differentiate between 'admin explicitly provided this code' vs 'auto-generated'. Reproduction: POST /api/admin/staff twice with the same `referral_code: \"DUPETEST\"`; first request → 201 with that code; second request → 201 but with a DIFFERENT auto-generated code (no 409 raised). Mitigation: branch on whether data.referral_code was provided — if provided and taken, raise HTTPException(409, 'Referral code dah dipakai'); only auto-regenerate when starting from _gen_referral(name)."
+}

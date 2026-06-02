@@ -109,7 +109,7 @@ class Stock(Base):
     
     stock_id = Column(String(36), primary_key=True, default=generate_uuid)
     product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)
-    staff_id = Column(String(36), ForeignKey('staff.staff_id', ondelete='CASCADE'), nullable=False, index=True)
+    staff_id = Column(String(36), ForeignKey('staff.staff_id', ondelete='SET NULL'), nullable=True, index=True)
     quantity = Column(Integer, default=0)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
     
@@ -122,7 +122,7 @@ class Order(Base):
     
     order_id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, index=True)
-    staff_id = Column(String(36), ForeignKey('staff.staff_id'), nullable=False, index=True)
+    staff_id = Column(String(36), ForeignKey('staff.staff_id', ondelete='SET NULL'), nullable=True, index=True)
     total = Column(Float, nullable=False)
     status = Column(SQLEnum(OrderStatus), default=OrderStatus.PENDING, index=True)
     shipping_address = Column(Text, nullable=False)
