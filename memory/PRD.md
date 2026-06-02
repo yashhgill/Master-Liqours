@@ -51,12 +51,10 @@ Premium Malaysian liquor e-commerce platform (`masterliqours.my`). Features requ
 ```
 
 ## ✅ Implemented (latest changes Feb 2026)
-- [Feb 2026] **Drink Reveal** — new `/api/drink-reveal/today` endpoint picks a deterministic product-of-the-day at 30% off (12:00 UTC = 8 PM Malaysia, 24h window). New `DrinkReveal.js` home component: blurred mystery card with "Tap to Reveal" CTA, animated reveal, neon countdown, "Grab Yours Lah" → /product/:id.
-- [Feb 2026] **Staff order-status workflow** — `PATCH /api/orders/:id/status` now accepts JSON `{status}`, validates against `OrderStatus` enum, enforces staff-only-owns-own-orders (Staff lookup by user.email since Staff.user_id doesn't exist). StaffDashboard fully rebuilt: status filter chips, "Advance to {next}" optimistic-UI buttons (pending → confirmed → preparing → out_for_delivery → delivered), Cancel button, stock side panel.
-- [Feb 2026] **`routes_staff.py` major fix** — all staff endpoints (/my-orders, /my-customers, /my-stock) were broken before: they queried `Order.staff_id == user.user_id` but Order.staff_id points to `Staff.staff_id`. Now they resolve Staff via `Staff.email == user.email` first. master_admin sees all orders.
-- [Feb 2026] **Twilio SMS (dormant)** — new `sms_utils.py` with `send_sms()` + `status_message()` helpers. Status changes trigger SMS to customer.phone; gracefully no-ops + logs when `TWILIO_*` env vars unset. User confirmed no Twilio account yet — code will activate the moment 3 env vars are populated.
-- [Feb 2026] **Staff user accounts seeded** — bcrypt password `Staff123!` set for Sam/Logen/Mukesh/Sharvin in the User table (role=staff). test_credentials.md updated.
-- [Feb 2026] Hero CMS, Emergent Google Auth button, ProductCard countdown, OrderDetail page, MyFlashSales widget, TZ-aware flash-sale form, backend FastAPI + Supabase, all still active.
+- [Feb 2026] **Brand Carousel** — new `BrandCarousel.js` on home with 12 premium liquor brands (Johnnie Walker, Chivas, Jack Daniel's, Hennessy, Heineken, Absolut, Bombay Sapphire, Bacardi, Tiger Beer, Carlsberg, Moët, Don Julio); each card uses signature brand color gradient with foil-shine hover effect; clicks navigate to `/products?search={brand}`. Scroll arrows for desktop, snap-scroll for mobile.
+- [Feb 2026] **Drink Reveal** — daily scheduled mystery drop with animated reveal card.
+- [Feb 2026] **Staff status workflow + Twilio dormant SMS** + bcrypt-seeded staff passwords + `routes_staff.py` major fix.
+- [Feb 2026] Flash-sale form TZ-aware, OrderDetail page with WhatsApp re-send, MyFlashSales widget, Hero CMS, Emergent Google Auth, countdown overlays, FastAPI + Supabase backend.
 - [Feb 2026] All backend endpoints (auth, products, orders, admin, staff, AI, newsletter) verified — 18/18 backend tests PASS.
 - [Feb 2026] Order checkout returns `staff_whatsapp` + `staff_name` → Frontend Checkout success screen routes to the assigned staff's WhatsApp.
 - [Feb 2026] Full design overhaul matching Montage Events × Mr.Chow references:
