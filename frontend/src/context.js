@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.get(`${API}/auth/me`, { withCredentials: true });
       setUser(response.data);
-    } catch (error) {
+    } catch {
       setUser(null);
     } finally {
       setLoading(false);
@@ -34,13 +34,14 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (data) => {
     const response = await axios.post(`${API}/auth/register`, data);
-    // Auto login after register
     await login(data.email, data.password);
     return response.data;
   };
 
   const logout = async () => {
-    await axios.post(`${API}/auth/logout`, {}, { withCredentials: true });
+    try {
+      await axios.post(`${API}/auth/logout`, {}, { withCredentials: true });
+    } catch {}
     setUser(null);
   };
 
@@ -55,14 +56,14 @@ export const useAuth = () => useContext(AuthContext);
 
 // Cart Provider
 export const CartProvider = ({ children }) => {
-  const [cart, setCart] = useState([]);
-
-  useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
+  const [cart, setCart] = useState(() => {
+    try {
+      const s = localStorage.getItem('cart');
+      return s ? JSON.parse(s) : [];
+    } catch {
+      return [];
     }
-  }, []);
+  });
 
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cart));

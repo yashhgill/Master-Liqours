@@ -109,7 +109,14 @@ const Footer = () => {
             />
             <button type="submit" className="btn-pink" data-testid="footer-newsletter-btn">Join</button>
           </form>
-          {msg && <p className="text-[#39ff14] text-sm mt-3">{msg}</p>}
+          {msg && (
+            <p
+              className="mt-4 px-4 py-3 rounded-2xl bg-[#39ff14]/10 border border-[#39ff14]/40 text-[#39ff14] text-sm font-bold animate-fade-in"
+              data-testid="footer-newsletter-msg"
+            >
+              {msg}
+            </p>
+          )}
         </div>
       </div>
 
