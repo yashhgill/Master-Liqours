@@ -51,10 +51,16 @@ Premium Malaysian liquor e-commerce platform (`masterliqours.my`). Features requ
 ```
 
 ## ✅ Implemented (latest changes Feb 2026)
-- [Feb 2026] **Brand Carousel** — new `BrandCarousel.js` on home with 12 premium liquor brands (Johnnie Walker, Chivas, Jack Daniel's, Hennessy, Heineken, Absolut, Bombay Sapphire, Bacardi, Tiger Beer, Carlsberg, Moët, Don Julio); each card uses signature brand color gradient with foil-shine hover effect; clicks navigate to `/products?search={brand}`. Scroll arrows for desktop, snap-scroll for mobile.
-- [Feb 2026] **Drink Reveal** — daily scheduled mystery drop with animated reveal card.
-- [Feb 2026] **Staff status workflow + Twilio dormant SMS** + bcrypt-seeded staff passwords + `routes_staff.py` major fix.
-- [Feb 2026] Flash-sale form TZ-aware, OrderDetail page with WhatsApp re-send, MyFlashSales widget, Hero CMS, Emergent Google Auth, countdown overlays, FastAPI + Supabase backend.
+- [Feb 2026] **Super Admin UX overhaul**:
+  - New `POST /api/admin/upload` (multipart, 8MB cap, image-ext whitelist) + `POST /api/admin/products/bulk-import` (CSV).
+  - Static mount `/api/uploads/` serving `/app/backend/uploads`.
+  - New frontend `ImageUploader` component (drag-drop + preview + clear/replace) used in all admin forms.
+  - New `resolveImageUrl()` helper auto-resolves relative `/api/uploads/...` to absolute via `REACT_APP_BACKEND_URL`.
+  - SuperAdminDashboard fully rebuilt: every Product / Banner / Brand row has EDIT (PATCH) + DELETE buttons + label-driven forms with live previews.
+  - Product tab now has a CSV bulk-import button + Sample CSV download + client-side search filter.
+  - Tabs reordered to Products → Banners → Flash Sales → Brands.
+- [Feb 2026] **"Made with Emergent" badge** hidden via inline `display:none !important` in `frontend/public/index.html`.
+- [Feb 2026] Brand CMS (`/api/brands` + `/api/admin/brands` CRUD), Drink Reveal, Staff status workflow, Twilio SMS dormant, Order detail, MyFlashSales widget, Hero CMS, Emergent Google Auth, ProductCard countdown — all active.
 - [Feb 2026] All backend endpoints (auth, products, orders, admin, staff, AI, newsletter) verified — 18/18 backend tests PASS.
 - [Feb 2026] Order checkout returns `staff_whatsapp` + `staff_name` → Frontend Checkout success screen routes to the assigned staff's WhatsApp.
 - [Feb 2026] Full design overhaul matching Montage Events × Mr.Chow references:
