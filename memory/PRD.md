@@ -51,14 +51,12 @@ Premium Malaysian liquor e-commerce platform (`masterliqours.my`). Features requ
 ```
 
 ## ✅ Implemented (latest changes Feb 2026)
-- [Feb 2026] **Flash-sale form TZ-aware**: SuperAdminDashboard now converts datetime-local inputs to UTC ISO via `new Date(str).toISOString()` before POST; UI shows the user's IANA timezone label and a live preview of when the sale will run (stored in UTC).
-- [Feb 2026] **Customer order detail page** (`/orders/:id`): new `OrderDetail.js` page with status badge, items list, delivery address, assigned staff card with "Re-send WhatsApp" button (wa.me link); accessible only to the order owner, staff, or admin roles. UserDashboard recent orders now link to this page; Checkout success "View order detail" button also navigates here.
-- [Feb 2026] **"Your Active Drops" widget**: new `MyFlashSales.js` shown on home between Category Chips and Flash Sales sections — only rendered for logged-in customers when active flash sales exist; horizontal-scroll cards with per-card live HH:MM:SS countdown.
-- [Feb 2026] Backend `/api/orders/:id` and `/api/orders/my-orders` now use `_enrich_with_staff` helper to populate `staff_name` + `staff_whatsapp` on every order (historical orders no longer return null).
-- [Feb 2026] Hero carousel reads live banners from `/api/hero-banners` with fallback.
-- [Feb 2026] Emergent Google Auth wired (Login button + AuthCallback page).
-- [Feb 2026] ProductCard live HH:MM:SS countdown overlay for flash sales.
-- [Feb 2026] Backend FastAPI + Supabase wired, seeded with real staff + admins + customers.
+- [Feb 2026] **Drink Reveal** — new `/api/drink-reveal/today` endpoint picks a deterministic product-of-the-day at 30% off (12:00 UTC = 8 PM Malaysia, 24h window). New `DrinkReveal.js` home component: blurred mystery card with "Tap to Reveal" CTA, animated reveal, neon countdown, "Grab Yours Lah" → /product/:id.
+- [Feb 2026] **Staff order-status workflow** — `PATCH /api/orders/:id/status` now accepts JSON `{status}`, validates against `OrderStatus` enum, enforces staff-only-owns-own-orders (Staff lookup by user.email since Staff.user_id doesn't exist). StaffDashboard fully rebuilt: status filter chips, "Advance to {next}" optimistic-UI buttons (pending → confirmed → preparing → out_for_delivery → delivered), Cancel button, stock side panel.
+- [Feb 2026] **`routes_staff.py` major fix** — all staff endpoints (/my-orders, /my-customers, /my-stock) were broken before: they queried `Order.staff_id == user.user_id` but Order.staff_id points to `Staff.staff_id`. Now they resolve Staff via `Staff.email == user.email` first. master_admin sees all orders.
+- [Feb 2026] **Twilio SMS (dormant)** — new `sms_utils.py` with `send_sms()` + `status_message()` helpers. Status changes trigger SMS to customer.phone; gracefully no-ops + logs when `TWILIO_*` env vars unset. User confirmed no Twilio account yet — code will activate the moment 3 env vars are populated.
+- [Feb 2026] **Staff user accounts seeded** — bcrypt password `Staff123!` set for Sam/Logen/Mukesh/Sharvin in the User table (role=staff). test_credentials.md updated.
+- [Feb 2026] Hero CMS, Emergent Google Auth button, ProductCard countdown, OrderDetail page, MyFlashSales widget, TZ-aware flash-sale form, backend FastAPI + Supabase, all still active.
 - [Feb 2026] All backend endpoints (auth, products, orders, admin, staff, AI, newsletter) verified — 18/18 backend tests PASS.
 - [Feb 2026] Order checkout returns `staff_whatsapp` + `staff_name` → Frontend Checkout success screen routes to the assigned staff's WhatsApp.
 - [Feb 2026] Full design overhaul matching Montage Events × Mr.Chow references:
