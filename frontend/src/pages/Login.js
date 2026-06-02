@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context';
-import { FaArrowRight } from 'react-icons/fa';
+import { FaArrowRight, FaGoogle } from 'react-icons/fa';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -22,9 +22,14 @@ const Login = () => {
     } finally { setLoading(false); }
   };
 
+  const googleLogin = () => {
+    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+    const redirectUrl = window.location.origin + '/dashboard';
+    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+  };
+
   return (
     <div className="min-h-[80vh] grid grid-cols-1 lg:grid-cols-2">
-      {/* Left visual */}
       <div className="hidden lg:block relative overflow-hidden">
         <img src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=1200" alt="" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-br from-black via-black/70 to-[#ff007f]/30" />
@@ -35,7 +40,6 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Form */}
       <div className="flex items-center justify-center p-6 lg:p-16">
         <div className="w-full max-w-md">
           <div className="eyebrow mb-3">Sign In</div>
@@ -46,6 +50,22 @@ const Login = () => {
               {error}
             </div>
           )}
+
+          {/* Google Auth */}
+          <button
+            type="button"
+            onClick={googleLogin}
+            className="w-full flex items-center justify-center gap-3 bg-white text-black rounded-full py-3.5 font-bold text-sm uppercase tracking-wider hover:bg-gray-100 transition-all mb-5"
+            data-testid="login-google-btn"
+          >
+            <FaGoogle size={16} className="text-[#ff007f]" /> Continue with Google
+          </button>
+
+          <div className="flex items-center gap-4 my-6">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs uppercase tracking-[0.25em] text-white/40">or email lah</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
 
           <form onSubmit={submit} className="space-y-4">
             <div>

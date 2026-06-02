@@ -125,13 +125,16 @@ async def login(
 
 @api_router.post("/auth/google-session")
 async def google_auth_session(
-    session_id: str,
+    payload: dict,
     response: Response,
     db: AsyncSession = Depends(get_db)
 ):
     """Exchange Emergent Google Auth session_id for user session
     REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
     """
+    session_id = payload.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id required")
     user_data = await exchange_session_id(session_id)
     
     result = await db.execute(select(User).where(User.email == user_data['email']))
@@ -172,7 +175,7 @@ async def google_auth_session(
         path="/"
     )
     
-    return {"message": "Login berjaya!", "user": user}
+    return {"message": "Login berjaya!", "user": UserResponse.model_validate(user, from_attributes=True)}
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(user: User = Depends(get_current_user)):

@@ -200,18 +200,20 @@ async def create_flash_sale(
     """Create flash sale dengan auto-timeout (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
     
-    # Validate dates
-    if data.end_time <= data.start_time:
+    # Validate dates (normalize to naive UTC for DB comparison)
+    start_naive = data.start_time.replace(tzinfo=None) if data.start_time.tzinfo else data.start_time
+    end_naive = data.end_time.replace(tzinfo=None) if data.end_time.tzinfo else data.end_time
+    if end_naive <= start_naive:
         raise HTTPException(status_code=400, detail="End time mesti after start time")
     
-    if data.end_time <= datetime.utcnow():
+    if end_naive <= datetime.utcnow():
         raise HTTPException(status_code=400, detail="End time mesti di masa depan")
     
     flash_sale = FlashSale(
         product_id=data.product_id,
         discount_percentage=data.discount_percentage,
-        start_time=data.start_time,
-        end_time=data.end_time,
+        start_time=start_naive,
+        end_time=end_naive,
         is_active=True
     )
     db.add(flash_sale)

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, CartProvider, useAuth } from './context';
 import AnnouncementBar from './components/AnnouncementBar';
 import Navbar from './components/Navbar';
@@ -13,6 +13,7 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AuthCallback from './pages/AuthCallback';
 import UserDashboard from './pages/UserDashboard';
 import StaffDashboard from './pages/StaffDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
@@ -27,6 +28,13 @@ const ProtectedRoute = ({ children, roles = [] }) => {
 };
 
 function AppContent() {
+  const location = useLocation();
+  // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+  // Synchronously detect session_id in URL fragment before any route mounts.
+  if (location.hash && location.hash.includes('session_id=')) {
+    return <AuthCallback />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-[#050505]">
       <AnnouncementBar />

@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration_3 validated 3 NEW features: (1) Home hero now fetches /api/hero-banners and renders the seeded CMS banner 'Spend & Win the Night' with subtitle, 'Shop Now Lah' CTA -> /products; (2) ProductCard countdown overlay on the active Chardonnay flash-sale ticks every second ('Ends in 01:54:52' -> '01:54:48' in 3.5s) using data-testid=countdown-{product_id}; (3) Login /login renders 'Continue with Google' button (data-testid=login-google-btn) that redirects to https://auth.emergentagent.com/?redirect=<origin>/dashboard with NO hardcoded fallback. AuthCallback handler correctly renders 'Signing You In...', POSTs to /api/auth/google-session, and on 401 redirects to /login?error=google. Backend google-session endpoint returns 400 on empty body and 401 on invalid session_id as specified. All 22 pytest backend tests PASS (100%). Existing regressions (customer login, products grid, hero-banners CRUD, checkout staff_whatsapp, gold/platinum tier discounts, newsletter, AI chat) all still pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/me", "issue": "Returns 401 on anonymous page loads (no token) generating console errors. Frontend AuthProvider should guard the call when no session cookie/token exists. Carried over from iteration_2 - still not fixed."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/iteration_3.json"
+  ],
+  "action_items": [
+    "(carry-over, minor) Guard the /api/auth/me call in AuthProvider so anonymous public-page visits don't spam 401s in the browser console.",
+    "Confirm cart-hydration lazy-init fix from iteration_2 is still in place (was not re-tested in this iteration as it was out of scope)."
+  ],
+  "critical_code_review_comments": [
+    "AuthCallback flow correctly follows the Emergent Google Auth playbook: no hardcoded URLs, redirect uses window.location.origin + '/dashboard', synchronous AuthCallback mount in App.js before any other route, AuthProvider skips initial /me check when hash contains 'session_id='. Implementation is correct.",
+    "Backend POST /api/auth/google-session matches contract: 400 'session_id required' on empty body, 401 'Invalid session ID' on bogus id, sets httponly/secure/samesite=none cookie on success.",
+    "useCountdown hook in ProductCard.js ticks via setInterval; returns null when expired (auto-hides overlay). Verified: text changes within 3.5s. The countdown also handles unmount cleanup (verified by code review).",
+    "Hero loader in Home.js gracefully falls back to DEFAULT_HERO slides when /api/hero-banners returns empty or errors - good defensive coding.",
+    "Console still emits 401 noise on anonymous page loads (minor, carried over)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (added TestGoogleSession, TestHeroBannersContent, TestFlashSaleCountdown classes)"
+  ],
+  "success_rate": {"backend": "100% (22/22 pytest)", "frontend": "100% on the 3 new features + key regressions"},
+  "test_credentials": "Used yash@masterliqours.my/Admin123!, jojo@masterliqours.my/Admin123!, customer1-3@test.com/Test123! — all logins succeeded.",
+  "seed_data_creation": "No new seed data — used existing seeded hero banner (banner_id 0787a4a2...) and active flash sale on Chardonnay (sale_id 4865dbd0..., ends 2026-06-02T20:49 UTC, ~2h window from current server time 2026-06-02T18:54 UTC).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 3 new features (CMS hero, flash-sale countdown timer, Google OAuth button + AuthCallback) work end-to-end. Backend /api/auth/google-session returns correct 400/401. Frontend redirect URL is constructed correctly with encodeURIComponent(origin + '/dashboard') per Emergent playbook — DO NOT add any fallback or hardcoded URL. The countdown overlay ticks every 1s and auto-hides on expiry (verified via code; for explicit auto-hide test, seed a flash sale with end_time ~5s in future and wait 8s — not done in this run as the existing 2h-window sale was sufficient to validate ticking). One persistent minor issue: /api/auth/me 401 spam on anonymous pages (recommend AuthProvider guard).",
+  "rca_of_the_issue": "N/A — no new bugs found this iteration."
+}

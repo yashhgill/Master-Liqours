@@ -262,3 +262,46 @@ class TestMisc:
         body = r.json()
         # Expect some reply field
         assert any(k in body for k in ("reply", "message", "response", "answer")), body
+
+
+
+# ------------- new feature: Google session + hero banners + flash sales -------------
+class TestGoogleSession:
+    def test_google_session_empty_body_returns_400(self):
+        r = requests.post(f"{API}/auth/google-session", json={}, timeout=20)
+        assert r.status_code == 400, r.text
+        assert "session_id" in r.text.lower()
+
+    def test_google_session_invalid_id_returns_401(self):
+        r = requests.post(f"{API}/auth/google-session", json={"session_id": "bogus-id-xyz"}, timeout=30)
+        assert r.status_code == 401, r.text
+        assert "invalid" in r.text.lower()
+
+
+class TestHeroBannersContent:
+    def test_hero_banner_has_seeded_content(self):
+        r = requests.get(f"{API}/hero-banners", timeout=15)
+        assert r.status_code == 200
+        banners = r.json()
+        assert isinstance(banners, list) and len(banners) >= 1, "No hero banners seeded"
+        # Look for the expected seeded banner
+        titles = [b.get("title", "") for b in banners]
+        assert any("Spend & Win the Night" in t for t in titles), f"Expected banner title not found. Titles={titles}"
+        b = next(b for b in banners if "Spend & Win the Night" in b.get("title", ""))
+        assert b.get("cta_text") == "Shop Now Lah"
+        assert b.get("cta_link") == "/products"
+        assert b.get("is_active") is True
+        assert b.get("background_image", "").startswith("http")
+
+
+class TestFlashSaleCountdown:
+    def test_active_flash_sale_has_future_end_time(self):
+        r = requests.get(f"{API}/flash-sales/active", timeout=15)
+        assert r.status_code == 200
+        sales = r.json()
+        assert isinstance(sales, list) and len(sales) >= 1, "No active flash sale to drive countdown UI"
+        s = sales[0]
+        assert "end_time" in s and "product" in s
+        assert "product_id" in s["product"]
+        assert s["discount_percentage"] > 0
+        assert s["discounted_price"] < s["original_price"]

@@ -10,50 +10,91 @@ import CategoryChips from '../components/CategoryChips';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const HERO_SLIDES = [
+const DEFAULT_HERO = [
   {
     eyebrow: 'Masterliqours · Malaysia',
-    title: ['Spend &', <span key="x" className="neon-pink-text">Win</span>, ' the night.'],
+    title: 'Spend & Win the night.',
+    accent: 'win',
     sub: 'Top quality drinks dengan harga best. Order now, settle via WhatsApp lah!',
     bg: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=1600',
+    cta_text: 'Shop Now Lah',
+    cta_link: '/products',
   },
   {
     eyebrow: 'Flash Drop',
-    title: ['Premium Whisky · ', <span key="g" className="neon-lime-text">Up to 30% off</span>],
+    title: 'Premium Whisky · Up to 30% off',
+    accent: '30%',
     sub: 'Limited stock boss. Once habis, habis lah — better grab one.',
     bg: 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=1600',
+    cta_text: 'See Flash Sales',
+    cta_link: '/products?promo=1',
   },
   {
     eyebrow: 'New Arrivals',
-    title: ['Champagne weather, ', <span key="c" className="neon-cyan-text">always.</span>],
+    title: 'Champagne weather, always.',
+    accent: 'always',
     sub: 'Bubbles for every occasion — birthdays, raya, weddings, just-because.',
     bg: 'https://images.unsplash.com/photo-1547595628-c61a29f496f0?w=1600',
+    cta_text: 'Explore Drops',
+    cta_link: '/products?category=Champagne',
   },
 ];
+
+const highlightTitle = (title, accent) => {
+  if (!accent || !title) return title;
+  const lower = title.toLowerCase();
+  const idx = lower.indexOf(accent.toLowerCase());
+  if (idx === -1) return title;
+  return (
+    <>
+      {title.slice(0, idx)}
+      <span className="neon-pink-text">{title.slice(idx, idx + accent.length)}</span>
+      {title.slice(idx + accent.length)}
+    </>
+  );
+};
 
 const Home = () => {
   const [products, setProducts] = useState([]);
   const [flashSales, setFlashSales] = useState([]);
+  const [slides, setSlides] = useState(DEFAULT_HERO);
   const [slide, setSlide] = useState(0);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => {
-    const t = setInterval(() => setSlide((s) => (s + 1) % HERO_SLIDES.length), 6000);
+    if (slides.length < 2) return;
+    const t = setInterval(() => setSlide((s) => (s + 1) % slides.length), 6000);
     return () => clearInterval(t);
-  }, []);
+  }, [slides.length]);
 
   const loadData = async () => {
     try {
-      const [salesRes, productsRes] = await Promise.all([
+      const [bannersRes, salesRes, productsRes] = await Promise.all([
+        axios.get(`${API}/hero-banners`),
         axios.get(`${API}/flash-sales/active`),
         axios.get(`${API}/products`),
       ]);
+      // Map CMS banners → slide shape; keep default if empty
+      if (bannersRes.data && bannersRes.data.length > 0) {
+        const mapped = bannersRes.data.map((b) => ({
+          eyebrow: 'Masterliqours · Malaysia',
+          title: b.title || 'Premium Liquor',
+          accent: b.subtitle && b.title?.toLowerCase().includes((b.subtitle || '').toLowerCase().split(' ')[0])
+            ? (b.subtitle || '').split(' ')[0]
+            : (b.title || '').split(' ').slice(-1)[0],
+          sub: b.subtitle || 'Top quality drinks dengan harga best.',
+          bg: b.background_image || 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=1600',
+          cta_text: b.cta_text || 'Shop Now Lah',
+          cta_link: b.cta_link || '/products',
+        }));
+        setSlides(mapped);
+      }
       setFlashSales(salesRes.data);
       setProducts(productsRes.data.slice(0, 8));
     } catch (e) { console.error(e); }
   };
 
-  const hero = HERO_SLIDES[slide];
+  const hero = slides[slide] || DEFAULT_HERO[0];
 
   return (
     <div>
@@ -71,15 +112,15 @@ const Home = () => {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-24 w-full">
           <div className="max-w-3xl animate-fade-up">
             <div className="eyebrow mb-6">{hero.eyebrow}</div>
-            <h1 className="display-mega text-glow-white mb-6">
-              {hero.title}
+            <h1 className="display-mega text-glow-white mb-6" data-testid="hero-title">
+              {highlightTitle(hero.title, hero.accent)}
             </h1>
             <p className="text-lg md:text-xl text-white/80 mb-10 max-w-xl leading-relaxed">
               {hero.sub}
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link to="/products" className="btn-pink" data-testid="hero-shop-now-btn">
-                Shop Now Lah <FaArrowRight size={14} />
+              <Link to={hero.cta_link || '/products'} className="btn-pink" data-testid="hero-shop-now-btn">
+                {hero.cta_text || 'Shop Now Lah'} <FaArrowRight size={14} />
               </Link>
               <a
                 href="https://wa.me/60126884925?text=Hi%20Masterliqours"
@@ -111,7 +152,7 @@ const Home = () => {
 
         {/* Slide dots */}
         <div className="absolute bottom-8 right-8 z-10 flex gap-2">
-          {HERO_SLIDES.map((_, i) => (
+          {slides.map((_, i) => (
             <button
               key={i}
               onClick={() => setSlide(i)}

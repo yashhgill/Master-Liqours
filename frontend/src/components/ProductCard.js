@@ -1,10 +1,29 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context';
-import { FaShoppingBag, FaBolt } from 'react-icons/fa';
+import { FaShoppingBag, FaBolt, FaClock } from 'react-icons/fa';
+
+const useCountdown = (endTime) => {
+  const [remaining, setRemaining] = useState(() => endTime ? Math.max(0, new Date(endTime).getTime() - Date.now()) : 0);
+  useEffect(() => {
+    if (!endTime) return;
+    const t = setInterval(() => {
+      setRemaining(Math.max(0, new Date(endTime).getTime() - Date.now()));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [endTime]);
+  if (!endTime || remaining <= 0) return null;
+  const totalSec = Math.floor(remaining / 1000);
+  const d = Math.floor(totalSec / 86400);
+  const h = Math.floor((totalSec % 86400) / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return { d, h, m, s, expired: false };
+};
 
 const ProductCard = ({ product, flashSale }) => {
   const { addToCart } = useCart();
+  const countdown = useCountdown(flashSale?.end_time);
 
   const price = flashSale ? flashSale.discounted_price : product.price;
   const hasDiscount = flashSale && flashSale.discount_percentage > 0;
@@ -14,6 +33,8 @@ const ProductCard = ({ product, flashSale }) => {
     e.stopPropagation();
     addToCart(product);
   };
+
+  const pad = (n) => String(n).padStart(2, '0');
 
   return (
     <Link
@@ -40,6 +61,25 @@ const ProductCard = ({ product, flashSale }) => {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">No image</div>
+        )}
+        {/* Countdown overlay */}
+        {countdown && (
+          <div
+            className="absolute bottom-0 left-0 right-0 bg-black/85 backdrop-blur-sm text-white px-3 py-2 flex items-center justify-between gap-2"
+            data-testid={`countdown-${product.product_id}`}
+          >
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] font-bold text-[#39ff14]">
+              <FaClock size={10} /> Ends in
+            </div>
+            <div className="flex items-center gap-1 font-display text-base leading-none">
+              {countdown.d > 0 && <><span>{countdown.d}d</span><span className="text-white/30">:</span></>}
+              <span>{pad(countdown.h)}</span>
+              <span className="text-white/30 animate-pulse">:</span>
+              <span>{pad(countdown.m)}</span>
+              <span className="text-white/30 animate-pulse">:</span>
+              <span className="neon-pink-text">{pad(countdown.s)}</span>
+            </div>
+          </div>
         )}
       </div>
 
