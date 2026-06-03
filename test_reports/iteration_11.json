@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 11 — Admin role merge + Direct Google OAuth + 409 referral fix. All 22 backend pytest cases PASS (100%). Frontend OAuth redirect, callback page, admin dashboard for both admin roles, /master->/admin redirect all verified working. Only minor finding: Hero Banners tab uses data-testid='admin-tab-banners' instead of 'admin-tab-hero-banners' specified in the review request — works correctly, just naming inconsistency with spec.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "SuperAdminDashboard tabs",
+        "issue": "Hero Banners tab's data-testid is 'admin-tab-banners' (from TABS array id='banners'), but the review request listed 'admin-tab-hero-banners'. Tab functions correctly; this is a naming mismatch only.",
+        "selector": "[data-testid=\"admin-tab-banners\"]",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter11_admin_merge.py",
+    "/app/test_reports/pytest/iter11_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Rename TABS id 'banners' -> 'hero-banners' (or update review-request spec) so data-testid matches 'admin-tab-hero-banners'. Trivial 1-line change in SuperAdminDashboard.js line 16.",
+    "INFRA (not a code bug): Google OAuth redirect_uri 'https://premium-spirits-app.preview.emergentagent.com/auth/google/callback' must be registered in Google Cloud Console; currently Google returns redirect_uri_mismatch — only affects real happy-path login. Code construction of the URL is correct."
+  ],
+  "critical_code_review_comments": [
+    "routes_admin_staff.py 409 fix: clean — explicit_code flag added; raises 409 with 'Referral code dah dipakai' on duplicate; auto-gen still loops on collision. Verified by test_explicit_duplicate_returns_409 and test_auto_referral_collision_regenerates.",
+    "routes_google_auth.py /auth/google/exchange: properly returns 401 with Google's error detail on invalid code. Tested via TestGoogleOAuth.test_invalid_code_returns_401.",
+    "Role-merge in routes_admin.py: both super_admin and master_admin accepted on /analytics, /all-orders, /staff-performance, /staff endpoints. Customer is correctly 403. All 12 parametrized access tests pass.",
+    "Frontend /admin route: accepts both roles; /master redirects to /admin; Login.js correctly writes g_oauth_state to sessionStorage before redirecting; redirect URL has correct client_id/redirect_uri/scope/response_type/state params.",
+    "GoogleAuthCallback page: handles no-code and invalid-code paths cleanly; shows 'AIYO ERROR' UI with Google's invalid_grant detail and 'Back to Login' button (data-testid='google-callback-back').",
+    "Minor: SuperAdminDashboard.js header still says 'Super Admin Console' for both roles which is fine but consider 'Admin Console' since master_admin also lands here."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter11_admin_merge.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (22/22)",
+    "frontend": "95% (all critical flows pass; one testid naming inconsistency vs spec)"
+  },
+  "test_credentials": "Yash: yash@masterliqours.my / Admin123! (super_admin), Jojo: jojo@masterliqours.my / Admin123! (master_admin), Customer: customer1@test.com / Test123!",
+  "seed_data_creation": "Test created and cleaned up 3 staff rows (1 duplicate-409 test + 2 auto-regen). Module teardown removed all TEST_ prefixed staff via DELETE /api/admin/staff/{id}. DB returns to 0 staff after tests.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 22 backend pytest cases in /app/backend/tests/test_iter11_admin_merge.py pass. UI verified for: login form (login-email-input/login-password-input/login-submit-btn), Google OAuth redirect URL construction with state token in sessionStorage, callback page error UI (google-callback-page + google-callback-back), all 7 admin tabs (note: Hero Banners uses id='banners' so testid is 'admin-tab-banners', NOT 'admin-tab-hero-banners' as the review-request listed), 4 overview stat cards, Staff Performance empty state, /master->/admin redirect, both admin roles can access /admin. Google happy-path NOT testable in script (needs real Google account + registered redirect URI in Google Console).",
+  "rca_of_iter10_bug": "Iteration 10 bug (explicit referral_code silently regenerated) RESOLVED. Fix at /app/backend/routes_admin_staff.py lines ~75-82: added 'explicit_code' boolean; if user supplied the code AND it collides with existing, the endpoint now raises HTTPException(409, 'Referral code dah dipakai') instead of regenerating. Auto-generation path (no explicit code) still retries on collision until unique. Both behaviors confirmed by tests."
+}

@@ -20,7 +20,7 @@ const Navbar = () => {
   const dashLink = () => {
     if (!user) return '/login';
     switch (user.role) {
-      case 'master_admin': return '/master';
+      case 'master_admin': return '/admin';
       case 'super_admin': return '/admin';
       case 'staff': return '/staff';
       default: return '/dashboard';

@@ -27,6 +27,7 @@ from routes_drink_reveal import router as drink_reveal_router
 from routes_brands import public_router as brands_public_router, admin_router as brands_admin_router, seed_default_brands
 from routes_uploads import router as uploads_router
 from routes_admin_staff import router as admin_staff_router
+from routes_google_auth import router as google_auth_router
 
 # Load environment
 ROOT_DIR = Path(__file__).parent
@@ -320,6 +321,7 @@ api_router.include_router(brands_public_router)
 api_router.include_router(brands_admin_router)
 api_router.include_router(uploads_router)
 api_router.include_router(admin_staff_router)
+api_router.include_router(google_auth_router)
 
 # Include main router
 app.include_router(api_router)

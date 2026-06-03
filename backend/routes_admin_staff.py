@@ -71,12 +71,15 @@ async def create_staff(
     if existing_user.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="User dengan email ni dah wujud")
 
+    explicit = bool(data.referral_code)
     referral = (data.referral_code or _gen_referral(data.name)).upper()
-    # Make sure referral code unique
+    # Make sure referral code unique. If admin supplied explicit code -> 409 on clash.
     while True:
         r = await db.execute(select(Staff).where(Staff.referral_code == referral))
         if not r.scalar_one_or_none():
             break
+        if explicit:
+            raise HTTPException(status_code=409, detail="Referral code dah dipakai")
         referral = _gen_referral(data.name)
 
     # Create staff record

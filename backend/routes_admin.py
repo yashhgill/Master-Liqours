@@ -286,8 +286,8 @@ async def get_analytics(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get sales analytics (Master Admin only)"""
-    await require_role(user, UserRole.MASTER_ADMIN)
+    """Get sales analytics (Admin only)"""
+    await require_role(user, UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN)
     
     # Total sales
     result = await db.execute(select(func.sum(Order.total), func.count(Order.order_id)))
@@ -333,8 +333,8 @@ async def get_all_orders(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all orders (Master Admin only)"""
-    await require_role(user, UserRole.MASTER_ADMIN)
+    """Get all orders (Admin only)"""
+    await require_role(user, UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN)
     
     query = select(Order).order_by(Order.created_at.desc())
     
@@ -343,3 +343,90 @@ async def get_all_orders(
     
     result = await db.execute(query)
     return result.scalars().all()
+
+
+# =============================================================================
+# STAFF PERFORMANCE TRACKING (Admin)
+# =============================================================================
+
+@router.get("/staff-performance")
+async def staff_performance(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Per-staff performance: orders count, status breakdown, revenue, customers, last activity."""
+    await require_role(user, UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN)
+
+    # All staff
+    sr = await db.execute(select(Staff).order_by(Staff.created_at.desc()))
+    staff_list = sr.scalars().all()
+
+    # Aggregate per-staff order metrics
+    om = await db.execute(
+        select(
+            Order.staff_id,
+            Order.status,
+            func.count(Order.order_id),
+            func.sum(Order.total),
+            func.max(Order.created_at),
+        ).group_by(Order.staff_id, Order.status)
+    )
+
+    # Build a dict: {staff_id: {status: {count, revenue}, last_at}}
+    bucket = {}
+    for staff_id, status, cnt, total, last in om.all():
+        if staff_id is None:
+            continue
+        s = bucket.setdefault(staff_id, {"by_status": {}, "last_at": None, "total_orders": 0, "total_revenue": 0.0})
+        s["by_status"][str(status.value) if hasattr(status, "value") else str(status)] = {
+            "count": int(cnt or 0),
+            "revenue": float(total or 0),
+        }
+        s["total_orders"] += int(cnt or 0)
+        s["total_revenue"] += float(total or 0)
+        if last and (s["last_at"] is None or last > s["last_at"]):
+            s["last_at"] = last
+
+    # Customer counts per staff
+    cm = await db.execute(
+        select(User.assigned_staff_id, func.count(User.user_id))
+        .where(User.assigned_staff_id.isnot(None))
+        .group_by(User.assigned_staff_id)
+    )
+    customer_counts = {row[0]: int(row[1] or 0) for row in cm.all()}
+
+    rows = []
+    for s in staff_list:
+        b = bucket.get(s.staff_id, {"by_status": {}, "last_at": None, "total_orders": 0, "total_revenue": 0.0})
+        delivered = b["by_status"].get("delivered", {}).get("count", 0)
+        conversion = round((delivered / b["total_orders"]) * 100, 1) if b["total_orders"] else 0.0
+        rows.append({
+            "staff_id": s.staff_id,
+            "name": s.name,
+            "email": s.email,
+            "referral_code": s.referral_code,
+            "whatsapp_number": s.whatsapp_number,
+            "total_orders": b["total_orders"],
+            "total_revenue": round(b["total_revenue"], 2),
+            "customers_count": customer_counts.get(s.staff_id, 0),
+            "by_status": b["by_status"],
+            "last_order_at": b["last_at"].isoformat() if b["last_at"] else None,
+            "conversion_rate": conversion,
+        })
+
+    # Sort by revenue desc
+    rows.sort(key=lambda r: r["total_revenue"], reverse=True)
+
+    # Unassigned-orders summary
+    unassigned = await db.execute(
+        select(func.count(Order.order_id), func.sum(Order.total)).where(Order.staff_id.is_(None))
+    )
+    u_cnt, u_rev = unassigned.first()
+
+    return {
+        "staff": rows,
+        "unassigned": {
+            "total_orders": int(u_cnt or 0),
+            "total_revenue": float(u_rev or 0),
+        },
+    }

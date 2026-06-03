@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, CartProvider, useAuth } from './context';
 import AnnouncementBar from './components/AnnouncementBar';
 import Navbar from './components/Navbar';
@@ -13,12 +13,11 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import AuthCallback from './pages/AuthCallback';
 import OrderDetail from './pages/OrderDetail';
+import GoogleAuthCallback from './pages/GoogleAuthCallback';
 import UserDashboard from './pages/UserDashboard';
 import StaffDashboard from './pages/StaffDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
-import MasterAdminDashboard from './pages/MasterAdminDashboard';
 
 const ProtectedRoute = ({ children, roles = [] }) => {
   const { user, loading } = useAuth();
@@ -29,13 +28,6 @@ const ProtectedRoute = ({ children, roles = [] }) => {
 };
 
 function AppContent() {
-  const location = useLocation();
-  // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-  // Synchronously detect session_id in URL fragment before any route mounts.
-  if (location.hash && location.hash.includes('session_id=')) {
-    return <AuthCallback />;
-  }
-
   return (
     <div className="min-h-screen flex flex-col bg-[#050505]">
       <AnnouncementBar />
@@ -48,12 +40,13 @@ function AppContent() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
           <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
           <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute roles={['customer']}><UserDashboard /></ProtectedRoute>} />
           <Route path="/staff" element={<ProtectedRoute roles={['staff']}><StaffDashboard /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute roles={['super_admin']}><SuperAdminDashboard /></ProtectedRoute>} />
-          <Route path="/master" element={<ProtectedRoute roles={['master_admin']}><MasterAdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute roles={['super_admin', 'master_admin']}><SuperAdminDashboard /></ProtectedRoute>} />
+          <Route path="/master" element={<Navigate to="/admin" replace />} />
         </Routes>
       </main>
       <Footer />

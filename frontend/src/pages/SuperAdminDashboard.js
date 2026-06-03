@@ -4,7 +4,7 @@ import { useAuth } from '../context';
 import {
   FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlassAlt,
   FaArrowUp, FaArrowDown, FaPen, FaFileCsv, FaDownload, FaSpinner,
-  FaUsers, FaKey, FaCopy, FaWhatsapp,
+  FaUsers, FaKey, FaCopy, FaWhatsapp, FaChartLine, FaTrophy, FaClock,
 } from 'react-icons/fa';
 import ImageUploader from '../components/ImageUploader';
 import { resolveImageUrl } from '../lib/imageUrl';
@@ -12,11 +12,13 @@ import { resolveImageUrl } from '../lib/imageUrl';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const TABS = [
+  { id: 'overview', label: 'Overview', icon: FaChartLine },
   { id: 'banners', label: 'Hero Banners', icon: FaImage },
   { id: 'products', label: 'Products', icon: FaBoxOpen },
   { id: 'flash-sales', label: 'Flash Sales', icon: FaBolt },
   { id: 'brands', label: 'Brands', icon: FaWineGlassAlt },
   { id: 'staff', label: 'Staff', icon: FaUsers },
+  { id: 'staff-perf', label: 'Staff Performance', icon: FaTrophy },
 ];
 
 const CATEGORIES = ['Wine', 'Beer', 'Whiskey', 'Gin', 'Rum', 'Vodka', 'Champagne', 'Tequila', 'Sake', 'Cognac'];
@@ -29,13 +31,16 @@ const blankStaff = { name: '', email: '', whatsapp_number: '', referral_code: ''
 
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
-  const [tab, setTab] = useState('products');
+  const [tab, setTab] = useState('overview');
 
   const [banners, setBanners] = useState([]);
   const [products, setProducts] = useState([]);
   const [flashSales, setFlashSales] = useState([]);
   const [brands, setBrands] = useState([]);
   const [staff, setStaff] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [staffPerf, setStaffPerf] = useState(null);
 
   // Forms
   const [bannerForm, setBannerForm] = useState(blankBanner);
@@ -82,6 +87,15 @@ const SuperAdminDashboard = () => {
       } else if (tab === 'staff') {
         const r = await axios.get(`${API}/admin/staff`, { withCredentials: true });
         setStaff(r.data);
+      } else if (tab === 'overview') {
+        const [a, o] = await Promise.all([
+          axios.get(`${API}/admin/analytics`, { withCredentials: true }),
+          axios.get(`${API}/admin/all-orders`, { withCredentials: true }),
+        ]);
+        setAnalytics(a.data); setRecentOrders(o.data);
+      } else if (tab === 'staff-perf') {
+        const r = await axios.get(`${API}/admin/staff-performance`, { withCredentials: true });
+        setStaffPerf(r.data);
       }
     } catch (e) { console.error(e); }
   };
@@ -267,6 +281,166 @@ const SuperAdminDashboard = () => {
           </button>
         ))}
       </div>
+
+      {/* === OVERVIEW === */}
+      {tab === 'overview' && (
+        <div className="space-y-6" data-testid="admin-overview-panel">
+          {!analytics ? (
+            <div className="surface p-10 text-center text-white/60">Loading analytics boss...</div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: 'Total Sales', val: `RM${(analytics.total_sales || 0).toFixed(2)}`, icon: FaChartLine, color: '#ff007f' },
+                  { label: 'Total Orders', val: analytics.total_orders || 0, icon: FaBoxOpen, color: '#00f0ff' },
+                  { label: 'Pending', val: analytics.pending_orders || 0, icon: FaClock, color: '#ffd700' },
+                  { label: 'Flash Sales', val: analytics.active_flash_sales || 0, icon: FaBolt, color: '#39ff14' },
+                ].map((s) => (
+                  <div key={s.label} className="surface p-6" data-testid={`overview-stat-${s.label.toLowerCase().replace(/\s/g, '-')}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="eyebrow !mb-0">{s.label}</div>
+                      <s.icon style={{ color: s.color }} />
+                    </div>
+                    <div className="display-lg" style={{ color: s.color, textShadow: `0 0 25px ${s.color}55` }}>{s.val}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="surface p-6">
+                  <h2 className="display-md mb-5">Sales by Staff</h2>
+                  <div className="space-y-3">
+                    {(analytics.staff_sales || []).length === 0 ? (
+                      <div className="text-white/40 text-sm">No staff data yet lah. Add staff in the Staff tab.</div>
+                    ) : (analytics.staff_sales || []).map((s, i) => (
+                      <div key={i} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex justify-between" data-testid="overview-staff-row">
+                        <div>
+                          <div className="font-bold">{s.name}</div>
+                          <div className="text-xs text-white/50">{s.orders || 0} orders</div>
+                        </div>
+                        <div className="font-display text-xl neon-pink-text">RM{(s.sales || 0).toFixed(2)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="surface p-6">
+                  <h2 className="display-md mb-5">Recent Orders</h2>
+                  <div className="space-y-3">
+                    {recentOrders.slice(0, 8).map((o) => (
+                      <div key={o.order_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex justify-between" data-testid="overview-order-row">
+                        <div>
+                          <div className="font-bold">#{o.order_id.slice(0, 8)}</div>
+                          <div className="text-xs text-white/50">{new Date(o.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-display text-xl neon-pink-text">RM{o.total.toFixed(2)}</div>
+                          <span className={`text-[10px] uppercase font-bold ${
+                            o.status === 'delivered' ? 'text-[#39ff14]' : o.status === 'cancelled' ? 'text-[#ff007f]' : 'text-[#ffd700]'
+                          }`}>{o.status}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {recentOrders.length === 0 && <div className="text-white/40 text-sm">No orders yet boss.</div>}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* === STAFF PERFORMANCE === */}
+      {tab === 'staff-perf' && (
+        <div className="space-y-6" data-testid="admin-staff-perf-panel">
+          {!staffPerf ? (
+            <div className="surface p-10 text-center text-white/60">Loading staff stats...</div>
+          ) : staffPerf.staff.length === 0 ? (
+            <div className="surface p-10 text-center">
+              <FaTrophy className="mx-auto text-[#ffd700] mb-4" size={32} />
+              <div className="font-bold text-lg mb-2">No staff yet boss.</div>
+              <div className="text-xs text-white/50">Add staff in Staff tab to see performance metrics here.</div>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="surface p-6" data-testid="perf-summary-team">
+                  <div className="eyebrow !mb-2">Team Size</div>
+                  <div className="display-lg text-[#00f0ff]" style={{ textShadow: '0 0 25px #00f0ff55' }}>{staffPerf.staff.length}</div>
+                </div>
+                <div className="surface p-6" data-testid="perf-summary-orders">
+                  <div className="eyebrow !mb-2">Assigned Orders</div>
+                  <div className="display-lg text-[#39ff14]" style={{ textShadow: '0 0 25px #39ff1455' }}>
+                    {staffPerf.staff.reduce((sum, s) => sum + s.total_orders, 0)}
+                  </div>
+                </div>
+                <div className="surface p-6" data-testid="perf-summary-unassigned">
+                  <div className="eyebrow !mb-2">Unassigned Orders</div>
+                  <div className="display-lg text-[#ffd700]" style={{ textShadow: '0 0 25px #ffd70055' }}>
+                    {staffPerf.unassigned.total_orders}
+                  </div>
+                  <div className="text-xs text-white/40 mt-1">RM{staffPerf.unassigned.total_revenue.toFixed(2)}</div>
+                </div>
+              </div>
+
+              <div className="surface p-6">
+                <h2 className="display-md mb-5">Per-Staff Breakdown</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs uppercase tracking-[0.2em] text-white/40 border-b border-white/10">
+                        <th className="pb-3 pr-4">Staff</th>
+                        <th className="pb-3 pr-4">Code</th>
+                        <th className="pb-3 pr-4">Orders</th>
+                        <th className="pb-3 pr-4">Revenue</th>
+                        <th className="pb-3 pr-4">Customers</th>
+                        <th className="pb-3 pr-4">Conversion</th>
+                        <th className="pb-3 pr-4">Last Order</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {staffPerf.staff.map((s, i) => (
+                        <tr key={s.staff_id} className="border-b border-white/5 hover:bg-white/[0.02]" data-testid={`perf-row-${s.staff_id}`}>
+                          <td className="py-4 pr-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#ff007f] to-[#ffd700] flex items-center justify-center font-bold text-xs">
+                                {s.name?.[0]?.toUpperCase() || '?'}
+                              </div>
+                              <div>
+                                <div className="font-bold">{s.name}</div>
+                                <div className="text-xs text-white/40">{s.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 pr-4"><code className="text-[#ffd700] text-xs">{s.referral_code}</code></td>
+                          <td className="py-4 pr-4">
+                            <div className="font-bold">{s.total_orders}</div>
+                            <div className="text-[10px] text-white/40 flex gap-2 flex-wrap mt-1">
+                              {Object.entries(s.by_status || {}).map(([k, v]) => (
+                                <span key={k}>{k.slice(0, 4)}:{v.count}</span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="py-4 pr-4 font-display text-lg neon-pink-text">RM{s.total_revenue.toFixed(2)}</td>
+                          <td className="py-4 pr-4">{s.customers_count}</td>
+                          <td className="py-4 pr-4">
+                            <span className={s.conversion_rate >= 50 ? 'text-[#39ff14]' : s.conversion_rate >= 20 ? 'text-[#ffd700]' : 'text-white/60'}>
+                              {s.conversion_rate}%
+                            </span>
+                          </td>
+                          <td className="py-4 pr-4 text-xs text-white/50">
+                            {s.last_order_at ? new Date(s.last_order_at).toLocaleDateString() : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* === PRODUCTS === */}
       {tab === 'products' && (

@@ -40,7 +40,7 @@ async def get_staff_orders(
     db: AsyncSession = Depends(get_db),
 ):
     """Get orders assigned to this staff"""
-    if user.role == UserRole.MASTER_ADMIN:
+    if user.role in (UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN):
         query = select(Order).options(selectinload(Order.order_items))
     else:
         staff = await _staff_record_for(user, db)
