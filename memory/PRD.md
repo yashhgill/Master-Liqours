@@ -51,6 +51,10 @@ Premium Malaysian liquor e-commerce platform (`masterliqours.my`). Features requ
 ```
 
 ## ✅ Implemented (latest changes Feb 2026)
+- [Feb 2026] **Admin Dashboard refactor + Product Duplicator**:
+  - Extracted `OverviewTab.js` and `StaffPerfTab.js` into `/app/frontend/src/pages/admin/` as self-contained components (each fetches its own data on mount). `SuperAdminDashboard.js` dropped from 853 → 706 lines.
+  - **Product Duplicator**: new `duplicateProduct()` handler + Duplicate button (yellow icon) on every product row. Opens the product form pre-filled with the source product's data, name = `<original> (Copy)`, marks as new (POST instead of PATCH). Auto-scrolls to top. Verified via testing agent — 100% pass.
+
 - [Feb 2026] **Deploy prep complete — Cloudflare Pages + Fly.io + R2**:
   - `/app/backend/Dockerfile` (Python 3.11-slim + gunicorn/uvicorn workers).
   - `/app/backend/fly.toml` (Singapore region, 1 always-on shared VM, healthcheck on `/api/health`, CORS_ORIGINS env baked in).
