@@ -13,8 +13,7 @@ from database import get_db
 from models import User, UserSession, Staff, Product, UserRole, UserTier
 from schemas import RegisterRequest, LoginRequest, UserResponse, ProductResponse
 from auth_utils import (
-    hash_password, verify_password, create_session, get_current_user,
-    exchange_session_id
+    hash_password, verify_password, create_session, get_current_user
 )
 
 # Import route modules
@@ -119,60 +118,6 @@ async def login(
     
     if not user or not user.password_hash or not verify_password(data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Email atau password salah")
-    
-    session_token = await create_session(db, user.user_id)
-    
-    response.set_cookie(
-        key="session_token",
-        value=session_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        max_age=7 * 24 * 60 * 60,
-        path="/"
-    )
-    
-    return {"message": "Login berjaya!", "user": UserResponse.model_validate(user, from_attributes=True)}
-
-@api_router.post("/auth/google-session")
-async def google_auth_session(
-    payload: dict,
-    response: Response,
-    db: AsyncSession = Depends(get_db)
-):
-    """Exchange Emergent Google Auth session_id for user session
-    REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    """
-    session_id = payload.get("session_id")
-    if not session_id:
-        raise HTTPException(status_code=400, detail="session_id required")
-    user_data = await exchange_session_id(session_id)
-    
-    result = await db.execute(select(User).where(User.email == user_data['email']))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        # Create new user dengan round-robin staff assignment
-        result = await db.execute(
-            select(Staff, func.count(User.user_id).label('count'))
-            .outerjoin(User, User.assigned_staff_id == Staff.staff_id)
-            .group_by(Staff.staff_id)
-            .order_by(func.count(User.user_id).asc())
-            .limit(1)
-        )
-        staff_row = result.first()
-        staff_id = staff_row[0].staff_id if staff_row else None
-        
-        user = User(
-            email=user_data['email'],
-            name=user_data['name'],
-            picture=user_data.get('picture'),
-            assigned_staff_id=staff_id,
-            role=UserRole.CUSTOMER
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
     
     session_token = await create_session(db, user.user_id)
     

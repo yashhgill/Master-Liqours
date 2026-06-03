@@ -58,18 +58,6 @@ async def get_user_from_session(db: AsyncSession, session_token: str) -> Optiona
     return result.scalar_one_or_none()
 
 # Emergent Google Auth
-async def exchange_session_id(session_id: str) -> dict:
-    """Exchange Emergent session_id for user data"""
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-            headers={"X-Session-ID": session_id}
-        )
-        if response.status_code != 200:
-            raise HTTPException(status_code=401, detail="Invalid session ID")
-        return response.json()
-
-# Auth dependency
 async def get_current_user(
     request: Request,
     session_token: Optional[str] = Cookie(None),
