@@ -51,6 +51,17 @@ Premium Malaysian liquor e-commerce platform (`masterliqours.my`). Features requ
 ```
 
 ## ✅ Implemented (latest changes Feb 2026)
+- [Feb 2026] **Deploy prep complete — Cloudflare Pages + Fly.io + R2**:
+  - `/app/backend/Dockerfile` (Python 3.11-slim + gunicorn/uvicorn workers).
+  - `/app/backend/fly.toml` (Singapore region, 1 always-on shared VM, healthcheck on `/api/health`, CORS_ORIGINS env baked in).
+  - `/app/backend/.dockerignore`.
+  - `/app/frontend/public/_redirects` (SPA fallback for Cloudflare Pages routing).
+  - `/app/CLOUDFLARE_DEPLOY.md` — full step-by-step deploy guide with fly secrets command, DNS table, post-deploy checklist, cost breakdown.
+  - **CORS now reads from `CORS_ORIGINS` env** (comma-separated). Defaults to `*` in dev.
+  - **`/api/health` endpoint** added (used by Fly.io healthcheck).
+  - **`routes_uploads.py` migrated to Cloudflare R2** (boto3 + S3v4 sig). Uploads go to R2 bucket `masterliqours-uploads` and return absolute `https://pub-xxxx.r2.dev/...` URLs. Falls back to local disk if R2 env vars are missing. **R2 upload tested & verified** in preview.
+  - `requirements.txt` updated with `boto3` + `gunicorn`.
+
 - [Feb 2026] **Admin roles merged + Staff Performance + Direct Google OAuth**:
   - `super_admin` and `master_admin` are now functionally equivalent — both route to `/admin`, both pass all admin API role checks. `/master` redirects to `/admin`. `MasterAdminDashboard.js` is retired (route still resolves via redirect).
   - New `GET /api/admin/staff-performance` endpoint returning per-staff metrics: total_orders, total_revenue, customers_count, orders by_status, conversion_rate, last_order_at + an unassigned-orders bucket. Sorted by revenue desc.

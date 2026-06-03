@@ -1,0 +1,41 @@
+# Fly.io config — Masterliqours Backend (FastAPI)
+# Deploy with: cd backend && fly deploy
+# Free tier: 3 shared-cpu-1x VMs, 256MB RAM each, no sleep
+# Region: sin (Singapore) for Malaysia low latency
+
+app = "masterliqours-api"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8001"
+  PYTHONUNBUFFERED = "1"
+  CORS_ORIGINS = "https://masterliqours.my,https://www.masterliqours.my"
+
+[http_service]
+  internal_port = 8001
+  force_https = true
+  auto_stop_machines = "off"   # always-on for low-latency API
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/api/health"
+    protocol = "http"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512

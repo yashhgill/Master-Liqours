@@ -1,11 +1,14 @@
-"""Uploads + CSV bulk import for products."""
+"""Uploads + CSV bulk import for products.
+
+Uploads go to Cloudflare R2 (S3-compatible) in production.
+If R2 env vars are missing, falls back to local disk for dev convenience.
+"""
 import os
 import csv
 import io
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -15,11 +18,42 @@ from auth_utils import get_current_user
 
 router = APIRouter(prefix="/admin", tags=["Admin · Uploads"])
 
+# Local fallback dir (only used when R2 is not configured)
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "/app/backend/uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
+ALLOWED_CT = {
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml",
+}
 MAX_BYTES = 8 * 1024 * 1024  # 8 MB
+
+# --- R2 client (lazy) ---
+R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID")
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID")
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY")
+R2_BUCKET = os.environ.get("R2_BUCKET")
+R2_PUBLIC_URL = (os.environ.get("R2_PUBLIC_URL") or "").rstrip("/")
+R2_ENABLED = all([R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_URL])
+
+_s3 = None
+
+
+def _r2_client():
+    global _s3
+    if _s3 is None:
+        import boto3
+        from botocore.config import Config
+        _s3 = boto3.client(
+            "s3",
+            endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+            aws_access_key_id=R2_ACCESS_KEY_ID,
+            aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+            region_name="auto",
+            config=Config(signature_version="s3v4"),
+        )
+    return _s3
 
 
 async def _require_admin(user: User):
@@ -32,7 +66,11 @@ async def upload_file(
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
 ):
-    """Upload an image. Returns {url} to embed in product/banner/brand records."""
+    """Upload an image. Returns {url} to embed in product/banner/brand records.
+
+    R2 in production -> returns absolute https URL.
+    Local fallback in dev -> returns relative `/api/uploads/<name>`.
+    """
     await _require_admin(user)
 
     ext = Path(file.filename or "").suffix.lower()
@@ -44,10 +82,24 @@ async def upload_file(
         raise HTTPException(status_code=400, detail="File too big lah (max 8 MB)")
 
     new_name = f"{uuid.uuid4().hex}{ext}"
+
+    if R2_ENABLED:
+        try:
+            _r2_client().put_object(
+                Bucket=R2_BUCKET,
+                Key=new_name,
+                Body=body,
+                ContentType=ALLOWED_CT.get(ext, "application/octet-stream"),
+                CacheControl="public, max-age=31536000, immutable",
+            )
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(status_code=500, detail=f"R2 upload failed: {str(e)[:200]}") from e
+        return {"url": f"{R2_PUBLIC_URL}/{new_name}", "filename": new_name, "size": len(body), "storage": "r2"}
+
+    # Local fallback
     dest = UPLOAD_DIR / new_name
     dest.write_bytes(body)
-
-    return {"url": f"/api/uploads/{new_name}", "filename": new_name, "size": len(body)}
+    return {"url": f"/api/uploads/{new_name}", "filename": new_name, "size": len(body), "storage": "local"}
 
 
 @router.post("/products/bulk-import")
@@ -81,7 +133,6 @@ async def bulk_import_products(
                 continue
             price = float(price_str)
 
-            # Skip if already exists by name
             existing = await db.execute(select(Product).where(Product.name == name))
             if existing.scalar_one_or_none():
                 skipped += 1

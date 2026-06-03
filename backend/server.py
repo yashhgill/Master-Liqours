@@ -45,10 +45,16 @@ app = FastAPI(
 )
 api_router = APIRouter(prefix="/api")
 
-# CORS
+# CORS — strict in prod via CORS_ORIGINS env (comma-separated); falls back to "*" in dev.
+_cors_env = os.environ.get("CORS_ORIGINS", "*").strip()
+if _cors_env == "*":
+    _origins = ["*"]
+else:
+    _origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -322,6 +328,11 @@ api_router.include_router(brands_admin_router)
 api_router.include_router(uploads_router)
 api_router.include_router(admin_staff_router)
 api_router.include_router(google_auth_router)
+
+# Health endpoint (used by Fly.io healthcheck)
+@api_router.get("/health")
+async def api_health_check():
+    return {"status": "healthy", "service": "masterliqours-api"}
 
 # Include main router
 app.include_router(api_router)
