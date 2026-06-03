@@ -51,6 +51,15 @@ Premium Malaysian liquor e-commerce platform (`masterliqours.my`). Features requ
 ```
 
 ## ✅ Implemented (latest changes Feb 2026)
+- [Feb 2026] **Admin roles merged + Staff Performance + Direct Google OAuth**:
+  - `super_admin` and `master_admin` are now functionally equivalent — both route to `/admin`, both pass all admin API role checks. `/master` redirects to `/admin`. `MasterAdminDashboard.js` is retired (route still resolves via redirect).
+  - New `GET /api/admin/staff-performance` endpoint returning per-staff metrics: total_orders, total_revenue, customers_count, orders by_status, conversion_rate, last_order_at + an unassigned-orders bucket. Sorted by revenue desc.
+  - SuperAdminDashboard now has 7 tabs: **Overview** (analytics + sales-by-staff + recent orders), Hero Banners, Products, Flash Sales, Brands, Staff, **Staff Performance** (summary cards + per-staff table).
+  - **Direct Google OAuth 2.0** replaces Emergent-managed Google Auth. New backend route `POST /api/auth/google/exchange` (httpx token exchange + userinfo + upsert + session cookie). New frontend page `/auth/google/callback`. Login.js Google button now redirects directly to `accounts.google.com` with `state` CSRF token in sessionStorage. Emergent session-id hash detection removed from context.js.
+  - **409 bug fix**: `POST /api/admin/staff` now returns 409 with detail "Referral code dah dipakai" when admin supplies an explicit duplicate referral_code (previously silently regenerated).
+  - **seed_data.py rewritten**: No staff are seeded (per user request). Products created with `staff_id=NULL`. Idempotency uses User table instead of Staff. Only admins + 3 test customers seeded.
+  - GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET added to backend/.env. REACT_APP_GOOGLE_CLIENT_ID added to frontend/.env.
+
 - [Feb 2026] **Super Admin UX overhaul**:
   - New `POST /api/admin/upload` (multipart, 8MB cap, image-ext whitelist) + `POST /api/admin/products/bulk-import` (CSV).
   - Static mount `/api/uploads/` serving `/app/backend/uploads`.
