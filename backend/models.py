@@ -47,6 +47,8 @@ class User(Base):
     assigned_staff_id = Column(String(36), ForeignKey('staff.staff_id'), nullable=True, index=True)
     picture = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=utcnow)
+    password_reset_token = Column(String(255), nullable=True)
+    password_reset_expires = Column(DateTime, nullable=True)
     
     assigned_staff = relationship('Staff', back_populates='customers', foreign_keys=[assigned_staff_id])
     orders = relationship('Order', back_populates='user', cascade='all, delete-orphan')
@@ -105,7 +107,7 @@ class Product(Base):
 
 
 class Stock(Base):
-    __tablename__ = 'stock'
+    __tablename__ = 'stocks'
     
     stock_id = Column(String(36), primary_key=True, default=generate_uuid)
     product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)

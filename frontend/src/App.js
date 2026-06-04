@@ -15,6 +15,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import OrderDetail from './pages/OrderDetail';
 import GoogleAuthCallback from './pages/GoogleAuthCallback';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import ChangePassword from './pages/ChangePassword';
 import UserDashboard from './pages/UserDashboard';
 import StaffDashboard from './pages/StaffDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
@@ -41,6 +44,9 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
           <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
           <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute roles={['customer']}><UserDashboard /></ProtectedRoute>} />

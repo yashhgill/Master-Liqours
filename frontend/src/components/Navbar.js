@@ -180,6 +180,7 @@ const Navbar = () => {
             {user && (
               <>
                 <Link to={dashLink()} onClick={() => setOpen(false)} className="block py-3 text-[#ffd700] font-bold uppercase text-sm tracking-wider">Dashboard</Link>
+                <button onClick={() => { navigate('/change-password'); setOpen(false); }} className="block w-full text-left py-3 text-white/60 uppercase text-sm tracking-wider">Change Password</button>
                 <button onClick={async () => { await logout(); setOpen(false); navigate('/'); }} className="block w-full text-left py-3 text-[#ff007f] font-bold uppercase text-sm tracking-wider">Logout</button>
               </>
             )}

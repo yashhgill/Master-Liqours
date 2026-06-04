@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from database import get_db
 from models import User, Product, Order, OrderItem, Stock, Reward, Staff, UserTier, OrderStatus, UserRole
+from sqlalchemy import and_
 from schemas import CheckoutRequest, OrderResponse, CartItem
 from auth_utils import get_current_user
 from sms_utils import send_sms, status_message
@@ -93,6 +94,21 @@ async def checkout(
     for item_data in order_items_data:
         order_item = OrderItem(order_id=order.order_id, **item_data)
         db.add(order_item)
+
+    # Auto-deduct stock for the assigned staff
+    if order.staff_id:
+        for item_data in order_items_data:
+            stock_result = await db.execute(
+                select(Stock).where(
+                    and_(
+                        Stock.staff_id == order.staff_id,
+                        Stock.product_id == item_data["product_id"]
+                    )
+                )
+            )
+            stock_row = stock_result.scalar_one_or_none()
+            if stock_row and stock_row.quantity > 0:
+                stock_row.quantity = max(0, stock_row.quantity - item_data["quantity"])
 
     reward = Reward(
         user_id=user.user_id,

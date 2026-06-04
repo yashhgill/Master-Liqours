@@ -96,7 +96,8 @@ const Login = () => {
           </form>
 
           <div className="mt-8 text-center text-sm text-white/60">
-            Belum ada account?{' '}
+            <Link to="/forgot-password" className="text-white/40 hover:text-white text-sm block text-right mb-4">Forgot password?</Link>
+        Belum ada account?{' '}
             <Link to="/register" className="text-[#ff007f] font-bold hover:underline">Register sini</Link>
           </div>
         </div>
