@@ -6,6 +6,26 @@ const CartContext = createContext(null);
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+// --- Token-based auth ---------------------------------------------------
+// We keep the session token in localStorage and send it as an Authorization
+// header on every request. This survives page refreshes on ANY domain,
+// even when the browser blocks the cross-site session cookie. The cookie is
+// still set by the backend as a fallback.
+const TOKEN_KEY = 'session_token';
+
+const applyToken = (token) => {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+    delete axios.defaults.headers.common['Authorization'];
+  }
+};
+
+// Restore any saved token before the app makes its first request.
+applyToken(localStorage.getItem(TOKEN_KEY));
+
 // Auth Provider
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -28,6 +48,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const response = await axios.post(`${API}/auth/login`, { email, password }, { withCredentials: true });
+    if (response.data.session_token) applyToken(response.data.session_token);
     setUser(response.data.user);
     return response.data;
   };
@@ -42,10 +63,15 @@ export const AuthProvider = ({ children }) => {
     try {
       await axios.post(`${API}/auth/logout`, {}, { withCredentials: true });
     } catch {}
+    applyToken(null);
     setUser(null);
   };
 
-  const setUserDirect = (u) => setUser(u);
+  // Used by the Google OAuth callback: persist token + user in one shot.
+  const setUserDirect = (u, token) => {
+    if (token) applyToken(token);
+    setUser(u);
+  };
 
   return (
     <AuthContext.Provider value={{ user, loading, login, register, logout, checkAuth, setUserDirect }}>

@@ -35,7 +35,7 @@ const GoogleAuthCallback = () => {
         const returnTo = sessionStorage.getItem('g_oauth_return_to') || '/';
         sessionStorage.removeItem('g_oauth_return_to');
 
-        if (res.data?.user) setUserDirect(res.data.user);
+        if (res.data?.user) setUserDirect(res.data.user, res.data.session_token);
         navigate(returnTo, { replace: true });
       } catch (e) {
         setError(e.response?.data?.detail || e.message || 'Google login failed lah');

@@ -131,7 +131,9 @@ async def login(
         path="/"
     )
     
-    return {"message": "Login berjaya!", "user": UserResponse.model_validate(user, from_attributes=True)}
+    # session_token returned in body so the frontend can use header-based auth
+    # (Authorization: Bearer) — works cross-domain where third-party cookies are blocked.
+    return {"message": "Login berjaya!", "session_token": session_token, "user": UserResponse.model_validate(user, from_attributes=True)}
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(user: User = Depends(get_current_user)):

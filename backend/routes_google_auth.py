@@ -122,5 +122,6 @@ async def google_exchange(
 
     return {
         "message": "Login berjaya lah!",
+        "session_token": session_token,
         "user": UserResponse.model_validate(user, from_attributes=True),
     }
