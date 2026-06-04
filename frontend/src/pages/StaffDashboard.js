@@ -68,7 +68,7 @@ const PersonalOrderModal = ({ products, onClose, onSaved }) => {
         <p className="text-white/50 text-sm">Record a sale received outside the app (WhatsApp, walk-in, etc).</p>
 
         <div className="space-y-3">
-          {[['name','Customer Name','e.g. Ahmad'],['whatsapp','WhatsApp Number','e.g. 0123456789'],['notes','Notes (optional)','e.g. Paid cash, pickup at Melaka']].map(([key, label, ph]) => (
+          {[['name','Customer Name','e.g. Raj Kumar'],['whatsapp','WhatsApp Number','e.g. 0123456789'],['notes','Notes (optional)','e.g. Paid cash, pickup at Melaka']].map(([key, label, ph]) => (
             <div key={key}>
               <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-1">{label}{key !== 'notes' && <span className="text-[#ff007f]"> *</span>}</label>
               <input className="input-dark" placeholder={ph} value={customer[key]} onChange={e => setCustomer({ ...customer, [key]: e.target.value })} />
@@ -240,8 +240,20 @@ const StaffDashboard = () => {
   const [transferOrder, setTransferOrder] = useState(null);
   const [editingStock, setEditingStock] = useState(null);
   const [tab, setTab] = useState('orders');
+  const [addStockId, setAddStockId] = useState('');
 
   const isAdmin = user?.role === 'super_admin' || user?.role === 'master_admin';
+
+  const addStock = async () => {
+    if (!addStockId) return;
+    try {
+      await axios.post(`${API}/staff/my-stock`, { product_id: addStockId, quantity: 1 }, { withCredentials: true });
+      setAddStockId('');
+      loadData();
+    } catch (e) {
+      alert('Could not add stock: ' + (e.response?.data?.detail || 'try again'));
+    }
+  };
 
   const loadData = () => {
     axios.get(`${API}/staff/my-orders`, { withCredentials: true }).then(r => setOrders(r.data)).catch(() => {});
@@ -395,6 +407,17 @@ const StaffDashboard = () => {
           <div className="flex justify-between items-center mb-5">
             <h2 className="display-md">My Stock</h2>
             <div className="text-xs text-white/40">Boss distributes stock → you log it here</div>
+          </div>
+
+          {/* Add a product to my stock */}
+          <div className="flex gap-2 mb-5">
+            <select value={addStockId} onChange={e => setAddStockId(e.target.value)} className="input-dark flex-1">
+              <option value="">+ Add a product to my stock…</option>
+              {products.filter(p => !stock.some(s => s.product_id === p.product_id)).map(p => (
+                <option key={p.product_id} value={p.product_id}>{p.name} ({p.category})</option>
+              ))}
+            </select>
+            <button onClick={addStock} disabled={!addStockId} className="btn-pink px-6 disabled:opacity-40">Add</button>
           </div>
 
           {stock.length === 0 ? (

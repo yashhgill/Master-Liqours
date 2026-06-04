@@ -137,7 +137,7 @@ const Checkout = () => {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
         <div className="surface p-8 space-y-5">
           <h2 className="display-md mb-2">Your Details</h2>
-          <Field label="Full Name" value={form.name} placeholder="e.g. Ahmad bin Ali"
+          <Field label="Full Name" value={form.name} placeholder="e.g. Tan Wei Ming"
             onChange={(e) => setForm({ ...form, name: e.target.value })} error={errors.name} />
           <Field label="WhatsApp Number" type="tel" value={form.whatsapp} placeholder="e.g. 0123456789"
             onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} error={errors.whatsapp} />

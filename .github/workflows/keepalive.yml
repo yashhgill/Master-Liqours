@@ -1,0 +1,24 @@
+name: keep-backend-awake
+
+# Render's free tier sleeps after ~15 min of no traffic, causing a ~40s cold
+# start (which can look like "Network Error" to the first visitor). This pings
+# the health endpoint every 5 minutes so the backend stays warm.
+#
+# Note: GitHub's scheduled runs are best-effort and can be delayed under load,
+# and schedules are paused after 60 days with no repo commits. For rock-solid
+# uptime, also add a free monitor at uptimerobot.com hitting the same URL.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend /api/health
+        run: |
+          curl -fsS -m 90 https://master-liqours-api.onrender.com/api/health \
+            && echo " — backend is awake" \
+            || echo "ping failed (backend may be cold-starting)"
