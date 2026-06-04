@@ -4,7 +4,7 @@ import { useAuth } from '../context';
 import {
   FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlassAlt,
   FaArrowUp, FaArrowDown, FaPen, FaFileCsv, FaDownload, FaSpinner,
-  FaUsers, FaKey, FaCopy, FaWhatsapp, FaChartLine, FaTrophy,
+  FaUsers, FaKey, FaCopy, FaWhatsapp, FaChartLine, FaTrophy, FaRandom, FaClock, FaToggleOff,
 } from 'react-icons/fa';
 import ImageUploader from '../components/ImageUploader';
 import { resolveImageUrl } from '../lib/imageUrl';
@@ -21,6 +21,7 @@ const TABS = [
   { id: 'brands', label: 'Brands', icon: FaWineGlassAlt },
   { id: 'staff', label: 'Staff', icon: FaUsers },
   { id: 'staff-perf', label: 'Staff Performance', icon: FaTrophy },
+  { id: 'mystery-drop', label: 'Mystery Drop', icon: FaWineGlassAlt },
 ];
 
 const CATEGORIES = ['Wine', 'Beer', 'Whiskey', 'Gin', 'Rum', 'Vodka', 'Champagne', 'Tequila', 'Sake', 'Cognac'];
@@ -38,6 +39,9 @@ const SuperAdminDashboard = () => {
   const [banners, setBanners] = useState([]);
   const [products, setProducts] = useState([]);
   const [flashSales, setFlashSales] = useState([]);
+  const [editingFlash, setEditingFlash] = useState(null);
+  const [mysteryConfig, setMysteryConfig] = useState(null);
+  const [mysteryForm, setMysteryForm] = useState({ reveal_hour_utc: 12, discount_pct: 30, locked_product_id: '', is_active: true });
   const [brands, setBrands] = useState([]);
   const [staff, setStaff] = useState([]);
 
@@ -74,6 +78,16 @@ const SuperAdminDashboard = () => {
       } else if (tab === 'products') {
         const r = await axios.get(`${API}/products`);
         setProducts(r.data);
+      } else if (tab === 'mystery-drop') {
+        try {
+          const r = await axios.get(`${API}/admin/mystery-drop/config`, { withCredentials: true });
+          setMysteryConfig(r.data);
+          setMysteryForm({ ...r.data, locked_product_id: r.data.locked_product_id || '' });
+          if (!products.length) {
+            const p = await axios.get(`${API}/products`, { withCredentials: true });
+            setProducts(p.data?.products || p.data || []);
+          }
+        } catch(e) {}
       } else if (tab === 'flash-sales') {
         const [r, p] = await Promise.all([
           axios.get(`${API}/admin/flash-sales?include_expired=true`, { withCredentials: true }),
@@ -253,12 +267,48 @@ const SuperAdminDashboard = () => {
   };
 
   // === FLASH SALES ===
+  const deleteFlashSale = async (saleId) => {
+    if (!window.confirm('Delete this flash sale?')) return;
+    try {
+      await axios.delete(`${API}/admin/flash-sales/${saleId}`, { withCredentials: true });
+      setFlashSales(fs => fs.filter(s => s.sale_id !== saleId));
+    } catch(e) { alert(e.response?.data?.detail || 'Delete failed'); }
+  };
+
+  const saveMysteryConfig = async () => {
+    try {
+      const payload = {
+        reveal_hour_utc: parseInt(mysteryForm.reveal_hour_utc),
+        discount_pct: parseInt(mysteryForm.discount_pct),
+        locked_product_id: mysteryForm.locked_product_id || null,
+        is_active: mysteryForm.is_active,
+      };
+      const r = await axios.patch(`${API}/admin/mystery-drop/config`, payload, { withCredentials: true });
+      setMysteryConfig(r.data);
+      alert('Mystery drop config saved!');
+    } catch(e) { alert(e.response?.data?.detail || 'Save failed'); }
+  };
+
+  const unlockMysteryDrop = async () => {
+    try {
+      const r = await axios.delete(`${API}/admin/mystery-drop/lock`, { withCredentials: true });
+      setMysteryConfig(r.data.config);
+      setMysteryForm(f => ({ ...f, locked_product_id: '' }));
+      alert('Mystery drop unlocked — auto-rotating again!');
+    } catch(e) { alert(e.response?.data?.detail || 'Unlock failed'); }
+  };
+
   const saveFlash = async () => {
     try {
       const toIso = (s) => s ? new Date(s).toISOString() : null;
       const payload = { ...flashForm, start_time: toIso(flashForm.start_time), end_time: toIso(flashForm.end_time) };
       if (!payload.start_time || !payload.end_time) { alert('Pick both times lah'); return; }
-      await axios.post(`${API}/admin/flash-sales`, payload, { withCredentials: true });
+      if (editingFlash) {
+        await axios.patch(`${API}/admin/flash-sales/${editingFlash.sale_id}`, payload, { withCredentials: true });
+        setEditingFlash(null);
+      } else {
+        await axios.post(`${API}/admin/flash-sales`, payload, { withCredentials: true });
+      }
       setShowFlash(false); setFlashForm(blankFlash);
       load();
     } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
@@ -467,8 +517,11 @@ const SuperAdminDashboard = () => {
       {tab === 'flash-sales' && (
         <div className="surface p-6">
           <div className="flex justify-between mb-6 flex-wrap gap-3">
-            <h2 className="display-md">Flash Sales ({flashSales.length})</h2>
-            <button onClick={() => setShowFlash(!showFlash)} className="btn-pink" data-testid="admin-add-flash-btn"><FaBolt /> Create Sale</button>
+            <h2 className="display-md">{editingFlash ? "Edit Flash Sale" : `Flash Sales (${flashSales.length})`}</h2>
+            <div className="flex gap-2">
+            {editingFlash && <button onClick={() => { setEditingFlash(null); setShowFlash(false); }} className="btn-outline text-xs">Cancel Edit</button>}
+            <button onClick={() => { if (!editingFlash) setFlashForm({ product_id: '', discount_percentage: 20, start_time: '', end_time: '' }); setShowFlash(!showFlash); }} className="btn-pink" data-testid="admin-add-flash-btn"><FaBolt /> {editingFlash ? 'Edit Sale' : 'Create Sale'}</button>
+          </div>
           </div>
           {showFlash && (
             <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 mb-6 space-y-3">
@@ -509,6 +562,12 @@ const SuperAdminDashboard = () => {
                     <div className="text-xs text-white/40">{new Date(s.start_time).toLocaleString()} → {new Date(s.end_time).toLocaleString()}</div>
                   </div>
                   <div className="font-display text-xl neon-pink-text">{s.discount_percentage}% OFF</div>
+                  <div className="flex flex-col gap-1 ml-2">
+                    <button onClick={() => { setEditingFlash(s); setFlashForm({ product_id: s.product_id, discount_percentage: s.discount_percentage, start_time: new Date(s.start_time).toISOString().slice(0,16), end_time: new Date(s.end_time).toISOString().slice(0,16) }); setShowFlash(true); }}
+                      className="text-xs px-2 py-1 rounded-lg border border-white/15 text-white/60 hover:border-[#00f0ff] hover:text-[#00f0ff] transition-all">Edit</button>
+                    <button onClick={() => deleteFlashSale(s.sale_id)}
+                      className="text-xs px-2 py-1 rounded-lg border border-white/15 text-white/60 hover:border-[#ff007f] hover:text-[#ff007f] transition-all">Delete</button>
+                  </div>
                 </div>
               );
             })}
@@ -516,7 +575,78 @@ const SuperAdminDashboard = () => {
         </div>
       )}
 
-      {/* === BRANDS === */}
+
+      {/* === MYSTERY DROP === */}
+      {tab === 'mystery-drop' && (
+        <div className="surface p-6 space-y-6">
+          <div className="flex justify-between items-center flex-wrap gap-3">
+            <div>
+              <h2 className="display-md">Mystery Drop Control</h2>
+              <p className="text-white/50 text-sm mt-1">Control the daily Drink Reveal feature.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-white/50">Status:</span>
+              <button onClick={() => setMysteryForm(f => ({ ...f, is_active: !f.is_active }))}
+                className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${mysteryForm.is_active ? 'bg-[#39ff14] text-black' : 'border border-white/20 text-white/40'}`}>
+                {mysteryForm.is_active ? '● Live' : '○ Off'}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Reveal Hour (UTC)</label>
+              <input type="number" min="0" max="23" className="input-dark"
+                value={mysteryForm.reveal_hour_utc}
+                onChange={e => setMysteryForm(f => ({ ...f, reveal_hour_utc: e.target.value }))} />
+              <p className="text-[10px] text-white/30 mt-1">
+                UTC {mysteryForm.reveal_hour_utc}:00 = Malaysia time {((parseInt(mysteryForm.reveal_hour_utc) + 8) % 24).toString().padStart(2,'0')}:00
+              </p>
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Discount %</label>
+              <input type="number" min="1" max="90" className="input-dark"
+                value={mysteryForm.discount_pct}
+                onChange={e => setMysteryForm(f => ({ ...f, discount_pct: e.target.value }))} />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">
+              Lock a Specific Product <span className="normal-case text-white/30">(leave blank to auto-rotate daily)</span>
+            </label>
+            <div className="flex gap-2">
+              <select className="input-dark flex-1"
+                value={mysteryForm.locked_product_id}
+                onChange={e => setMysteryForm(f => ({ ...f, locked_product_id: e.target.value }))}>
+                <option value="">— Auto-rotate daily —</option>
+                {products.filter(p => p.is_active).map(p => (
+                  <option key={p.product_id} value={p.product_id}>{p.name} — RM{p.price}</option>
+                ))}
+              </select>
+              {mysteryForm.locked_product_id && (
+                <button onClick={unlockMysteryDrop}
+                  className="px-4 py-2 rounded-xl border border-white/15 text-white/50 hover:border-[#ff007f] hover:text-[#ff007f] text-xs transition-all whitespace-nowrap">
+                  Unlock
+                </button>
+              )}
+            </div>
+          </div>
+
+          {mysteryConfig && (
+            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-4 text-sm text-white/50 space-y-1">
+              <div>Current config: <span className="text-white">{mysteryConfig.is_active ? 'Active' : 'Off'}</span></div>
+              <div>Reveal at: <span className="text-white">UTC {mysteryConfig.reveal_hour_utc}:00 (MY {((mysteryConfig.reveal_hour_utc + 8) % 24).toString().padStart(2,'0')}:00)</span></div>
+              <div>Discount: <span className="text-[#ff007f] font-bold">{mysteryConfig.discount_pct}% OFF</span></div>
+              <div>Mode: <span className="text-[#39ff14]">{mysteryConfig.locked_product_id ? 'Locked product' : 'Daily auto-rotate'}</span></div>
+            </div>
+          )}
+
+          <button onClick={saveMysteryConfig} className="btn-pink">Save Mystery Drop Config</button>
+        </div>
+      )}
+
+      {/* === BRANDS === */
       {tab === 'brands' && (
         <div className="surface p-6" data-testid="admin-brands-panel">
           <div className="flex justify-between mb-6 flex-wrap gap-3">

@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from datetime import datetime
+from pydantic import BaseModel
 
 from database import get_db
 from models import User, Product, Order, OrderItem, Stock, Reward, Staff, UserTier, OrderStatus, UserRole
@@ -13,25 +13,19 @@ from sms_utils import send_sms, status_message
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
-def calculate_tier_benefits(user: User, subtotal: float):
-    """Calculate shipping discount and product discount based on user tier"""
-    shipping_discount = 0
-    product_discount = 0
-    
-    if user.tier == UserTier.GOLD:
-        shipping_discount = 50.0
-    elif user.tier == UserTier.PLATINUM:
-        shipping_discount = 100.0
-        product_discount = subtotal * 0.03  # 3% discount
-    
-    return shipping_discount, product_discount
+
+def calculate_tier_discount(user: User, subtotal: float):
+    """Platinum gets 3% product discount. No shipping calc — staff handles that."""
+    if user.tier == UserTier.PLATINUM:
+        return subtotal * 0.03
+    return 0.0
+
 
 def _clean_dict(obj):
-    """Remove SQLAlchemy internal state from a model __dict__"""
     return {k: v for k, v in obj.__dict__.items() if not k.startswith('_')}
 
+
 async def _enrich_with_staff(order, db):
-    """Attach staff_whatsapp + staff_name to an order's clean dict"""
     payload = {
         **_clean_dict(order),
         "items": [_clean_dict(item) for item in order.order_items],
@@ -46,26 +40,28 @@ async def _enrich_with_staff(order, db):
             payload["staff_name"] = staff.name
     return payload
 
+
+# ─── CUSTOMER CHECKOUT ────────────────────────────────────────────────────────
+
 @router.post("/checkout", response_model=OrderResponse)
 async def checkout(
     data: CheckoutRequest,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Checkout - create order"""
+    """Customer checkout. Shipping cost discussed with staff after order."""
     if not data.items:
         raise HTTPException(status_code=400, detail="Keranjang kosong")
-    
-    # Calculate total
+
     subtotal = 0
     order_items_data = []
-    
+
     for item in data.items:
         result = await db.execute(select(Product).where(Product.product_id == item.product_id))
         product = result.scalar_one_or_none()
         if not product:
             raise HTTPException(status_code=404, detail=f"Produk {item.product_id} tak jumpa")
-        
+
         item_total = product.price * item.quantity
         subtotal += item_total
         order_items_data.append({
@@ -74,31 +70,30 @@ async def checkout(
             "price": product.price,
             "subtotal": item_total
         })
-    
-    # Apply tier benefits
-    shipping_discount, product_discount = calculate_tier_benefits(user, subtotal)
+
+    product_discount = calculate_tier_discount(user, subtotal)
     total = subtotal - product_discount
-    
-    # Create order
+
     order = Order(
         user_id=user.user_id,
         staff_id=user.assigned_staff_id,
         total=total,
-        shipping_address=data.shipping_address,
+        customer_name=data.customer_name.strip(),
+        customer_whatsapp=data.customer_whatsapp.strip(),
+        shipping_address=data.shipping_address.strip(),
         discount_applied=product_discount,
-        shipping_discount=shipping_discount,
-        points_earned=int(total / 10),  # 1 point per RM10
-        status=OrderStatus.PENDING
+        shipping_discount=0,
+        points_earned=int(total / 10),
+        status=OrderStatus.PENDING,
+        is_personal_order=False
     )
     db.add(order)
     await db.flush()
-    
-    # Create order items
+
     for item_data in order_items_data:
         order_item = OrderItem(order_id=order.order_id, **item_data)
         db.add(order_item)
-    
-    # Add reward points
+
     reward = Reward(
         user_id=user.user_id,
         points=order.points_earned,
@@ -106,24 +101,21 @@ async def checkout(
         description=f"Order #{order.order_id[:8]}"
     )
     db.add(reward)
-    
-    # Update user points and tier
+
     user.points += order.points_earned
     if user.points >= 10000:
         user.tier = UserTier.PLATINUM
     elif user.points >= 5000:
         user.tier = UserTier.GOLD
-    
+
     await db.commit()
     await db.refresh(order)
-    
-    # Get order with items
+
     result = await db.execute(
         select(Order).options(selectinload(Order.order_items)).where(Order.order_id == order.order_id)
     )
     order = result.scalar_one()
-    
-    # Get staff details for WhatsApp
+
     staff_whatsapp = None
     staff_name = None
     if order.staff_id:
@@ -132,7 +124,7 @@ async def checkout(
         if staff:
             staff_whatsapp = staff.whatsapp_number
             staff_name = staff.name
-    
+
     return {
         **_clean_dict(order),
         "items": [_clean_dict(item) for item in order.order_items],
@@ -140,12 +132,106 @@ async def checkout(
         "staff_name": staff_name
     }
 
+
+# ─── STAFF: LOG A PERSONAL / WALK-IN ORDER ───────────────────────────────────
+
+class PersonalOrderItem(BaseModel):
+    product_id: str
+    quantity: int
+    price: Optional[float] = None  # override price if needed (e.g. negotiated)
+
+class PersonalOrderRequest(BaseModel):
+    customer_name: str
+    customer_whatsapp: str
+    items: List[PersonalOrderItem]
+    notes: Optional[str] = None  # maps to shipping_address field
+
+@router.post("/personal", response_model=OrderResponse)
+async def log_personal_order(
+    data: PersonalOrderRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Staff logs a personal / walk-in order they received outside the app."""
+    if user.role == UserRole.CUSTOMER:
+        raise HTTPException(status_code=403, detail="Staff only boss")
+
+    # Get staff record
+    staff_result = await db.execute(select(Staff).where(Staff.email == user.email))
+    staff = staff_result.scalar_one_or_none()
+    if not staff and user.role == UserRole.STAFF:
+        raise HTTPException(status_code=404, detail="Staff record not found")
+
+    subtotal = 0
+    order_items_data = []
+
+    for item in data.items:
+        result = await db.execute(select(Product).where(Product.product_id == item.product_id))
+        product = result.scalar_one_or_none()
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Produk {item.product_id} tak jumpa")
+
+        unit_price = item.price if item.price is not None else product.price
+        item_total = unit_price * item.quantity
+        subtotal += item_total
+        order_items_data.append({
+            "product_id": product.product_id,
+            "quantity": item.quantity,
+            "price": unit_price,
+            "subtotal": item_total
+        })
+
+    # Use a placeholder user_id — personal orders aren't tied to an app account
+    # We embed customer info in the order fields directly
+    # We need a valid user_id for FK — use the staff's own user row
+    staff_user_result = await db.execute(select(User).where(User.email == user.email))
+    staff_user = staff_user_result.scalar_one_or_none()
+    if not staff_user:
+        raise HTTPException(status_code=404, detail="Staff user record not found")
+
+    order = Order(
+        user_id=staff_user.user_id,
+        staff_id=staff.staff_id if staff else None,
+        total=subtotal,
+        customer_name=data.customer_name.strip(),
+        customer_whatsapp=data.customer_whatsapp.strip(),
+        shipping_address=data.notes.strip() if data.notes else "Personal order — no address",
+        discount_applied=0,
+        shipping_discount=0,
+        points_earned=0,
+        status=OrderStatus.CONFIRMED,  # personal orders start as confirmed
+        is_personal_order=True
+    )
+    db.add(order)
+    await db.flush()
+
+    for item_data in order_items_data:
+        order_item = OrderItem(order_id=order.order_id, **item_data)
+        db.add(order_item)
+
+    await db.commit()
+    await db.refresh(order)
+
+    result = await db.execute(
+        select(Order).options(selectinload(Order.order_items)).where(Order.order_id == order.order_id)
+    )
+    order = result.scalar_one()
+
+    return {
+        **_clean_dict(order),
+        "items": [_clean_dict(item) for item in order.order_items],
+        "staff_whatsapp": staff.whatsapp_number if staff else None,
+        "staff_name": staff.name if staff else None
+    }
+
+
+# ─── GET ORDERS ───────────────────────────────────────────────────────────────
+
 @router.get("/my-orders", response_model=List[OrderResponse])
 async def get_my_orders(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get user's orders"""
     result = await db.execute(
         select(Order)
         .options(selectinload(Order.order_items))
@@ -153,8 +239,8 @@ async def get_my_orders(
         .order_by(Order.created_at.desc())
     )
     orders = result.scalars().all()
-    
     return [await _enrich_with_staff(order, db) for order in orders]
+
 
 @router.get("/{order_id}", response_model=OrderResponse)
 async def get_order(
@@ -162,22 +248,21 @@ async def get_order(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get single order"""
     result = await db.execute(
         select(Order)
         .options(selectinload(Order.order_items))
         .where(Order.order_id == order_id)
     )
     order = result.scalar_one_or_none()
-    
+
     if not order:
         raise HTTPException(status_code=404, detail="Order tak jumpa")
-    
-    # Check permission
+
     if order.user_id != user.user_id and user.role.value not in ['staff', 'super_admin', 'master_admin']:
         raise HTTPException(status_code=403, detail="Tak ada akses")
-    
+
     return await _enrich_with_staff(order, db)
+
 
 @router.patch("/{order_id}/status")
 async def update_order_status(
@@ -186,7 +271,6 @@ async def update_order_status(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Update order status (staff/admin only). Sends SMS to customer when configured."""
     if user.role == UserRole.CUSTOMER:
         raise HTTPException(status_code=403, detail="Tak ada akses")
 
@@ -203,7 +287,6 @@ async def update_order_status(
     if not order:
         raise HTTPException(status_code=404, detail="Order tak jumpa")
 
-    # Staff can only update orders assigned to them
     if user.role == UserRole.STAFF:
         staff_row = await db.execute(select(Staff).where(Staff.email == user.email))
         staff_record = staff_row.scalar_one_or_none()
@@ -213,7 +296,6 @@ async def update_order_status(
     order.status = new_status_enum
     await db.commit()
 
-    # Notify customer via SMS (dormant if Twilio not configured)
     customer_result = await db.execute(select(User).where(User.user_id == order.user_id))
     customer = customer_result.scalar_one_or_none()
     staff_name = "Our staff"

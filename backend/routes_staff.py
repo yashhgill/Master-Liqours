@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from pydantic import BaseModel
+from typing import Optional
 
 from database import get_db
-from models import User, Order, Staff, Product, Stock, UserRole
+from models import User, Order, Staff, Product, Stock, UserRole, OrderStatus
 from auth_utils import get_current_user
 
 router = APIRouter(prefix="/staff", tags=["Staff"])
@@ -73,12 +75,94 @@ async def get_my_stock(user: User = Depends(get_current_user), db: AsyncSession 
     items = []
     for stock, product in r.all():
         items.append({
+            "stock_id": stock.stock_id,
             "product_id": product.product_id,
             "product_name": product.name,
             "category": product.category,
             "quantity": stock.quantity,
         })
     return items
+
+
+class StockUpdatePayload(BaseModel):
+    quantity: int
+
+
+@router.patch("/my-stock/{stock_id}")
+async def update_my_stock(
+    stock_id: str,
+    payload: StockUpdatePayload,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Staff updates their own stock quantity for a product"""
+    staff = await _staff_record_for(user, db)
+
+    r = await db.execute(
+        select(Stock).where(Stock.stock_id == stock_id, Stock.staff_id == staff.staff_id)
+    )
+    stock = r.scalar_one_or_none()
+    if not stock:
+        raise HTTPException(status_code=404, detail="Stock item tak jumpa or tak belong to you")
+
+    if payload.quantity < 0:
+        raise HTTPException(status_code=400, detail="Quantity can't be negative lah")
+
+    stock.quantity = payload.quantity
+    await db.commit()
+    return {"message": "Stock updated", "stock_id": stock_id, "quantity": payload.quantity}
+
+
+class TransferOrderPayload(BaseModel):
+    target_staff_id: str
+    reason: Optional[str] = None
+
+
+@router.post("/orders/{order_id}/transfer")
+async def transfer_order(
+    order_id: str,
+    payload: TransferOrderPayload,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Transfer an order to another staff member"""
+    # Must be staff, super_admin, or master_admin
+    if user.role == UserRole.CUSTOMER:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    r = await db.execute(
+        select(Order).options(selectinload(Order.order_items)).where(Order.order_id == order_id)
+    )
+    order = r.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order tak jumpa")
+
+    # Staff can only transfer orders assigned to them
+    if user.role == UserRole.STAFF:
+        staff = await _staff_record_for(user, db)
+        if order.staff_id != staff.staff_id:
+            raise HTTPException(status_code=403, detail="Order ni bukan yours to transfer")
+
+    # Validate target staff exists
+    tr = await db.execute(select(Staff).where(Staff.staff_id == payload.target_staff_id))
+    target = tr.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target staff tak jumpa")
+
+    # Can't transfer already delivered/cancelled orders
+    if order.status in (OrderStatus.DELIVERED, OrderStatus.CANCELLED):
+        raise HTTPException(status_code=400, detail="Can't transfer a completed/cancelled order")
+
+    order.staff_id = payload.target_staff_id
+    await db.commit()
+
+    return {
+        "message": f"Order transferred to {target.name}",
+        "order_id": order_id,
+        "new_staff_id": payload.target_staff_id,
+        "new_staff_name": target.name,
+        "new_staff_whatsapp": target.whatsapp_number,
+    }
 
 
 @router.get("/info")

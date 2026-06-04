@@ -55,6 +55,8 @@ class CartItem(BaseModel):
 
 class CheckoutRequest(BaseModel):
     items: List[CartItem]
+    customer_name: str
+    customer_whatsapp: str
     shipping_address: str
     discount_code: Optional[str] = None
 
@@ -65,6 +67,8 @@ class OrderResponse(BaseModel):
     total: float
     status: OrderStatus
     shipping_address: str
+    customer_name: Optional[str] = None
+    customer_whatsapp: Optional[str] = None
     discount_applied: float
     shipping_discount: float
     points_earned: int
@@ -72,6 +76,7 @@ class OrderResponse(BaseModel):
     items: List[dict]
     staff_whatsapp: Optional[str] = None
     staff_name: Optional[str] = None
+    is_personal_order: Optional[bool] = False
 
 # Staff Schemas
 class StaffResponse(BaseModel):

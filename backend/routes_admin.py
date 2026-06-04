@@ -182,6 +182,12 @@ class FlashSaleCreate(BaseModel):
     start_time: datetime
     end_time: datetime
 
+class FlashSaleUpdate(BaseModel):
+    discount_percentage: Optional[float] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    is_active: Optional[bool] = None
+
 class FlashSaleResponse(BaseModel):
     sale_id: str
     product_id: str
@@ -258,6 +264,34 @@ async def toggle_flash_sale(
     await db.commit()
     return {"message": f"Flash sale {'activated' if sale.is_active else 'deactivated'}"}
 
+@router.patch("/flash-sales/{sale_id}")
+async def update_flash_sale(
+    sale_id: str,
+    data: FlashSaleUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Edit flash sale details (Super Admin only)"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+
+    result = await db.execute(select(FlashSale).where(FlashSale.sale_id == sale_id))
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail="Flash sale tak jumpa")
+
+    if data.discount_percentage is not None:
+        sale.discount_percentage = data.discount_percentage
+    if data.start_time is not None:
+        sale.start_time = data.start_time.replace(tzinfo=None) if data.start_time.tzinfo else data.start_time
+    if data.end_time is not None:
+        sale.end_time = data.end_time.replace(tzinfo=None) if data.end_time.tzinfo else data.end_time
+    if data.is_active is not None:
+        sale.is_active = data.is_active
+
+    await db.commit()
+    await db.refresh(sale)
+    return sale
+
 @router.delete("/flash-sales/{sale_id}")
 async def delete_flash_sale(
     sale_id: str,
@@ -276,6 +310,83 @@ async def delete_flash_sale(
     await db.delete(sale)
     await db.commit()
     return {"message": "Flash sale dipadam"}
+
+
+# =============================================================================
+# MYSTERY DROP / DRINK REVEAL CONTROL (Super Admin)
+# =============================================================================
+
+class MysteryDropConfig(BaseModel):
+    reveal_hour_utc: Optional[int] = None   # 0-23
+    discount_pct: Optional[int] = None       # 1-90
+    locked_product_id: Optional[str] = None  # None = auto-rotate daily
+    is_active: Optional[bool] = None
+
+# Simple file-based config for mystery drop (no extra DB table needed)
+import json, os
+MYSTERY_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "mystery_drop_config.json")
+
+def _load_mystery_config():
+    defaults = {"reveal_hour_utc": 12, "discount_pct": 30, "locked_product_id": None, "is_active": True}
+    if os.path.exists(MYSTERY_CONFIG_PATH):
+        try:
+            with open(MYSTERY_CONFIG_PATH) as f:
+                data = json.load(f)
+                return {**defaults, **data}
+        except Exception:
+            pass
+    return defaults
+
+def _save_mystery_config(cfg: dict):
+    with open(MYSTERY_CONFIG_PATH, "w") as f:
+        json.dump(cfg, f, indent=2)
+
+@router.get("/mystery-drop/config")
+async def get_mystery_drop_config(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get current mystery drop config (Super Admin only)"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    return _load_mystery_config()
+
+@router.patch("/mystery-drop/config")
+async def update_mystery_drop_config(
+    data: MysteryDropConfig,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update mystery drop / drink reveal settings (Super Admin only)"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+
+    cfg = _load_mystery_config()
+    if data.reveal_hour_utc is not None:
+        if not (0 <= data.reveal_hour_utc <= 23):
+            raise HTTPException(status_code=400, detail="reveal_hour_utc must be 0-23")
+        cfg["reveal_hour_utc"] = data.reveal_hour_utc
+    if data.discount_pct is not None:
+        if not (1 <= data.discount_pct <= 90):
+            raise HTTPException(status_code=400, detail="discount_pct must be 1-90")
+        cfg["discount_pct"] = data.discount_pct
+    if data.locked_product_id is not None:
+        cfg["locked_product_id"] = data.locked_product_id
+    if data.is_active is not None:
+        cfg["is_active"] = data.is_active
+
+    _save_mystery_config(cfg)
+    return cfg
+
+@router.delete("/mystery-drop/lock")
+async def unlock_mystery_drop(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Remove locked product — go back to daily auto-rotation"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    cfg = _load_mystery_config()
+    cfg["locked_product_id"] = None
+    _save_mystery_config(cfg)
+    return {"message": "Mystery drop unlocked — auto-rotating again", "config": cfg}
 
 # =============================================================================
 # ANALYTICS (Master Admin)

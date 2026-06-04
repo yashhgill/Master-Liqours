@@ -1,27 +1,35 @@
-"""Daily 'Drink Reveal' — deterministic-per-day flash drop.
+"""Daily 'Drink Reveal' / Mystery Drop — config-driven flash drop.
 
-Picks one active product per UTC date (stable index) at a fixed discount window.
-Reveal goes live at REVEAL_HOUR_UTC and runs 24h.
+Super Admin can control: hour, discount %, locked product, on/off switch.
+Config lives in mystery_drop_config.json next to this file.
 """
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timezone, timedelta
+import json, os
 
 from database import get_db
 from models import Product
 
 router = APIRouter(prefix="/drink-reveal", tags=["Drink Reveal"])
 
-REVEAL_HOUR_UTC = 12  # 12:00 UTC = 8 PM Malaysia time (UTC+8)
-REVEAL_DISCOUNT_PCT = 30
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "mystery_drop_config.json")
+
+def _get_config():
+    defaults = {"reveal_hour_utc": 12, "discount_pct": 30, "locked_product_id": None, "is_active": True}
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH) as f:
+                return {**defaults, **json.load(f)}
+        except Exception:
+            pass
+    return defaults
 
 
-def _reveal_window(now: datetime):
-    """Return (start, end, today_date) for the current reveal cycle in UTC."""
-    today = now.replace(hour=REVEAL_HOUR_UTC, minute=0, second=0, microsecond=0)
+def _reveal_window(now: datetime, reveal_hour: int):
+    today = now.replace(hour=reveal_hour, minute=0, second=0, microsecond=0)
     if now < today:
-        # Before today's reveal — show the previous cycle (still active for 24h)
         start = today - timedelta(days=1)
     else:
         start = today
@@ -31,24 +39,48 @@ def _reveal_window(now: datetime):
 
 @router.get("/today")
 async def get_today_reveal(db: AsyncSession = Depends(get_db)):
-    """Return today's revealed product + countdown window.
+    """Return today's revealed product + countdown window."""
+    cfg = _get_config()
 
-    Stateless: deterministic from UTC date so all clients see the same drop.
-    """
+    if not cfg.get("is_active", True):
+        return {"available": False, "reason": "Mystery drop is currently off"}
+
     now = datetime.now(timezone.utc)
-    start, end = _reveal_window(now)
+    start, end = _reveal_window(now, cfg["reveal_hour_utc"])
+    discount_pct = cfg["discount_pct"]
 
-    result = await db.execute(
-        select(Product).where(Product.is_active == True).order_by(Product.product_id)
-    )
-    products = result.scalars().all()
-    if not products:
-        return {"available": False}
+    # If a specific product is locked in by admin, use that
+    if cfg.get("locked_product_id"):
+        result = await db.execute(
+            select(Product).where(
+                Product.product_id == cfg["locked_product_id"],
+                Product.is_active == True
+            )
+        )
+        product = result.scalar_one_or_none()
+        if not product:
+            # Locked product not found/inactive — fall through to auto-rotate
+            cfg_product = None
+        else:
+            cfg_product = product
+    else:
+        cfg_product = None
 
-    # Seed: epoch days since 1970-01-01 so it rotates daily
-    epoch_day = int(start.timestamp() // 86400)
-    product = products[epoch_day % len(products)]
-    discounted = round(product.price * (1 - REVEAL_DISCOUNT_PCT / 100), 2)
+    if cfg_product is None:
+        # Auto-rotate daily
+        result = await db.execute(
+            select(Product).where(Product.is_active == True).order_by(Product.product_id)
+        )
+        products = result.scalars().all()
+        if not products:
+            return {"available": False}
+
+        epoch_day = int(start.timestamp() // 86400)
+        product = products[epoch_day % len(products)]
+    else:
+        product = cfg_product
+
+    discounted = round(product.price * (1 - discount_pct / 100), 2)
 
     return {
         "available": True,
@@ -60,8 +92,9 @@ async def get_today_reveal(db: AsyncSession = Depends(get_db)):
             "description": product.description,
             "price": product.price,
         },
-        "discount_percentage": REVEAL_DISCOUNT_PCT,
+        "discount_percentage": discount_pct,
         "discounted_price": discounted,
         "reveal_start": start.isoformat(),
         "reveal_end": end.isoformat(),
+        "is_locked": cfg.get("locked_product_id") is not None,
     }

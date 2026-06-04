@@ -8,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from models import User, UserSession, UserRole
 from database import get_db
-import httpx
 
 # Password hashing
 def hash_password(password: str) -> str:
@@ -57,7 +56,7 @@ async def get_user_from_session(db: AsyncSession, session_token: str) -> Optiona
     )
     return result.scalar_one_or_none()
 
-# Emergent Google Auth
+# Auth dependency
 async def get_current_user(
     request: Request,
     session_token: Optional[str] = Cookie(None),
