@@ -97,6 +97,7 @@ class Product(Base):
     category = Column(String(100), nullable=False, index=True)
     image_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True, index=True)
+    is_preorder = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utcnow)
     staff_id = Column(String(36), ForeignKey('staff.staff_id'), nullable=True, index=True)
     
@@ -178,6 +179,7 @@ class FlashSale(Base):
     start_time = Column(DateTime, nullable=False, index=True)
     end_time = Column(DateTime, nullable=False, index=True)
     is_active = Column(Boolean, default=True, index=True)
+    is_preorder = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utcnow)
     
     product = relationship('Product', back_populates='flash_sales')

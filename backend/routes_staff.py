@@ -13,13 +13,14 @@ router = APIRouter(prefix="/staff", tags=["Staff"])
 
 
 async def _staff_record_for(user: User, db: AsyncSession) -> Staff:
-    """Resolve the Staff row for a logged-in user (matched by email)."""
-    if user.role != UserRole.STAFF:
-        raise HTTPException(status_code=403, detail="Staff only")
+    """Resolve the Staff row for a logged-in user. Admins can also access this."""
+    allowed = (UserRole.STAFF, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    if user.role not in allowed:
+        raise HTTPException(status_code=403, detail="Staff/Admin only")
     r = await db.execute(select(Staff).where(Staff.email == user.email))
     s = r.scalar_one_or_none()
     if not s:
-        raise HTTPException(status_code=404, detail="Staff record not found")
+        raise HTTPException(status_code=404, detail="No staff record for this account — ask admin to create one")
     return s
 
 
