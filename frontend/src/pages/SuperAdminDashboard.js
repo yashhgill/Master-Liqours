@@ -646,7 +646,7 @@ const SuperAdminDashboard = () => {
         </div>
       )}
 
-      {/* === BRANDS === */
+      {/* === BRANDS === */}
       {tab === 'brands' && (
         <div className="surface p-6" data-testid="admin-brands-panel">
           <div className="flex justify-between mb-6 flex-wrap gap-3">
