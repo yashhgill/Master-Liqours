@@ -6,6 +6,23 @@ import { FaWhatsapp, FaCheckCircle, FaArrowRight, FaTrophy } from 'react-icons/f
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+// Defined at module scope (NOT inside Checkout) so it keeps a stable identity
+// across re-renders. Declaring it inside the component re-created it on every
+// keystroke, which made React remount the input and lose focus each character.
+const Field = ({ label, type = 'text', value, placeholder, onChange, error, rows }) => (
+  <div>
+    <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">{label} <span className="text-[#ff007f]">*</span></label>
+    {rows ? (
+      <textarea value={value} onChange={onChange} rows={rows} placeholder={placeholder}
+        className={`input-dark resize-none ${error ? 'border-[#ff007f]' : ''}`} />
+    ) : (
+      <input type={type} value={value} onChange={onChange} placeholder={placeholder}
+        className={`input-dark ${error ? 'border-[#ff007f]' : ''}`} />
+    )}
+    {error && <p className="text-[#ff007f] text-xs mt-1">{error}</p>}
+  </div>
+);
+
 const Checkout = () => {
   const { user } = useAuth();
   const { cart, total, clearCart } = useCart();
@@ -111,20 +128,6 @@ const Checkout = () => {
       </div>
     );
   }
-
-  const Field = ({ label, id, type = 'text', value, placeholder, onChange, error, rows }) => (
-    <div>
-      <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">{label} <span className="text-[#ff007f]">*</span></label>
-      {rows ? (
-        <textarea value={value} onChange={onChange} rows={rows} placeholder={placeholder}
-          className={`input-dark resize-none ${error ? 'border-[#ff007f]' : ''}`} />
-      ) : (
-        <input type={type} value={value} onChange={onChange} placeholder={placeholder}
-          className={`input-dark ${error ? 'border-[#ff007f]' : ''}`} />
-      )}
-      {error && <p className="text-[#ff007f] text-xs mt-1">{error}</p>}
-    </div>
-  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12">
