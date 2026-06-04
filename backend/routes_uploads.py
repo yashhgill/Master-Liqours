@@ -19,7 +19,7 @@ from auth_utils import get_current_user
 router = APIRouter(prefix="/admin", tags=["Admin · Uploads"])
 
 # Local fallback dir (only used when R2 is not configured)
-UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "/app/backend/uploads"))
+UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "/tmp/uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}

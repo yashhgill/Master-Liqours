@@ -285,7 +285,7 @@ app.include_router(api_router)
 # Serve uploaded files
 from fastapi.staticfiles import StaticFiles
 import os as _os
-_UPLOAD_DIR = _os.environ.get("UPLOAD_DIR", "/app/backend/uploads")
+_UPLOAD_DIR = _os.environ.get("UPLOAD_DIR", "/tmp/uploads")
 _os.makedirs(_UPLOAD_DIR, exist_ok=True)
 app.mount("/api/uploads", StaticFiles(directory=_UPLOAD_DIR), name="uploads")
 
