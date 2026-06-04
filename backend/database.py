@@ -7,7 +7,9 @@ from sqlalchemy.orm import declarative_base
 # Load environment variables
 load_dotenv(Path(__file__).parent / '.env')
 
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/masterliqours')
+# .strip() guards against trailing newlines/spaces from copy-pasting the URL
+# into a dashboard env var (a stray newline makes the db name "postgres\n").
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/masterliqours').strip()
 
 # Remove pgbouncer=true for asyncpg
 DATABASE_URL_CLEAN = DATABASE_URL.replace('?pgbouncer=true', '')
