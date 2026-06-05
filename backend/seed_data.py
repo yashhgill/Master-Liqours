@@ -45,8 +45,8 @@ async def seed_data():
         db.add(master_admin)
 
         test_customers = [
-            {"email": "customer1@test.com", "name": "Wei Test", "points": 1000, "tier": UserTier.REGULAR},
-            {"email": "customer2@test.com", "name": "Priya Gold", "points": 6000, "tier": UserTier.GOLD},
+            {"email": "customer1@test.com", "name": "Ahmad Test", "points": 1000, "tier": UserTier.REGULAR},
+            {"email": "customer2@test.com", "name": "Siti Gold", "points": 6000, "tier": UserTier.GOLD},
             {"email": "customer3@test.com", "name": "Kumar Platinum", "points": 15000, "tier": UserTier.PLATINUM},
         ]
         for c in test_customers:

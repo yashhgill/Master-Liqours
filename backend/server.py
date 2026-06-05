@@ -266,7 +266,6 @@ async def get_my_rewards(
 
 # Include all route modules
 api_router.include_router(orders_router)
-api_router.include_router(auth_router)  # password change/reset/forgot
 api_router.include_router(admin_router)
 api_router.include_router(newsletter_router)
 api_router.include_router(ai_router)

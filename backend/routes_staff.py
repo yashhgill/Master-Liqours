@@ -7,32 +7,23 @@ from typing import Optional
 
 from database import get_db
 from models import User, Order, Staff, Product, Stock, UserRole, OrderStatus
+import uuid
+
+def _new_id(): return str(uuid.uuid4())
 from auth_utils import get_current_user
 
 router = APIRouter(prefix="/staff", tags=["Staff"])
 
 
 async def _staff_record_for(user: User, db: AsyncSession) -> Staff:
-    """Resolve the Staff row for a logged-in user. Staff AND admins (super/master)
-    can use the staff dashboard to sell, so if they have no Staff record yet we
-    auto-create one (with a unique referral code) instead of erroring."""
+    """Resolve the Staff row for a logged-in user. Admins can also access this."""
     allowed = (UserRole.STAFF, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
     if user.role not in allowed:
         raise HTTPException(status_code=403, detail="Staff/Admin only")
     r = await db.execute(select(Staff).where(Staff.email == user.email))
     s = r.scalar_one_or_none()
     if not s:
-        import uuid as _uuid
-        base = (user.name or user.email.split('@')[0]).split()[0].upper()[:6]
-        s = Staff(
-            name=user.name or user.email.split('@')[0],
-            email=user.email,
-            referral_code=f"{base}{_uuid.uuid4().hex[:4].upper()}",
-            whatsapp_number=getattr(user, 'phone', None),
-        )
-        db.add(s)
-        await db.commit()
-        await db.refresh(s)
+        raise HTTPException(status_code=404, detail="No staff record found. Ask master admin to create a staff entry for your account first.")
     return s
 
 
@@ -97,9 +88,10 @@ async def get_my_stock(user: User = Depends(get_current_user), db: AsyncSession 
     return items
 
 
+
 class StockAddPayload(BaseModel):
     product_id: str
-    quantity: int = 0
+    quantity: int
 
 
 @router.post("/my-stock")
@@ -108,27 +100,48 @@ async def add_my_stock(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Add a product to this staff's stock list (or set its quantity if already there)."""
+    """Staff logs new stock received from boss for a product."""
     staff = await _staff_record_for(user, db)
+
     if payload.quantity < 0:
         raise HTTPException(status_code=400, detail="Quantity can't be negative lah")
 
-    pr = await db.execute(select(Product).where(Product.product_id == payload.product_id))
-    if not pr.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Produk tak jumpa")
+    # Validate product exists
+    p_result = await db.execute(select(Product).where(Product.product_id == payload.product_id))
+    product = p_result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product tak jumpa")
 
-    r = await db.execute(
-        select(Stock).where(Stock.staff_id == staff.staff_id, Stock.product_id == payload.product_id)
+    # Check if stock entry already exists for this staff + product
+    existing = await db.execute(
+        select(Stock).where(
+            Stock.staff_id == staff.staff_id,
+            Stock.product_id == payload.product_id
+        )
     )
-    stock = r.scalar_one_or_none()
+    stock = existing.scalar_one_or_none()
+
     if stock:
-        stock.quantity = payload.quantity
+        # Already exists — just add to quantity
+        stock.quantity += payload.quantity
     else:
-        stock = Stock(staff_id=staff.staff_id, product_id=payload.product_id, quantity=payload.quantity)
+        # Create new stock entry
+        stock = Stock(
+            stock_id=str(uuid.uuid4()),
+            staff_id=staff.staff_id,
+            product_id=payload.product_id,
+            quantity=payload.quantity,
+        )
         db.add(stock)
+
     await db.commit()
-    await db.refresh(stock)
-    return {"message": "Stock added", "stock_id": stock.stock_id, "product_id": payload.product_id, "quantity": stock.quantity}
+    return {
+        "message": "Stock added",
+        "stock_id": stock.stock_id,
+        "product_id": payload.product_id,
+        "product_name": product.name,
+        "quantity": stock.quantity,
+    }
 
 
 class StockUpdatePayload(BaseModel):

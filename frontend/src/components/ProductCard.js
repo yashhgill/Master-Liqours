@@ -5,6 +5,7 @@ import { FaShoppingBag, FaBolt, FaClock, FaWhatsapp, FaHourglassHalf } from 'rea
 import { resolveImageUrl } from '../lib/imageUrl';
 
 const BOSS_WA = process.env.REACT_APP_PREORDER_WHATSAPP || '60182085097';
+const BOSS_NAME = process.env.REACT_APP_BOSS_NAME || 'Boss';
 
 const useCountdown = (endTime) => {
   const [remaining, setRemaining] = useState(() => endTime ? Math.max(0, new Date(endTime).getTime() - Date.now()) : 0);
@@ -124,8 +125,8 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <div className="text-center px-4">
               <FaHourglassHalf size={28} className="text-[#ffd700] mx-auto mb-2" />
-              <p className="text-white font-bold text-sm">Check with boss first</p>
-              <p className="text-white/60 text-xs mt-1">Tap to enquire via WhatsApp</p>
+              <p className="text-white font-bold text-sm">Pre-order — Check Boss</p>
+              <p className="text-[#25d366] text-xs mt-1 font-bold">+{BOSS_WA.replace(/\D/g, '')}</p>
             </div>
           </div>
         )}
@@ -176,10 +177,18 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
           )}
         </div>
 
-        {/* Preorder note */}
+        {/* Preorder note with boss contact */}
         {cardState === 'preorder' && (
-          <div className="mt-3 text-[10px] text-[#ffd700]/70 bg-[#ffd70010] rounded-lg px-3 py-2 border border-[#ffd700]/20">
-            🕐 Wait first lah — check with boss before ordering. Price TBC.
+          <div className="mt-3 bg-[#ffd70010] rounded-lg px-3 py-2 border border-[#ffd700]/20 space-y-1">
+            <div className="text-[10px] text-[#ffd700]/80">🕐 Wait first lah — check with boss before ordering.</div>
+            <div className="flex items-center gap-1.5">
+              <FaWhatsapp size={10} className="text-[#25d366]" />
+              <span className="text-[10px] text-white/60">Boss: </span>
+              <a href={`https://wa.me/${BOSS_WA.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()}
+                className="text-[10px] text-[#25d366] font-bold hover:underline">
+                +{BOSS_WA.replace(/\D/g, '')}
+              </a>
+            </div>
           </div>
         )}
       </div>

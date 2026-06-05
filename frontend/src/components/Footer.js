@@ -50,7 +50,7 @@ const Footer = () => {
             </div>
           </div>
           <p className="text-white/60 leading-relaxed mb-6">
-            Top quality drinks at the best prices. Premium liquor delivered fast across the Klang Valley — straight up.
+            Top quality drinks dengan harga best. Premium liquor delivery, terus ke pintu anda — straight up.
           </p>
           <div className="flex items-center gap-2">
             {[

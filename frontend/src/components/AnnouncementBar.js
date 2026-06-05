@@ -3,7 +3,7 @@ import React from 'react';
 const items = [
   'Low prices & value for money in one place',
   '100% authentic, original & genuine — guaranteed boss',
-  'FREE delivery for orders above RM1,250 across the Klang Valley',
+  'FREE delivery for orders above RM1,250 in Peninsular Malaysia',
   'Settle payment via WhatsApp — fast & easy lah',
   'Earn points on every order — climb to Gold & Platinum tier',
 ];

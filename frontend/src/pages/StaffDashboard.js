@@ -68,7 +68,7 @@ const PersonalOrderModal = ({ products, onClose, onSaved }) => {
         <p className="text-white/50 text-sm">Record a sale received outside the app (WhatsApp, walk-in, etc).</p>
 
         <div className="space-y-3">
-          {[['name','Customer Name','e.g. Raj Kumar'],['whatsapp','WhatsApp Number','e.g. 0123456789'],['notes','Notes (optional)','e.g. Paid cash, pickup at Melaka']].map(([key, label, ph]) => (
+          {[['name','Customer Name','e.g. Ahmad'],['whatsapp','WhatsApp Number','e.g. 0123456789'],['notes','Notes (optional)','e.g. Paid cash, pickup at Melaka']].map(([key, label, ph]) => (
             <div key={key}>
               <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-1">{label}{key !== 'notes' && <span className="text-[#ff007f]"> *</span>}</label>
               <input className="input-dark" placeholder={ph} value={customer[key]} onChange={e => setCustomer({ ...customer, [key]: e.target.value })} />
@@ -228,6 +228,77 @@ const StockModal = ({ stock, onClose, onSaved }) => {
 };
 
 // ── Main Dashboard ──────────────────────────────────────────────────────────
+const ADMIN_ROLES = ['staff', 'super_admin', 'master_admin'];
+
+// ── Add Stock Modal ──────────────────────────────────────────────────────────
+const AddStockModal = ({ products, existingStock, onClose, onSaved }) => {
+  const [productId, setProductId] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [saving, setSaving] = useState(false);
+
+  // Filter out products already in stock
+  const existingIds = new Set(existingStock.map(s => s.product_id));
+  const available = products.filter(p => !existingIds.has(p.product_id) && p.is_active);
+
+  const submit = async () => {
+    if (!productId) { alert('Select a product lah'); return; }
+    if (quantity < 0) { alert('Quantity cannot be negative'); return; }
+    setSaving(true);
+    try {
+      await axios.post(`${API}/staff/my-stock`, { product_id: productId, quantity: parseInt(quantity) }, { withCredentials: true });
+      onSaved();
+      onClose();
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Failed to add stock');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="surface p-6 w-full max-w-sm space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="display-md">Add Stock</h2>
+          <button onClick={onClose} className="text-white/40 hover:text-white"><FaTimes /></button>
+        </div>
+        <p className="text-white/40 text-xs">Log stock received from boss for a product.</p>
+
+        {available.length === 0 ? (
+          <p className="text-white/50 text-sm text-center py-4">All products already in your stock list.</p>
+        ) : (
+          <>
+            <div>
+              <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Product</label>
+              <select className="input-dark" value={productId} onChange={e => setProductId(e.target.value)}>
+                <option value="">Select product</option>
+                {available.map(p => <option key={p.product_id} value={p.product_id}>{p.name} — RM{p.price}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Quantity Received</label>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setQuantity(q => Math.max(0, q - 1))}
+                  className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center text-white/50 hover:border-[#ff007f] hover:text-[#ff007f] transition-all">
+                  <FaMinus size={12} />
+                </button>
+                <input type="number" min="0" className="input-dark text-center w-24 text-xl font-display"
+                  value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 0)} />
+                <button onClick={() => setQuantity(q => q + 1)}
+                  className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center text-white/50 hover:border-[#39ff14] hover:text-[#39ff14] transition-all">
+                  <FaPlus size={12} />
+                </button>
+              </div>
+            </div>
+            <button onClick={submit} disabled={saving} className="btn-pink w-full disabled:opacity-50">
+              {saving ? 'Adding...' : 'Add to My Stock'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
 const StaffDashboard = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
@@ -239,21 +310,10 @@ const StaffDashboard = () => {
   const [showPersonal, setShowPersonal] = useState(false);
   const [transferOrder, setTransferOrder] = useState(null);
   const [editingStock, setEditingStock] = useState(null);
+  const [showAddStock, setShowAddStock] = useState(false);
   const [tab, setTab] = useState('orders');
-  const [addStockId, setAddStockId] = useState('');
 
   const isAdmin = user?.role === 'super_admin' || user?.role === 'master_admin';
-
-  const addStock = async () => {
-    if (!addStockId) return;
-    try {
-      await axios.post(`${API}/staff/my-stock`, { product_id: addStockId, quantity: 1 }, { withCredentials: true });
-      setAddStockId('');
-      loadData();
-    } catch (e) {
-      alert('Could not add stock: ' + (e.response?.data?.detail || 'try again'));
-    }
-  };
 
   const loadData = () => {
     axios.get(`${API}/staff/my-orders`, { withCredentials: true }).then(r => setOrders(r.data)).catch(() => {});
@@ -404,20 +464,15 @@ const StaffDashboard = () => {
       {/* ── STOCK TAB ── */}
       {tab === 'stock' && (
         <div className="surface p-6">
-          <div className="flex justify-between items-center mb-5">
-            <h2 className="display-md">My Stock</h2>
-            <div className="text-xs text-white/40">Boss distributes stock → you log it here</div>
-          </div>
-
-          {/* Add a product to my stock */}
-          <div className="flex gap-2 mb-5">
-            <select value={addStockId} onChange={e => setAddStockId(e.target.value)} className="input-dark flex-1">
-              <option value="">+ Add a product to my stock…</option>
-              {products.filter(p => !stock.some(s => s.product_id === p.product_id)).map(p => (
-                <option key={p.product_id} value={p.product_id}>{p.name} ({p.category})</option>
-              ))}
-            </select>
-            <button onClick={addStock} disabled={!addStockId} className="btn-pink px-6 disabled:opacity-40">Add</button>
+          <div className="flex justify-between items-center mb-5 flex-wrap gap-3">
+            <div>
+              <h2 className="display-md">My Stock</h2>
+              <div className="text-xs text-white/40 mt-1">Boss distributes stock → you log it here</div>
+            </div>
+            <button onClick={() => setShowAddStock(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00f0ff] text-black font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all">
+              <FaPlus size={10} /> Add Stock
+            </button>
           </div>
 
           {stock.length === 0 ? (
@@ -480,6 +535,14 @@ const StaffDashboard = () => {
       {/* Modals */}
       {showPersonal && <PersonalOrderModal products={products} onClose={() => setShowPersonal(false)} onSaved={loadData} />}
       {transferOrder && <TransferModal order={transferOrder} allStaff={allStaff} onClose={() => setTransferOrder(null)} onTransferred={loadData} />}
+      {showAddStock && (
+        <AddStockModal
+          products={products}
+          existingStock={stock}
+          onClose={() => setShowAddStock(false)}
+          onSaved={loadData}
+        />
+      )}
       {editingStock && (
         <StockModal
           stock={editingStock}
