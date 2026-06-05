@@ -30,26 +30,29 @@ ALLOWED_CT = {
 MAX_BYTES = 8 * 1024 * 1024  # 8 MB
 
 # --- R2 client (lazy) ---
-R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID")
-R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID")
-R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY")
-R2_BUCKET = os.environ.get("R2_BUCKET")
-R2_PUBLIC_URL = (os.environ.get("R2_PUBLIC_URL") or "").rstrip("/")
-R2_ENABLED = all([R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_URL])
-
 _s3 = None
 
+def _get_r2_config():
+    """Read R2 config fresh each call so Render env vars are always picked up."""
+    account_id = os.environ.get("R2_ACCOUNT_ID", "")
+    access_key = os.environ.get("R2_ACCESS_KEY_ID", "")
+    secret_key = os.environ.get("R2_SECRET_ACCESS_KEY", "")
+    bucket = os.environ.get("R2_BUCKET", "")
+    public_url = (os.environ.get("R2_PUBLIC_URL") or "").rstrip("/")
+    enabled = all([account_id, access_key, secret_key, bucket, public_url])
+    return account_id, access_key, secret_key, bucket, public_url, enabled
 
 def _r2_client():
     global _s3
+    account_id, access_key, secret_key, _, _, _ = _get_r2_config()
     if _s3 is None:
         import boto3
         from botocore.config import Config
         _s3 = boto3.client(
             "s3",
-            endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
-            aws_access_key_id=R2_ACCESS_KEY_ID,
-            aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+            endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
             region_name="auto",
             config=Config(signature_version="s3v4"),
         )
@@ -83,6 +86,7 @@ async def upload_file(
 
     new_name = f"{uuid.uuid4().hex}{ext}"
 
+    _, _, _, R2_BUCKET, R2_PUBLIC_URL, R2_ENABLED = _get_r2_config()
     if R2_ENABLED:
         try:
             _r2_client().put_object(
