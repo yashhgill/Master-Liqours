@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, CartProvider, useAuth } from './context';
 import AnnouncementBar from './components/AnnouncementBar';
 import Navbar from './components/Navbar';
@@ -22,6 +22,12 @@ import UserDashboard from './pages/UserDashboard';
 import StaffDashboard from './pages/StaffDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [pathname]);
+  return null;
+};
+
 const ProtectedRoute = ({ children, roles = [] }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-white/60">Loading...</div>;
@@ -33,6 +39,7 @@ const ProtectedRoute = ({ children, roles = [] }) => {
 function AppContent() {
   return (
     <div className="min-h-screen flex flex-col bg-[#050505]">
+      <ScrollToTop />
       <AnnouncementBar />
       <Navbar />
       <main className="flex-grow">

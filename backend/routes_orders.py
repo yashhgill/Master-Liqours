@@ -95,13 +95,28 @@ async def checkout(
         order_item = OrderItem(order_id=order.order_id, **item_data)
         db.add(order_item)
 
-    # Auto-deduct stock for the assigned staff
-    if order.staff_id:
-        for item_data in order_items_data:
+    # Auto-deduct stock
+    # If customer has no assigned staff, find any staff with stock for that product
+    for item_data in order_items_data:
+        staff_id_to_use = order.staff_id
+
+        if not staff_id_to_use:
+            # Find first staff that has this product in stock
+            any_stock = await db.execute(
+                select(Stock).where(
+                    Stock.product_id == item_data["product_id"],
+                    Stock.quantity > 0
+                ).order_by(Stock.quantity.desc()).limit(1)
+            )
+            any_stock_row = any_stock.scalar_one_or_none()
+            if any_stock_row:
+                staff_id_to_use = any_stock_row.staff_id
+
+        if staff_id_to_use:
             stock_result = await db.execute(
                 select(Stock).where(
                     and_(
-                        Stock.staff_id == order.staff_id,
+                        Stock.staff_id == staff_id_to_use,
                         Stock.product_id == item_data["product_id"]
                     )
                 )
@@ -109,6 +124,9 @@ async def checkout(
             stock_row = stock_result.scalar_one_or_none()
             if stock_row and stock_row.quantity > 0:
                 stock_row.quantity = max(0, stock_row.quantity - item_data["quantity"])
+                # Assign this staff to the order if none was set
+                if not order.staff_id:
+                    order.staff_id = staff_id_to_use
 
     reward = Reward(
         user_id=user.user_id,

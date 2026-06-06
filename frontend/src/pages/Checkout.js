@@ -57,14 +57,14 @@ const Checkout = () => {
     if (!promoCode.trim()) return;
     setPromoLoading(true);
     try {
-      const res = await axios.post(\`\${API}/orders/validate-promo\`, { code: promoCode.trim() }, { withCredentials: true });
+      const res = await axios.post(API + '/orders/validate-promo', { code: promoCode.trim() }, { withCredentials: true });
       setPromoValid(true);
       setPromoDiscount(res.data.discount_amount || 0);
-      setPromoMsg(\`✅ Code applied — RM\${(res.data.discount_amount||0).toFixed(2)} off!\`);
+      setPromoMsg('✅ Code applied — RM' + (res.data.discount_amount || 0).toFixed(2) + ' off!');
     } catch (e) {
       setPromoValid(false);
       setPromoDiscount(0);
-      setPromoMsg(e.response?.data?.detail || 'Invalid code lah');
+      setPromoMsg((e.response && e.response.data && e.response.data.detail) || 'Invalid code lah');
     } finally { setPromoLoading(false); }
   };
 
