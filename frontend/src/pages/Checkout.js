@@ -29,6 +29,11 @@ const Checkout = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: '', whatsapp: '', address: '' });
   const [loading, setLoading] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoMsg, setPromoMsg] = useState('');
+  const [promoValid, setPromoValid] = useState(false);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoDiscount, setPromoDiscount] = useState(0);
   const [done, setDone] = useState(null);
   const [errors, setErrors] = useState({});
 
@@ -48,6 +53,21 @@ const Checkout = () => {
     return e;
   };
 
+  const applyPromo = async () => {
+    if (!promoCode.trim()) return;
+    setPromoLoading(true);
+    try {
+      const res = await axios.post(\`\${API}/orders/validate-promo\`, { code: promoCode.trim() }, { withCredentials: true });
+      setPromoValid(true);
+      setPromoDiscount(res.data.discount_amount || 0);
+      setPromoMsg(\`✅ Code applied — RM\${(res.data.discount_amount||0).toFixed(2)} off!\`);
+    } catch (e) {
+      setPromoValid(false);
+      setPromoDiscount(0);
+      setPromoMsg(e.response?.data?.detail || 'Invalid code lah');
+    } finally { setPromoLoading(false); }
+  };
+
   const placeOrder = async () => {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
@@ -59,6 +79,7 @@ const Checkout = () => {
         customer_name: form.name.trim(),
         customer_whatsapp: form.whatsapp.trim(),
         shipping_address: form.address.trim(),
+        discount_code: promoCode.trim() || undefined,
       }, { withCredentials: true });
       setDone(res.data);
     } catch (err) {
@@ -191,6 +212,19 @@ const Checkout = () => {
           <div className="flex justify-between items-baseline mt-4 mb-6">
             <span className="text-xs uppercase tracking-wider text-white/50">Products Total</span>
             <span className="display-lg neon-pink-text">RM{finalTotal.toFixed(2)}</span>
+          </div>
+
+          {/* Discount code */}
+          <div className="mb-4">
+            <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Promo Code (optional)</label>
+            <div className="flex gap-2">
+              <input type="text" className="input-dark flex-1 uppercase" placeholder="Enter code"
+                value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} />
+              <button onClick={applyPromo} disabled={promoLoading} className="px-4 py-2 rounded-xl border border-white/15 text-white/60 hover:border-[#39ff14] hover:text-[#39ff14] text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50">
+                {promoLoading ? '...' : 'Apply'}
+              </button>
+            </div>
+            {promoMsg && <p className={`text-xs mt-1 ${promoValid ? 'text-[#39ff14]' : 'text-[#ff007f]'}`}>{promoMsg}</p>}
           </div>
 
           <button onClick={placeOrder} disabled={loading} className="btn-pink w-full disabled:opacity-50" data-testid="checkout-place-order-btn">

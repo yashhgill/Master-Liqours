@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context';
-import { FaTrophy, FaBox, FaChartLine, FaGem } from 'react-icons/fa';
+import { FaTrophy, FaBox, FaChartLine, FaGem, FaHeart } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const UserDashboard = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
+  const wishlistCount = (() => { try { return JSON.parse(localStorage.getItem('ml_wishlist')||'[]').length; } catch { return 0; } })();
 
   useEffect(() => {
     axios.get(`${API}/orders/my-orders`, { withCredentials: true })
@@ -45,6 +46,14 @@ const UserDashboard = () => {
             <FaBox className="text-[#39ff14]" />
           </div>
           <div className="display-lg neon-lime-text">{orders.length}</div>
+        </div>
+        <div className="surface p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="eyebrow !mb-0">Wishlist</div>
+            <FaHeart className="text-[#ff007f]" />
+          </div>
+          <div className="display-lg neon-pink-text">{wishlistCount}</div>
+          {wishlistCount > 0 && <a href="/products" className="text-xs text-white/40 hover:text-[#ff007f] transition-colors">Browse saved items →</a>}
         </div>
       </div>
 
