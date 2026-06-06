@@ -313,83 +313,95 @@ async def delete_flash_sale(
 
 
 # =============================================================================
-# MYSTERY DROP / DRINK REVEAL CONTROL (Super Admin)
+# MYSTERY DROPS — Full CRUD (Super Admin)
 # =============================================================================
 
-class MysteryDropConfig(BaseModel):
-    reveal_hour_utc: Optional[int] = None   # 0-23
-    discount_pct: Optional[int] = None       # 1-90
-    locked_product_id: Optional[str] = None  # None = auto-rotate daily
-    is_active: Optional[bool] = None
+import json as _json, os as _os, uuid as _uuid
 
-# Simple file-based config for mystery drop (no extra DB table needed)
-import json, os
-MYSTERY_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "mystery_drop_config.json")
+_DROPS_PATH = _os.path.join(_os.path.dirname(__file__), "mystery_drops.json")
 
-def _load_mystery_config():
-    defaults = {"reveal_hour_utc": 12, "discount_pct": 30, "locked_product_id": None, "is_active": True}
-    if os.path.exists(MYSTERY_CONFIG_PATH):
+def _load_drops():
+    if _os.path.exists(_DROPS_PATH):
         try:
-            with open(MYSTERY_CONFIG_PATH) as f:
-                data = json.load(f)
-                return {**defaults, **data}
-        except Exception:
-            pass
-    return defaults
+            with open(_DROPS_PATH) as f: return _json.load(f)
+        except: pass
+    return []
 
-def _save_mystery_config(cfg: dict):
-    with open(MYSTERY_CONFIG_PATH, "w") as f:
-        json.dump(cfg, f, indent=2)
+def _save_drops(drops):
+    with open(_DROPS_PATH, "w") as f: _json.dump(drops, f, indent=2)
 
-@router.get("/mystery-drop/config")
-async def get_mystery_drop_config(
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get current mystery drop config (Super Admin only)"""
+class MysteryDropPayload(BaseModel):
+    product_id: str
+    discount_pct: int = 20
+    label: Optional[str] = "Mystery Drop"
+    is_active: bool = True
+
+@router.get("/mystery-drops")
+async def list_mystery_drops(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """List all mystery drops"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    return _load_mystery_config()
+    drops = _load_drops()
+    # Enrich with product info
+    enriched = []
+    for d in drops:
+        product_result = await db.execute(select(Product).where(Product.product_id == d["product_id"]))
+        product = product_result.scalar_one_or_none()
+        enriched.append({**d, "product_name": product.name if product else "Unknown", "product_price": product.price if product else 0})
+    return enriched
 
-@router.patch("/mystery-drop/config")
-async def update_mystery_drop_config(
-    data: MysteryDropConfig,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Update mystery drop / drink reveal settings (Super Admin only)"""
+@router.post("/mystery-drops")
+async def create_mystery_drop(data: MysteryDropPayload, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Create a new mystery drop"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    if not (1 <= data.discount_pct <= 90):
+        raise HTTPException(status_code=400, detail="discount_pct must be 1-90")
+    product_result = await db.execute(select(Product).where(Product.product_id == data.product_id))
+    if not product_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Product not found")
+    drops = _load_drops()
+    new_drop = {"drop_id": str(_uuid.uuid4()), "product_id": data.product_id, "discount_pct": data.discount_pct, "label": data.label, "is_active": data.is_active}
+    drops.append(new_drop)
+    _save_drops(drops)
+    return new_drop
 
-    cfg = _load_mystery_config()
-    if data.reveal_hour_utc is not None:
-        if not (0 <= data.reveal_hour_utc <= 23):
-            raise HTTPException(status_code=400, detail="reveal_hour_utc must be 0-23")
-        cfg["reveal_hour_utc"] = data.reveal_hour_utc
-    if data.discount_pct is not None:
-        if not (1 <= data.discount_pct <= 90):
-            raise HTTPException(status_code=400, detail="discount_pct must be 1-90")
-        cfg["discount_pct"] = data.discount_pct
-    if data.locked_product_id is not None:
-        cfg["locked_product_id"] = data.locked_product_id
-    if data.is_active is not None:
-        cfg["is_active"] = data.is_active
-
-    _save_mystery_config(cfg)
-    return cfg
-
-@router.delete("/mystery-drop/lock")
-async def unlock_mystery_drop(
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Remove locked product — go back to daily auto-rotation"""
+@router.patch("/mystery-drops/{drop_id}")
+async def update_mystery_drop(drop_id: str, data: MysteryDropPayload, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Update a mystery drop"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    cfg = _load_mystery_config()
-    cfg["locked_product_id"] = None
-    _save_mystery_config(cfg)
-    return {"message": "Mystery drop unlocked — auto-rotating again", "config": cfg}
+    drops = _load_drops()
+    for i, d in enumerate(drops):
+        if d["drop_id"] == drop_id:
+            drops[i] = {**d, "product_id": data.product_id, "discount_pct": data.discount_pct, "label": data.label, "is_active": data.is_active}
+            _save_drops(drops)
+            return drops[i]
+    raise HTTPException(status_code=404, detail="Drop not found")
+
+@router.patch("/mystery-drops/{drop_id}/toggle")
+async def toggle_mystery_drop(drop_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Toggle a mystery drop on/off"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    drops = _load_drops()
+    for i, d in enumerate(drops):
+        if d["drop_id"] == drop_id:
+            drops[i]["is_active"] = not d.get("is_active", True)
+            _save_drops(drops)
+            return drops[i]
+    raise HTTPException(status_code=404, detail="Drop not found")
+
+@router.delete("/mystery-drops/{drop_id}")
+async def delete_mystery_drop(drop_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Delete a mystery drop"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    drops = _load_drops()
+    new_drops = [d for d in drops if d["drop_id"] != drop_id]
+    if len(new_drops) == len(drops):
+        raise HTTPException(status_code=404, detail="Drop not found")
+    _save_drops(new_drops)
+    return {"message": "Deleted"}
 
 # =============================================================================
 # ANALYTICS (Master Admin)
+# =============================================================================
 # =============================================================================
 
 @router.get("/analytics")

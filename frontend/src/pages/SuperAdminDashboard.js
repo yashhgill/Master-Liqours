@@ -40,8 +40,10 @@ const SuperAdminDashboard = () => {
   const [products, setProducts] = useState([]);
   const [flashSales, setFlashSales] = useState([]);
   const [editingFlash, setEditingFlash] = useState(null);
-  const [mysteryConfig, setMysteryConfig] = useState(null);
-  const [mysteryForm, setMysteryForm] = useState({ reveal_hour_utc: 12, discount_pct: 30, locked_product_id: '', is_active: true });
+  const [mysteryDrops, setMysteryDrops] = useState([]);
+  const [showMysteryForm, setShowMysteryForm] = useState(false);
+  const [editingDrop, setEditingDrop] = useState(null);
+  const [dropForm, setDropForm] = useState({ product_id: '', discount_pct: 20, label: 'Mystery Drop', is_active: true });
   const [brands, setBrands] = useState([]);
   const [staff, setStaff] = useState([]);
 
@@ -80,13 +82,12 @@ const SuperAdminDashboard = () => {
         setProducts(r.data);
       } else if (tab === 'mystery-drop') {
         try {
-          const r = await axios.get(`${API}/admin/mystery-drop/config`, { withCredentials: true });
-          setMysteryConfig(r.data);
-          setMysteryForm({ ...r.data, locked_product_id: r.data.locked_product_id || '' });
-          if (!products.length) {
-            const p = await axios.get(`${API}/products`, { withCredentials: true });
-            setProducts(p.data?.products || p.data || []);
-          }
+          const [dropsRes, prodsRes] = await Promise.all([
+            axios.get(`${API}/admin/mystery-drops`, { withCredentials: true }),
+            products.length ? Promise.resolve({data: products}) : axios.get(`${API}/products`, { withCredentials: true }),
+          ]);
+          setMysteryDrops(dropsRes.data || []);
+          if (!products.length) setProducts(prodsRes.data?.products || prodsRes.data || []);
         } catch(e) {}
       } else if (tab === 'flash-sales') {
         const [r, p] = await Promise.all([
@@ -275,28 +276,38 @@ const SuperAdminDashboard = () => {
     } catch(e) { alert(e.response?.data?.detail || 'Delete failed'); }
   };
 
-  const saveMysteryConfig = async () => {
+  const saveDrop = async () => {
+    if (!dropForm.product_id) { alert('Select a product lah'); return; }
     try {
-      const payload = {
-        reveal_hour_utc: parseInt(mysteryForm.reveal_hour_utc),
-        discount_pct: parseInt(mysteryForm.discount_pct),
-        locked_product_id: mysteryForm.locked_product_id || null,
-        is_active: mysteryForm.is_active,
-      };
-      const r = await axios.patch(`${API}/admin/mystery-drop/config`, payload, { withCredentials: true });
-      setMysteryConfig(r.data);
-      alert('Mystery drop config saved!');
+      if (editingDrop) {
+        const r = await axios.patch(`${API}/admin/mystery-drops/${editingDrop}`, dropForm, { withCredentials: true });
+        setMysteryDrops(ds => ds.map(d => d.drop_id === editingDrop ? r.data : d));
+      } else {
+        const r = await axios.post(`${API}/admin/mystery-drops`, dropForm, { withCredentials: true });
+        // re-fetch to get enriched data
+        const all = await axios.get(`${API}/admin/mystery-drops`, { withCredentials: true });
+        setMysteryDrops(all.data || []);
+      }
+      setShowMysteryForm(false); setEditingDrop(null);
     } catch(e) { alert(e.response?.data?.detail || 'Save failed'); }
   };
 
-  const unlockMysteryDrop = async () => {
+  const toggleDrop = async (dropId) => {
     try {
-      const r = await axios.delete(`${API}/admin/mystery-drop/lock`, { withCredentials: true });
-      setMysteryConfig(r.data.config);
-      setMysteryForm(f => ({ ...f, locked_product_id: '' }));
-      alert('Mystery drop unlocked — auto-rotating again!');
-    } catch(e) { alert(e.response?.data?.detail || 'Unlock failed'); }
+      const r = await axios.patch(`${API}/admin/mystery-drops/${dropId}/toggle`, {}, { withCredentials: true });
+      setMysteryDrops(ds => ds.map(d => d.drop_id === dropId ? {...d, is_active: r.data.is_active} : d));
+    } catch(e) { alert('Toggle failed'); }
   };
+
+  const deleteDrop = async (dropId) => {
+    if (!window.confirm('Delete this mystery drop?')) return;
+    try {
+      await axios.delete(`${API}/admin/mystery-drops/${dropId}`, { withCredentials: true });
+      setMysteryDrops(ds => ds.filter(d => d.drop_id !== dropId));
+    } catch(e) { alert('Delete failed'); }
+  };
+
+  // saveMysteryConfig replaced by saveDrop/toggleDrop/deleteDrop above
 
   const saveFlash = async () => {
     try {
@@ -578,71 +589,81 @@ const SuperAdminDashboard = () => {
 
       {/* === MYSTERY DROP === */}
       {tab === 'mystery-drop' && (
-        <div className="surface p-6 space-y-6">
-          <div className="flex justify-between items-center flex-wrap gap-3">
-            <div>
-              <h2 className="display-md">Mystery Drop Control</h2>
-              <p className="text-white/50 text-sm mt-1">Control the daily Drink Reveal feature.</p>
+        <div className="space-y-6">
+          <div className="surface p-6">
+            <div className="flex justify-between items-center flex-wrap gap-3 mb-6">
+              <div>
+                <h2 className="display-md">Mystery Drops</h2>
+                <p className="text-white/50 text-sm mt-1">Create multiple drops — each with its own product, discount and on/off switch.</p>
+              </div>
+              <button onClick={() => { setShowMysteryForm(true); setEditingDrop(null); setDropForm({ product_id: '', discount_pct: 20, label: 'Mystery Drop', is_active: true }); }}
+                className="btn-pink flex items-center gap-2"><FaPlus size={12} /> New Drop</button>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-white/50">Status:</span>
-              <button onClick={() => setMysteryForm(f => ({ ...f, is_active: !f.is_active }))}
-                className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${mysteryForm.is_active ? 'bg-[#39ff14] text-black' : 'border border-white/20 text-white/40'}`}>
-                {mysteryForm.is_active ? '● Live' : '○ Off'}
-              </button>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Reveal Hour (UTC)</label>
-              <input type="number" min="0" max="23" className="input-dark"
-                value={mysteryForm.reveal_hour_utc}
-                onChange={e => setMysteryForm(f => ({ ...f, reveal_hour_utc: e.target.value }))} />
-              <p className="text-[10px] text-white/30 mt-1">
-                UTC {mysteryForm.reveal_hour_utc}:00 = Malaysia time {((parseInt(mysteryForm.reveal_hour_utc) + 8) % 24).toString().padStart(2,'0')}:00
-              </p>
-            </div>
-            <div>
-              <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Discount %</label>
-              <input type="number" min="1" max="90" className="input-dark"
-                value={mysteryForm.discount_pct}
-                onChange={e => setMysteryForm(f => ({ ...f, discount_pct: e.target.value }))} />
-            </div>
-          </div>
+            {showMysteryForm && (
+              <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 mb-6 space-y-4">
+                <h3 className="font-display text-xl">{editingDrop ? 'Edit Drop' : 'New Drop'}</h3>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Product <span className="text-[#ff007f]">*</span></label>
+                  <select className="input-dark" value={dropForm.product_id} onChange={e => setDropForm(f => ({...f, product_id: e.target.value}))}>
+                    <option value="">Select product</option>
+                    {products.filter(p => p.is_active).map(p => <option key={p.product_id} value={p.product_id}>{p.name} — RM{p.price}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Discount %</label>
+                    <input type="number" min="1" max="90" className="input-dark" value={dropForm.discount_pct}
+                      onChange={e => setDropForm(f => ({...f, discount_pct: parseInt(e.target.value)||10}))} />
+                  </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Label</label>
+                    <input className="input-dark" value={dropForm.label}
+                      onChange={e => setDropForm(f => ({...f, label: e.target.value}))} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setDropForm(f => ({...f, is_active: !f.is_active}))}
+                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${dropForm.is_active ? 'bg-[#39ff14] text-black' : 'border border-white/20 text-white/40'}`}>
+                    {dropForm.is_active ? '● Active' : '○ Off'}
+                  </button>
+                  <span className="text-xs text-white/40">Toggle to show/hide on homepage</span>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={saveDrop} className="btn-pink">Save Drop</button>
+                  <button onClick={() => setShowMysteryForm(false)} className="btn-ghost text-sm">Cancel</button>
+                </div>
+              </div>
+            )}
 
-          <div>
-            <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">
-              Lock a Specific Product <span className="normal-case text-white/30">(leave blank to auto-rotate daily)</span>
-            </label>
-            <div className="flex gap-2">
-              <select className="input-dark flex-1"
-                value={mysteryForm.locked_product_id}
-                onChange={e => setMysteryForm(f => ({ ...f, locked_product_id: e.target.value }))}>
-                <option value="">— Auto-rotate daily —</option>
-                {products.filter(p => p.is_active).map(p => (
-                  <option key={p.product_id} value={p.product_id}>{p.name} — RM{p.price}</option>
+            {mysteryDrops.length === 0 ? (
+              <div className="text-center py-10 text-white/40">No mystery drops yet. Create your first one!</div>
+            ) : (
+              <div className="space-y-3">
+                {mysteryDrops.map(drop => (
+                  <div key={drop.drop_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-3 h-3 rounded-full shrink-0 ${drop.is_active ? 'bg-[#39ff14]' : 'bg-white/20'}`} />
+                      <div>
+                        <div className="font-bold">{drop.product_name}</div>
+                        <div className="text-xs text-white/40 mt-0.5">{drop.label} · {drop.discount_pct}% off · RM{drop.product_price}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleDrop(drop.drop_id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${drop.is_active ? 'border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black' : 'border-white/15 text-white/40 hover:border-white/40'}`}>
+                        {drop.is_active ? 'Live' : 'Off'}
+                      </button>
+                      <button onClick={() => { setEditingDrop(drop.drop_id); setDropForm({ product_id: drop.product_id, discount_pct: drop.discount_pct, label: drop.label, is_active: drop.is_active }); setShowMysteryForm(true); }}
+                        className="px-3 py-1.5 rounded-full text-xs border border-white/15 text-white/60 hover:border-[#00f0ff] hover:text-[#00f0ff] transition-all">Edit</button>
+                      <button onClick={() => deleteDrop(drop.drop_id)}
+                        className="px-3 py-1.5 rounded-full text-xs border border-white/15 text-white/60 hover:border-[#ff007f] hover:text-[#ff007f] transition-all">Delete</button>
+                    </div>
+                  </div>
                 ))}
-              </select>
-              {mysteryForm.locked_product_id && (
-                <button onClick={unlockMysteryDrop}
-                  className="px-4 py-2 rounded-xl border border-white/15 text-white/50 hover:border-[#ff007f] hover:text-[#ff007f] text-xs transition-all whitespace-nowrap">
-                  Unlock
-                </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-
-          {mysteryConfig && (
-            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-4 text-sm text-white/50 space-y-1">
-              <div>Current config: <span className="text-white">{mysteryConfig.is_active ? 'Active' : 'Off'}</span></div>
-              <div>Reveal at: <span className="text-white">UTC {mysteryConfig.reveal_hour_utc}:00 (MY {((mysteryConfig.reveal_hour_utc + 8) % 24).toString().padStart(2,'0')}:00)</span></div>
-              <div>Discount: <span className="text-[#ff007f] font-bold">{mysteryConfig.discount_pct}% OFF</span></div>
-              <div>Mode: <span className="text-[#39ff14]">{mysteryConfig.locked_product_id ? 'Locked product' : 'Daily auto-rotate'}</span></div>
-            </div>
-          )}
-
-          <button onClick={saveMysteryConfig} className="btn-pink">Save Mystery Drop Config</button>
         </div>
       )}
 

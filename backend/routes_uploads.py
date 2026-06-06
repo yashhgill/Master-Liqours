@@ -30,8 +30,6 @@ ALLOWED_CT = {
 MAX_BYTES = 8 * 1024 * 1024  # 8 MB
 
 # --- R2 client (lazy) ---
-_s3 = None
-
 def _get_r2_config():
     """Read R2 config fresh each call so Render env vars are always picked up."""
     account_id = os.environ.get("R2_ACCOUNT_ID", "")
@@ -43,20 +41,18 @@ def _get_r2_config():
     return account_id, access_key, secret_key, bucket, public_url, enabled
 
 def _r2_client():
-    global _s3
+    """Always create fresh client — never cache, so env vars always used."""
     account_id, access_key, secret_key, _, _, _ = _get_r2_config()
-    if _s3 is None:
-        import boto3
-        from botocore.config import Config
-        _s3 = boto3.client(
-            "s3",
-            endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-            region_name="auto",
-            config=Config(signature_version="s3v4"),
-        )
-    return _s3
+    import boto3
+    from botocore.config import Config
+    return boto3.client(
+        "s3",
+        endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name="auto",
+        config=Config(signature_version="s3v4"),
+    )
 
 
 async def _require_admin(user: User):
