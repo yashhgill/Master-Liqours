@@ -299,8 +299,8 @@ const Home = () => {
       )}
 
       {/* ═══ NEW ARRIVALS SLIDER ═══ */}
-      {newArrivals.length > 0 && (
-        <section className="py-20 bg-gradient-to-b from-[#050505] to-[#0a0a0a]">
+      <section className="py-20 bg-gradient-to-b from-[#050505] to-[#0a0a0a]">
+        {newArrivals.length > 0 ? (
           <Slider
             eyebrow="Just Landed"
             title={<>New <span className="neon-cyan-text">Arrivals</span></>}
@@ -308,12 +308,22 @@ const Home = () => {
             items={newArrivals}
             renderItem={(p) => <ProductCard product={p} />}
           />
-        </section>
-      )}
+        ) : (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+            <div className="eyebrow mb-3">Just Landed</div>
+            <h2 className="display-xl mb-8">New <span className="neon-cyan-text">Arrivals</span></h2>
+            <div className="flex gap-5 overflow-hidden">
+              {Array(4).fill(0).map((_, i) => (
+                <div key={i} className="shrink-0 w-64 sm:w-72 bg-white/5 rounded-3xl aspect-[3/4] animate-pulse" />
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* ═══ POPULAR DROPS SLIDER ═══ */}
-      {products.length > 0 && (
-        <section className="py-20">
+      <section className="py-20">
+        {products.length > 0 ? (
           <Slider
             eyebrow="Crowd Favourites"
             title={<>Popular <span className="neon-cyan-text">Drops</span></>}
@@ -321,8 +331,18 @@ const Home = () => {
             items={products}
             renderItem={(p) => <ProductCard product={p} />}
           />
-        </section>
-      )}
+        ) : (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+            <div className="eyebrow mb-3">Crowd Favourites</div>
+            <h2 className="display-xl mb-8">Popular <span className="neon-cyan-text">Drops</span></h2>
+            <div className="flex gap-5 overflow-hidden">
+              {Array(4).fill(0).map((_, i) => (
+                <div key={i} className="shrink-0 w-64 sm:w-72 bg-white/5 rounded-3xl aspect-[3/4] animate-pulse" />
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* ═══ BRAND CAROUSEL ═══ */}
       <BrandCarousel />
