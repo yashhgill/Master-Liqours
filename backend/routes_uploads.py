@@ -134,6 +134,7 @@ async def get_presigned_url(
             "ContentType": ALLOWED_CT.get(ext, "application/octet-stream"),
         },
         ExpiresIn=300,  # 5 minutes
+        HttpMethod="PUT",
     )
 
     return {
