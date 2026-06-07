@@ -104,6 +104,45 @@ async def upload_file(
 
 
 
+
+@router.get("/presign")
+async def get_presigned_url(
+    filename: str,
+    user: User = Depends(get_current_user),
+):
+    """Generate a presigned URL so the browser can upload directly to R2.
+    Returns {upload_url, public_url}. Frontend PUTs the file to upload_url,
+    then saves public_url to the DB record — no backend proxy needed.
+    """
+    await _require_admin(user)
+
+    _, _, _, R2_BUCKET, R2_PUBLIC_URL, R2_ENABLED = _get_r2_config()
+    if not R2_ENABLED:
+        raise HTTPException(status_code=503, detail="R2 not configured on this server")
+
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_EXT:
+        raise HTTPException(status_code=400, detail=f"Format tak support: {ext}")
+
+    key = f"{uuid.uuid4().hex}{ext}"
+
+    presigned = _r2_client().generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": R2_BUCKET,
+            "Key": key,
+            "ContentType": ALLOWED_CT.get(ext, "application/octet-stream"),
+        },
+        ExpiresIn=300,  # 5 minutes
+    )
+
+    return {
+        "upload_url": presigned,
+        "public_url": f"{R2_PUBLIC_URL}/{key}",
+        "key": key,
+    }
+
+
 @router.get("/r2-status")
 async def r2_status(user: User = Depends(get_current_user)):
     """Check R2 config status — for admin debugging."""
