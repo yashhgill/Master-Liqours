@@ -45,12 +45,19 @@ app = FastAPI(
 )
 api_router = APIRouter(prefix="/api")
 
-# CORS — strict in prod via CORS_ORIGINS env (comma-separated); falls back to "*" in dev.
+# CORS — always allow masterliqours.my regardless of env var
 _cors_env = os.environ.get("CORS_ORIGINS", "*").strip()
+_hardcoded = [
+    "https://masterliqours.my",
+    "https://www.masterliqours.my",
+    "http://localhost:3000",
+    "http://localhost:3001",
+]
 if _cors_env == "*":
     _origins = ["*"]
 else:
-    _origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+    _env_list = [o.strip() for o in _cors_env.split(",") if o.strip()]
+    _origins = list(set(_hardcoded + _env_list))
 
 app.add_middleware(
     CORSMiddleware,
