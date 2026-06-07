@@ -4,7 +4,7 @@ import { useCart } from '../context';
 import { FaTrash, FaPlus, FaMinus, FaArrowRight, FaShoppingBag } from 'react-icons/fa';
 
 const Cart = () => {
-  const { cart, removeFromCart, updateQuantity, total } = useCart();
+  const { cart, removeFromCart, updateQuantity, clearCart, total } = useCart();
   const navigate = useNavigate();
 
   if (cart.length === 0) {
@@ -21,7 +21,10 @@ const Cart = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12">
       <div className="eyebrow mb-3">Step 1 of 2</div>
-      <h1 className="display-xl mb-10">Your <span className="neon-pink-text">Cart</span></h1>
+      <div className="flex items-center justify-between mb-10 flex-wrap gap-3">
+        <h1 className="display-xl">Your <span className="neon-pink-text">Cart</span></h1>
+        <button onClick={() => { if(window.confirm('Clear entire cart?')) clearCart(); }} className="text-xs text-white/40 hover:text-[#ff007f] transition-colors uppercase tracking-wider">Clear Cart</button>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
         <div className="space-y-3">

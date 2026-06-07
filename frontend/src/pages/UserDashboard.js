@@ -25,7 +25,7 @@ const UserDashboard = () => {
       <h1 className="display-xl mb-2">Hi <span className="neon-pink-text">{user?.name}</span></h1>
       <p className="text-white/60 mb-10">Welcome back boss. Here's your shopping recap.</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         <div className="surface p-6">
           <div className="flex items-center justify-between mb-3">
             <div className="eyebrow !mb-0">Tier</div>
@@ -53,7 +53,7 @@ const UserDashboard = () => {
             <FaHeart className="text-[#ff007f]" />
           </div>
           <div className="display-lg neon-pink-text">{wishlistCount}</div>
-          {wishlistCount > 0 && <a href="/products" className="text-xs text-white/40 hover:text-[#ff007f] transition-colors">Browse saved items →</a>}
+          {wishlistCount > 0 && <Link to="/products" className="text-xs text-white/40 hover:text-[#ff007f] transition-colors">Browse saved items →</Link>}
         </div>
       </div>
 

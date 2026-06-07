@@ -41,7 +41,7 @@ const Checkout = () => {
     if (user?.tier === 'platinum') return { discount: total * 0.03 };
     return { discount: 0 };
   })();
-  const finalTotal = total - benefits.discount;
+  const finalTotal = Math.max(0, total - benefits.discount - promoDiscount);
 
   const validate = () => {
     const e = {};
@@ -203,6 +203,7 @@ const Checkout = () => {
           <div className="space-y-2 py-4 border-y border-white/10">
             <div className="flex justify-between text-sm"><span className="text-white/60">Subtotal</span><span>RM{total.toFixed(2)}</span></div>
             {benefits.discount > 0 && <div className="flex justify-between text-sm text-[#39ff14]"><span>Platinum discount (3%)</span><span>-RM{benefits.discount.toFixed(2)}</span></div>}
+            {promoDiscount > 0 && <div className="flex justify-between text-sm text-[#39ff14]"><span>Promo code</span><span>-RM{promoDiscount.toFixed(2)}</span></div>}
             <div className="flex justify-between text-sm">
               <span className="text-white/60">Shipping</span>
               <span className="text-white/40 text-xs">TBD with staff</span>

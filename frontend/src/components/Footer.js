@@ -54,11 +54,11 @@ const Footer = () => {
           </p>
           <div className="flex items-center gap-2">
             {[
-              { icon: FaFacebookF, href: '#' },
-              { icon: FaInstagram, href: '#' },
+              { icon: FaFacebookF, href: 'https://www.facebook.com' },
+              { icon: FaInstagram, href: 'https://www.instagram.com' },
               { icon: FaWhatsapp, href: 'https://wa.me/60126884925' },
               { icon: FaEnvelope, href: 'mailto:hello@masterliqours.my' },
-              { icon: FaTelegram, href: '#' },
+              { icon: FaTelegram, href: 'https://t.me/masterliqours' },
             ].map((s, i) => (
               <a key={i} href={s.href} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center hover:border-[#ff007f] hover:text-[#ff007f] transition-all">
                 <s.icon size={14} />
@@ -84,10 +84,10 @@ const Footer = () => {
           <div className="eyebrow mb-5">Info</div>
           <ul className="space-y-3 text-white/70">
             <li><Link to="/rewards" className="hover:text-[#ff007f] transition-colors">Welcome & Rewards</Link></li>
-            <li><Link to="/fast-delivery" className="hover:text-[#ff007f] transition-colors">Order & Delivery</Link></li>
+            <li><Link to="/products" className="hover:text-[#ff007f] transition-colors">Order & Delivery</Link></li>
             <li><Link to="/payment" className="hover:text-[#ff007f] transition-colors">Payment & Refunds</Link></li>
-            <li><Link to="/contact" className="hover:text-[#ff007f] transition-colors">Contact Us</Link></li>
-            <li><Link to="/terms" className="hover:text-[#ff007f] transition-colors">Terms & Conditions</Link></li>
+            <li><Link to="/products" className="hover:text-[#ff007f] transition-colors">Contact Us</Link></li>
+            <li><Link to="/" className="hover:text-[#ff007f] transition-colors">Terms & Conditions</Link></li>
           </ul>
         </div>
 

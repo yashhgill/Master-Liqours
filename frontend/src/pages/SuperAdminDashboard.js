@@ -22,6 +22,7 @@ const TABS = [
   { id: 'staff', label: 'Staff', icon: FaUsers },
   { id: 'staff-perf', label: 'Staff Performance', icon: FaTrophy },
   { id: 'mystery-drop', label: 'Mystery Drop', icon: FaWineGlassAlt },
+  { id: 'staff-mode', label: 'My Sales', icon: FaBoxOpen },
 ];
 
 const CATEGORIES = ['Wine', 'Beer', 'Whiskey', 'Gin', 'Rum', 'Vodka', 'Champagne', 'Tequila', 'Sake', 'Cognac'];
@@ -664,6 +665,16 @@ const SuperAdminDashboard = () => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* === STAFF MODE (redirect) === */}
+      {tab === 'staff-mode' && (
+        <div className="surface p-10 text-center space-y-4">
+          <div className="text-4xl mb-3">🏪</div>
+          <h2 className="display-md">Your Sales Dashboard</h2>
+          <p className="text-white/50">Log personal sales, manage your stock, transfer orders.</p>
+          <a href="/staff" className="btn-pink inline-flex items-center gap-2 mx-auto">Go to Staff Dashboard</a>
         </div>
       )}
 

@@ -144,10 +144,10 @@ const Navbar = () => {
             )}
           </div>
           <Link to="/products" className="hover:text-[#ffd700] transition-colors" data-testid="nav-brands">Brands</Link>
-          <Link to="/fast-delivery" className="hover:text-[#ffd700] transition-colors">Fast Delivery</Link>
+          <Link to="/products" className="hover:text-[#ffd700] transition-colors">Fast Delivery</Link>
           <div className="flex-1" />
-          <Link to="/rewards" className="text-[#ffd700] hover:text-[#39ff14] transition-colors">Rewards</Link>
-          <Link to="/products?bulk=1" className="hover:text-[#ffd700] transition-colors">Bulk Purchase</Link>
+          <Link to="/dashboard" className="text-[#ffd700] hover:text-[#39ff14] transition-colors">Rewards</Link>
+          <Link to="/products" className="hover:text-[#ffd700] transition-colors">Bulk Order</Link>
         </div>
       </div>
 
@@ -175,7 +175,7 @@ const Navbar = () => {
                 {c}
               </Link>
             ))}
-            <Link to="/rewards" onClick={() => setOpen(false)} className="block py-3 text-[#ffd700] font-bold uppercase text-sm tracking-wider">Rewards</Link>
+            <Link to="/dashboard" onClick={() => setOpen(false)} className="block py-3 text-[#ffd700] font-bold uppercase text-sm tracking-wider">My Rewards</Link>
             {!user && <Link to="/login" onClick={() => setOpen(false)} className="block py-3 text-[#39ff14] font-bold uppercase text-sm tracking-wider">Sign In</Link>}
             {user && (
               <>

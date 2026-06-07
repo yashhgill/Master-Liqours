@@ -6,7 +6,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from database import get_db
-from models import User, Product, Order, OrderItem, Stock, Reward, Staff, UserTier, OrderStatus, UserRole
+from models import User, Product, Order, OrderItem, Stock, Reward, Staff, UserTier, OrderStatus, UserRole, DiscountCode
 from sqlalchemy import and_
 from schemas import CheckoutRequest, OrderResponse, CartItem
 from auth_utils import get_current_user
@@ -260,6 +260,40 @@ async def log_personal_order(
 
 
 # ─── GET ORDERS ───────────────────────────────────────────────────────────────
+
+
+class PromoValidateRequest(BaseModel):
+    code: str
+
+@router.post("/validate-promo")
+async def validate_promo(
+    data: PromoValidateRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Validate a discount code and return the discount amount."""
+    from datetime import datetime
+    result = await db.execute(
+        select(DiscountCode).where(
+            DiscountCode.code == data.code.upper().strip(),
+            DiscountCode.active == True
+        )
+    )
+    code = result.scalar_one_or_none()
+    if not code:
+        raise HTTPException(status_code=400, detail="Invalid promo code lah")
+    if code.expires_at and code.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Promo code dah expired boss")
+    if code.max_uses and code.used_count >= code.max_uses:
+        raise HTTPException(status_code=400, detail="Promo code dah habis quota")
+    return {
+        "code": code.code,
+        "discount_type": code.discount_type,
+        "discount_value": code.discount_value,
+        "discount_amount": code.discount_value,
+        "message": f"Code valid — RM{code.discount_value:.2f} off!"
+    }
+
 
 @router.get("/my-orders", response_model=List[OrderResponse])
 async def get_my_orders(
