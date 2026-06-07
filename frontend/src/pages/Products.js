@@ -80,12 +80,12 @@ const Products = () => {
       } catch {}
       finally { setLoading(false); }
     })();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-filter when filters change
   useEffect(() => {
     setProducts(applyFilters(allProducts, search, selected, priceRange, sort));
-  }, [selected, priceRange, sort, allProducts]);
+  }, [selected, priceRange, sort, allProducts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounce search only
   useEffect(() => {
@@ -94,7 +94,7 @@ const Products = () => {
       setProducts(applyFilters(allProducts, search, selected, priceRange, sort));
     }, 300);
     return () => clearTimeout(debounceRef.current);
-  }, [search]);
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setCat = (c) => {
     setSelected(c);

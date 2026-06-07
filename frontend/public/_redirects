@@ -1,3 +1,1 @@
-# Cloudflare Pages SPA fallback (use the `!` force flag to avoid infinite-loop detection)
-# Any path not matching a static file -> serve index.html so React Router handles it.
-/*    /index.html   200!
+/* /index.html 200
