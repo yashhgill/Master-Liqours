@@ -102,6 +102,22 @@ async def upload_file(
     return {"url": f"/api/uploads/{new_name}", "filename": new_name, "size": len(body), "storage": "local"}
 
 
+
+
+@router.get("/r2-status")
+async def r2_status(user: User = Depends(get_current_user)):
+    """Check R2 config status — for admin debugging."""
+    await _require_admin(user)
+    _, _, _, bucket, public_url, enabled = _get_r2_config()
+    return {
+        "r2_enabled": enabled,
+        "bucket": bucket if enabled else "not configured",
+        "public_url": public_url if enabled else "not configured",
+        "account_id_set": bool(os.environ.get("R2_ACCOUNT_ID")),
+        "access_key_set": bool(os.environ.get("R2_ACCESS_KEY_ID")),
+        "secret_key_set": bool(os.environ.get("R2_SECRET_ACCESS_KEY")),
+    }
+
 @router.post("/products/bulk-import")
 async def bulk_import_products(
     file: UploadFile = File(...),
