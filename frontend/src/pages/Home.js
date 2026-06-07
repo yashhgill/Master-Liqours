@@ -168,16 +168,21 @@ const Home = () => {
   }, [slides.length]);
 
   const loadData = async () => {
-    try {
-      const [bannersRes, salesRes, productsRes, dropsRes] = await Promise.all([
-        axios.get(API + '/hero-banners'),
-        axios.get(API + '/flash-sales/active'),
-        axios.get(API + '/products'),
-        axios.get(API + '/drink-reveal/today'),
-      ]);
+    // Fetch each independently — one failing won't kill the rest
+    const safe = (promise) => promise.catch(e => { console.warn(e.message); return null; });
 
-      if (bannersRes.data && bannersRes.data.length > 0) {
-        const mapped = bannersRes.data.map(b => ({
+    const [bannersRes, salesRes, productsRes, dropsRes] = await Promise.all([
+      safe(axios.get(API + '/hero-banners')),
+      safe(axios.get(API + '/flash-sales/active')),
+      safe(axios.get(API + '/products')),
+      safe(axios.get(API + '/drink-reveal/today')),
+    ]);
+
+    // Banners
+    if (bannersRes?.data && bannersRes.data.length > 0) {
+      const mapped = bannersRes.data
+        .filter(b => b.is_active)
+        .map(b => ({
           eyebrow: 'Masterliqours · Malaysia',
           title: b.title || 'Premium Liquor',
           accent: (b.title || '').split(' ').slice(-1)[0],
@@ -186,21 +191,24 @@ const Home = () => {
           cta_text: b.cta_text || 'Shop Now Lah',
           cta_link: b.cta_link || '/products',
         }));
-        setSlides(mapped);
-      }
-      setHeroLoaded(true);
+      if (mapped.length > 0) setSlides(mapped);
+    }
+    setHeroLoaded(true);
 
-      setFlashSales(salesRes.data || []);
+    // Flash sales
+    if (salesRes?.data) setFlashSales(salesRes.data);
 
+    // Products
+    if (productsRes?.data) {
       const allProducts = productsRes.data?.products || productsRes.data || [];
       setProducts(allProducts.slice(0, 12));
-      // New arrivals = last 8 added (reverse order)
       setNewArrivals([...allProducts].reverse().slice(0, 8));
+    }
 
-      if (dropsRes.data?.available) {
-        setMysteryDrops(dropsRes.data.drops || []);
-      }
-    } catch (e) { console.error(e); setHeroLoaded(true); }
+    // Mystery drops
+    if (dropsRes?.data?.available) {
+      setMysteryDrops(dropsRes.data.drops || []);
+    }
   };
 
   const hero = slides[slide] || DEFAULT_HERO[0];
