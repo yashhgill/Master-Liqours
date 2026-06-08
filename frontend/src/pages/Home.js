@@ -6,6 +6,7 @@ import {
   FaUserShield, FaGem, FaCheck, FaChevronLeft, FaChevronRight, FaClock,
 } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
+import ReviewSection from '../components/ReviewSection';
 import BrandCarousel from '../components/BrandCarousel';
 import { useAuth } from '../context';
 
@@ -181,7 +182,6 @@ const Home = () => {
     // Banners
     if (bannersRes?.data && bannersRes.data.length > 0) {
       const mapped = bannersRes.data
-        .filter(b => b.is_active)
         .map(b => ({
           eyebrow: 'Masterliqours · Malaysia',
           title: b.title || 'Premium Liquor',
@@ -218,7 +218,7 @@ const Home = () => {
       {/* ═══ HERO ═══ */}
       <section className="relative min-h-[88vh] flex items-center overflow-hidden bg-black">
         <img key={slide} src={hero.bg} alt=""
-          className="absolute inset-0 w-full h-full object-cover opacity-40 transition-opacity duration-700" />
+          className="absolute inset-0 w-full h-full object-cover opacity-60 transition-opacity duration-700" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/60 to-[#050505]" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-transparent to-transparent" />
 
@@ -228,16 +228,12 @@ const Home = () => {
             <h1 className="display-mega text-glow-white mb-6">{highlightTitle(hero.title, hero.accent)}</h1>
             <p className="text-lg md:text-xl text-white/80 mb-10 max-w-xl leading-relaxed">{hero.sub}</p>
             <div className="flex flex-wrap gap-4">
-              <Link to={hero.cta_link || '/products'} className="btn-pink">{hero.cta_text || 'Shop Now Lah'} <FaArrowRight size={14} /></Link>
-              <a href="https://wa.me/60126884925?text=Hi%20Masterliqours" target="_blank" rel="noopener noreferrer" className="btn-ghost">
+              <Link to={hero.cta_link || '/products'} className="btn-lime">{hero.cta_text || 'Shop Now Lah'} <FaArrowRight size={14} /></Link>
+              <a href="https://wa.me/60126884925?text=Hi%20Masterliqours" target="_blank" rel="noopener noreferrer" className="btn-whatsapp">
                 <FaWhatsapp size={16} /> Chat With Us
               </a>
             </div>
-            <div className="grid grid-cols-3 gap-6 mt-16 max-w-xl border-t border-white/10 pt-8">
-              <div><div className="font-display text-4xl md:text-5xl neon-cyan-text">500+</div><div className="text-xs uppercase tracking-wider text-white/50 mt-1">Premium Bottles</div></div>
-              <div><div className="font-display text-4xl md:text-5xl neon-lime-text">24<span className="text-2xl">h</span></div><div className="text-xs uppercase tracking-wider text-white/50 mt-1">Fast Delivery</div></div>
-              <div><div className="font-display text-4xl md:text-5xl text-[#ffd700]" style={{textShadow:'0 0 25px rgba(255,215,0,0.4)'}}>5K+</div><div className="text-xs uppercase tracking-wider text-white/50 mt-1">Happy Customers</div></div>
-            </div>
+
           </div>
         </div>
 
@@ -343,6 +339,9 @@ const Home = () => {
           </div>
         )}
       </section>
+
+      {/* ═══ CUSTOMER REVIEWS ═══ */}
+      <ReviewSection />
 
       {/* ═══ BRAND CAROUSEL ═══ */}
       <BrandCarousel />

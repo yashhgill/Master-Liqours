@@ -19,6 +19,7 @@ from auth_utils import (
 # Import route modules
 from routes_orders import router as orders_router
 from routes_auth import router as auth_router
+from routes_reviews import router as reviews_router
 from routes_admin import router as admin_router
 from routes_newsletter import router as newsletter_router
 from routes_ai import router as ai_router

@@ -33,12 +33,15 @@ class ProductResponse(BaseModel):
     product_id: str
     name: str
     price: float
-    description: Optional[str]
+    description: Optional[str] = None
     category: str
-    image_url: Optional[str]
+    image_url: Optional[str] = None
     is_active: bool
-    staff_id: Optional[str]
+    is_preorder: Optional[bool] = False
+    staff_id: Optional[str] = None
     created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 class ProductCreate(BaseModel):
     name: str

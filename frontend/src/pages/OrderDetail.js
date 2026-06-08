@@ -30,6 +30,9 @@ const OrderDetail = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [review, setReview] = useState({ rating: 0, comment: '' });
+  const [reviewSent, setReviewSent] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
 
   useEffect(() => { load(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -40,6 +43,16 @@ const OrderDetail = () => {
       setOrder(res.data);
     } catch (e) { setError(e.response?.data?.detail || 'Order tak jumpa boss'); }
     finally { setLoading(false); }
+  };
+
+  const submitReview = async () => {
+    if (!review.rating) { alert('Please select a rating'); return; }
+    setReviewLoading(true);
+    try {
+      await axios.post(API + '/reviews/', { order_id: id, rating: review.rating, comment: review.comment }, { withCredentials: true });
+      setReviewSent(true);
+    } catch (e) { alert(e.response?.data?.detail || 'Failed to submit review'); }
+    finally { setReviewLoading(false); }
   };
 
   if (loading) return <div className="max-w-3xl mx-auto px-4 py-20 text-center text-white/60">Loading...</div>;
@@ -160,7 +173,36 @@ const OrderDetail = () => {
             <div className="text-white/80 leading-relaxed whitespace-pre-line">{order.shipping_address}</div>
           </div>
 
-          {/* Assigned staff */}
+          {/* Review prompt - shown when delivered and not yet reviewed */}
+        {order.status === 'delivered' && !reviewSent && (
+          <div className="surface p-6">
+            <div className="eyebrow mb-2">Rate Your Experience</div>
+            <h2 className="display-md mb-2">Leave a Review</h2>
+            <p className="text-white/50 text-sm mb-5">How was your order boss? Your feedback helps others.</p>
+            <div className="flex gap-2 mb-4">
+              {[1,2,3,4,5].map(s => (
+                <button key={s} onClick={() => setReview(r => ({...r, rating: s}))}
+                  className={`text-3xl transition-all hover:scale-110 ${s <= review.rating ? 'text-[#ffd700]' : 'text-white/20'}`}>★</button>
+              ))}
+            </div>
+            <textarea rows={3} className="input-dark resize-none mb-4"
+              placeholder="Tell us about your experience (optional)..."
+              value={review.comment}
+              onChange={e => setReview(r => ({...r, comment: e.target.value}))} />
+            <button onClick={submitReview} disabled={reviewLoading || !review.rating}
+              className="btn-pink disabled:opacity-50">
+              {reviewLoading ? 'Submitting...' : 'Submit Review'}
+            </button>
+          </div>
+        )}
+        {reviewSent && (
+          <div className="surface p-6 text-center">
+            <div className="text-4xl mb-3">🌟</div>
+            <div className="display-md text-[#ffd700]">Thanks for the review boss!</div>
+          </div>
+        )}
+
+        {/* Assigned staff */}
           {order.staff_name && (
             <div className="surface p-6">
               <h2 className="display-md mb-5 flex items-center gap-2"><FaUser className="text-[#00f0ff]" size={18} /> Assigned Staff</h2>

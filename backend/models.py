@@ -200,6 +200,20 @@ class DiscountCode(Base):
     created_at = Column(DateTime, default=utcnow)
 
 
+
+
+class Review(Base):
+    __tablename__ = 'reviews'
+
+    review_id = Column(String(36), primary_key=True, default=generate_uuid)
+    order_id = Column(String(36), ForeignKey('orders.order_id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
+    staff_id = Column(String(36), ForeignKey('staff.staff_id', ondelete='SET NULL'), nullable=True)
+    rating = Column(Integer, nullable=False)  # 1-5
+    comment = Column(Text, nullable=True)
+    is_visible = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=utcnow)
+
 class NewsletterSubscriber(Base):
     __tablename__ = 'newsletter_subscribers'
     
