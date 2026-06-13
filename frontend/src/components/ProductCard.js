@@ -30,8 +30,14 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
   const { addToCart } = useCart();
   const countdown = useCountdown(flashSale?.end_time);
 
+  // Use explicit flashSale prop if given, otherwise derive from product.original_price
+  const derivedDiscountPct = product.original_price && product.original_price > product.price
+    ? Math.round((1 - product.price / product.original_price) * 100)
+    : 0;
   const price = flashSale ? flashSale.discounted_price : product.price;
-  const hasDiscount = flashSale && flashSale.discount_percentage > 0;
+  const originalPrice = flashSale ? product.price : product.original_price;
+  const discountPct = flashSale ? flashSale.discount_percentage : derivedDiscountPct;
+  const hasDiscount = discountPct > 0;
   const isOutOfStock = typeof totalStock === 'number' && totalStock === 0;
   const isPreorder = product.is_preorder;
 
@@ -69,7 +75,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
       {hasDiscount && cardState === 'available' && (
         <div className="absolute top-4 right-4 z-10">
           <div className="bg-[#ff007f] text-white text-xs font-black px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
-            <FaBolt size={10} /> -{flashSale.discount_percentage}%
+            <FaBolt size={10} /> -{discountPct}%
           </div>
         </div>
       )}
@@ -142,7 +148,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
         <div className="flex items-end justify-between gap-3">
           <div>
             {hasDiscount && cardState === 'available' && (
-              <div className="text-xs text-gray-400 line-through">RM{product.price.toFixed(2)}</div>
+              <div className="text-xs text-gray-400 line-through">RM{(originalPrice || product.price).toFixed(2)}</div>
             )}
             <div className={`font-display text-3xl ${cardState !== 'available' ? 'text-gray-500' : 'text-[#ff007f]'}`}>
               {cardState === 'preorder' ? (

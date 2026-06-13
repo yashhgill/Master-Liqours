@@ -8,6 +8,8 @@ import csv
 import io
 import uuid
 from pathlib import Path
+from typing import List
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -157,6 +159,33 @@ async def r2_status(user: User = Depends(get_current_user)):
         "access_key_set": bool(os.environ.get("R2_ACCESS_KEY_ID")),
         "secret_key_set": bool(os.environ.get("R2_SECRET_ACCESS_KEY")),
     }
+
+
+class BulkDeleteRequest(BaseModel):
+    product_ids: List[str]
+
+@router.post("/products/bulk-delete")
+async def bulk_delete_products(
+    data: BulkDeleteRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete multiple products at once (Super Admin / Master Admin)."""
+    await _require_admin(user)
+
+    if not data.product_ids:
+        raise HTTPException(status_code=400, detail="No products selected")
+
+    result = await db.execute(select(Product).where(Product.product_id.in_(data.product_ids)))
+    products = result.scalars().all()
+
+    deleted = len(products)
+    for p in products:
+        await db.delete(p)
+
+    await db.commit()
+    return {"message": f"Deleted {deleted} product(s)", "deleted": deleted}
+
 
 @router.post("/products/bulk-import")
 async def bulk_import_products(

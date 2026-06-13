@@ -27,7 +27,7 @@ const TABS = [
 
 const CATEGORIES = ['Wine', 'Beer', 'Whiskey', 'Gin', 'Rum', 'Vodka', 'Champagne', 'Tequila', 'Sake', 'Cognac'];
 
-const blankProduct = { name: '', price: '', description: '', category: '', image_url: '', is_active: true };
+const blankProduct = { name: '', price: '', description: '', category: '', image_url: '', is_active: true, is_preorder: false, discount_price: '', discount_days: 0, discount_hours: 0, discount_minutes: 0 };
 const blankBanner = { title: '', subtitle: '', cta_text: '', cta_link: '', background_image: '', is_active: true, order_position: 0 };
 const blankBrand = { name: '', short_name: '', subtitle: '', logo_url: '', color_hex: '#1a1a1a', search_term: '', is_active: true, order_position: 0 };
 const blankFlash = { product_id: '', discount_percentage: 10, start_time: '', end_time: '' };
@@ -47,6 +47,8 @@ const SuperAdminDashboard = () => {
   const [dropForm, setDropForm] = useState({ product_id: '', discount_pct: 20, label: 'Mystery Drop', is_active: true });
   const [brands, setBrands] = useState([]);
   const [staff, setStaff] = useState([]);
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Forms
   const [bannerForm, setBannerForm] = useState(blankBanner);
@@ -137,7 +139,14 @@ const SuperAdminDashboard = () => {
   // === PRODUCTS ===
   const saveProduct = async () => {
     try {
-      const payload = { ...productForm, price: parseFloat(productForm.price) || 0 };
+      const payload = {
+        ...productForm,
+        price: parseFloat(productForm.price) || 0,
+        discount_price: productForm.discount_price !== '' && productForm.discount_price != null ? parseFloat(productForm.discount_price) : null,
+        discount_days: parseInt(productForm.discount_days) || 0,
+        discount_hours: parseInt(productForm.discount_hours) || 0,
+        discount_minutes: parseInt(productForm.discount_minutes) || 0,
+      };
       if (editingProduct) {
         await axios.patch(`${API}/admin/products/${editingProduct}`, payload, { withCredentials: true });
       } else {
@@ -150,8 +159,11 @@ const SuperAdminDashboard = () => {
   const editProduct = (p) => {
     setEditingProduct(p.product_id);
     setProductForm({
-      name: p.name || '', price: p.price || 0, description: p.description || '',
+      name: p.name || '', price: p.original_price || p.price || 0, description: p.description || '',
       category: p.category || '', image_url: p.image_url || '', is_active: !!p.is_active,
+      is_preorder: !!p.is_preorder,
+      discount_price: p.original_price ? p.price : '',
+      discount_days: 0, discount_hours: 0, discount_minutes: 0,
     });
     setShowProduct(true);
   };
@@ -160,11 +172,13 @@ const SuperAdminDashboard = () => {
     setEditingProduct(null);
     setProductForm({
       name: `${p.name} (Copy)`,
-      price: p.price || 0,
+      price: p.original_price || p.price || 0,
       description: p.description || '',
       category: p.category || '',
       image_url: p.image_url || '',
       is_active: !!p.is_active,
+      is_preorder: !!p.is_preorder,
+      discount_price: '', discount_days: 0, discount_hours: 0, discount_minutes: 0,
     });
     setShowProduct(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -175,6 +189,30 @@ const SuperAdminDashboard = () => {
       await axios.delete(`${API}/admin/products/${id}`, { withCredentials: true });
       load();
     } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
+  };
+
+  const toggleSelectProduct = (id) => {
+    setSelectedProducts(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedProducts.length === filteredProducts.length) {
+      setSelectedProducts([]);
+    } else {
+      setSelectedProducts(filteredProducts.map(p => p.product_id));
+    }
+  };
+
+  const bulkDeleteProducts = async () => {
+    if (selectedProducts.length === 0) return;
+    if (!window.confirm(`Delete ${selectedProducts.length} selected product(s)? This cannot be undone lah.`)) return;
+    setBulkDeleting(true);
+    try {
+      await axios.post(`${API}/admin/products/bulk-delete`, { product_ids: selectedProducts }, { withCredentials: true });
+      setSelectedProducts([]);
+      load();
+    } catch (e) { alert(e.response?.data?.detail || 'Bulk delete failed'); }
+    finally { setBulkDeleting(false); }
   };
 
   const csvUpload = async (file) => {
@@ -383,7 +421,7 @@ const SuperAdminDashboard = () => {
             </div>
           )}
 
-          <div className="relative mb-6">
+          <div className="relative mb-4">
             <input
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
@@ -391,6 +429,22 @@ const SuperAdminDashboard = () => {
               className="input-dark"
               data-testid="admin-products-search"
             />
+          </div>
+
+          {/* Bulk select bar */}
+          <div className="flex items-center justify-between mb-4 px-1">
+            <label className="flex items-center gap-2 text-sm text-white/60 cursor-pointer">
+              <input type="checkbox"
+                checked={filteredProducts.length > 0 && selectedProducts.length === filteredProducts.length}
+                onChange={toggleSelectAll} />
+              <span>{selectedProducts.length > 0 ? `${selectedProducts.length} selected` : 'Select all'}</span>
+            </label>
+            {selectedProducts.length > 0 && (
+              <button onClick={bulkDeleteProducts} disabled={bulkDeleting}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#ff007f] text-white text-xs font-bold uppercase tracking-wider hover:brightness-110 transition-all disabled:opacity-50">
+                <FaTrash size={11} /> {bulkDeleting ? 'Deleting...' : `Delete ${selectedProducts.length}`}
+              </button>
+            )}
           </div>
 
           {showProduct && (
@@ -424,9 +478,57 @@ const SuperAdminDashboard = () => {
                   <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Description</label>
                   <textarea rows={4} value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} className="input-dark resize-none" placeholder="What makes this bottle special?" />
                 </div>
+                {/* Discount / Flash Sale section */}
+                <div className="bg-[#ff007f08] border border-[#ff007f20] rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#ff007f] font-bold">
+                    <FaBolt size={12} /> Discount → Auto Flash Sale
+                  </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Discounted Price (RM) — leave blank for no discount</label>
+                    <input type="number" step="0.01" value={productForm.discount_price}
+                      onChange={(e) => setProductForm({ ...productForm, discount_price: e.target.value })}
+                      className="input-dark" placeholder={`e.g. ${(parseFloat(productForm.price || 0) * 0.8).toFixed(2)}`} data-testid="product-form-discount-price" />
+                    {productForm.discount_price && parseFloat(productForm.price) > 0 && (
+                      <p className="text-xs text-[#39ff14] mt-1">
+                        {Math.round((1 - parseFloat(productForm.discount_price) / parseFloat(productForm.price)) * 100)}% off — saves RM{(parseFloat(productForm.price) - parseFloat(productForm.discount_price)).toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                  {productForm.discount_price && (
+                    <div>
+                      <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Sale Duration</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <input type="number" min="0" value={productForm.discount_days}
+                            onChange={(e) => setProductForm({ ...productForm, discount_days: e.target.value })}
+                            className="input-dark text-center" placeholder="0" />
+                          <div className="text-[10px] text-white/40 text-center mt-1">Days</div>
+                        </div>
+                        <div>
+                          <input type="number" min="0" max="23" value={productForm.discount_hours}
+                            onChange={(e) => setProductForm({ ...productForm, discount_hours: e.target.value })}
+                            className="input-dark text-center" placeholder="0" />
+                          <div className="text-[10px] text-white/40 text-center mt-1">Hours</div>
+                        </div>
+                        <div>
+                          <input type="number" min="0" max="59" value={productForm.discount_minutes}
+                            onChange={(e) => setProductForm({ ...productForm, discount_minutes: e.target.value })}
+                            className="input-dark text-center" placeholder="0" />
+                          <div className="text-[10px] text-white/40 text-center mt-1">Minutes</div>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-white/30 mt-1">Leave all at 0 for a 24-hour default sale.</p>
+                    </div>
+                  )}
+                </div>
+
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={productForm.is_active} onChange={(e) => setProductForm({ ...productForm, is_active: e.target.checked })} />
                   <span>Active (shown to customers)</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={productForm.is_preorder} onChange={(e) => setProductForm({ ...productForm, is_preorder: e.target.checked })} />
+                  <span>Pre-order (Check Boss First)</span>
                 </label>
                 <div className="flex gap-2 pt-2">
                   <button onClick={saveProduct} className="btn-lime" data-testid="product-form-save">{editingProduct ? 'Update Product' : 'Create Product'}</button>
@@ -438,18 +540,37 @@ const SuperAdminDashboard = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {filteredProducts.map((p) => (
-              <div key={p.product_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center gap-4 group" data-testid={`admin-product-${p.product_id}`}>
-                <div className="w-20 h-20 rounded-xl shrink-0 bg-white overflow-hidden">
+              <div key={p.product_id} className={`bg-[#0a0a0a] border rounded-2xl p-4 flex items-center gap-4 group transition-all ${selectedProducts.includes(p.product_id) ? 'border-[#ff007f]/50 bg-[#ff007f08]' : 'border-white/5'}`} data-testid={`admin-product-${p.product_id}`}>
+                <input type="checkbox" className="shrink-0 w-4 h-4"
+                  checked={selectedProducts.includes(p.product_id)}
+                  onChange={() => toggleSelectProduct(p.product_id)} />
+                <div className="w-20 h-20 rounded-xl shrink-0 bg-white overflow-hidden relative">
                   {p.image_url ? (
                     <img src={resolveImageUrl(p.image_url)} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-300"><FaImage size={20} /></div>
                   )}
+                  {p.original_price && (
+                    <div className="absolute top-0 right-0 bg-[#ff007f] text-white text-[9px] font-black px-1.5 py-0.5 rounded-bl-lg flex items-center gap-0.5">
+                      <FaBolt size={8} /> SALE
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-display text-lg uppercase truncate">{p.name}</div>
-                  <div className="text-[10px] uppercase tracking-wider text-white/40">{p.category}</div>
-                  <div className="font-display text-xl neon-pink-text mt-1">RM{(p.price || 0).toFixed(2)}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-white/40 flex items-center gap-2">
+                    {p.category}
+                    {p.is_preorder && <span className="text-[#ffd700]">· Pre-order</span>}
+                  </div>
+                  {p.original_price ? (
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <span className="text-xs text-white/40 line-through">RM{p.original_price.toFixed(2)}</span>
+                      <span className="font-display text-xl neon-pink-text">RM{(p.price || 0).toFixed(2)}</span>
+                      <span className="text-[10px] text-[#39ff14] font-bold">-{Math.round((1 - p.price / p.original_price) * 100)}%</span>
+                    </div>
+                  ) : (
+                    <div className="font-display text-xl neon-pink-text mt-1">RM{(p.price || 0).toFixed(2)}</div>
+                  )}
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button onClick={() => duplicateProduct(p)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#ffd700] hover:text-[#ffd700] flex items-center justify-center transition-all" title="Duplicate" data-testid={`admin-product-dup-${p.product_id}`}>

@@ -38,6 +38,7 @@ class ProductResponse(BaseModel):
     image_url: Optional[str] = None
     is_active: bool
     is_preorder: Optional[bool] = False
+    original_price: Optional[float] = None
     staff_id: Optional[str] = None
     created_at: datetime
 
@@ -46,10 +47,17 @@ class ProductResponse(BaseModel):
 class ProductCreate(BaseModel):
     name: str
     price: float
-    description: Optional[str]
+    description: Optional[str] = None
     category: str
-    image_url: Optional[str]
+    image_url: Optional[str] = None
     is_active: bool = True
+    is_preorder: Optional[bool] = False
+    staff_id: Optional[str] = None
+    # Discount fields — if discount_price is set, a flash sale is auto-created/updated
+    discount_price: Optional[float] = None
+    discount_days: Optional[int] = 0
+    discount_hours: Optional[int] = 0
+    discount_minutes: Optional[int] = 0
 
 # Cart & Order Schemas
 class CartItem(BaseModel):

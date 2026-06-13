@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
+from datetime import datetime, timedelta
 from typing import List, Optional
-from datetime import datetime
 from pydantic import BaseModel
 
 from database import get_db
@@ -115,17 +115,75 @@ async def delete_hero_banner(
 # PRODUCT MANAGEMENT WITH IMAGE UPLOAD (Super Admin)
 # =============================================================================
 
+async def _sync_flash_sale_from_discount(product: Product, data: ProductCreate, db: AsyncSession):
+    """Create/update/remove a flash sale based on discount_price + duration fields."""
+    has_discount = data.discount_price is not None and data.discount_price > 0 and data.discount_price < product.price
+
+    # Find existing active flash sale for this product
+    existing_result = await db.execute(
+        select(FlashSale).where(FlashSale.product_id == product.product_id, FlashSale.is_active == True)
+    )
+    existing_sale = existing_result.scalars().first()
+
+    if not has_discount:
+        # No discount set — deactivate any existing flash sale, restore original price
+        if existing_sale:
+            existing_sale.is_active = False
+        if product.original_price:
+            product.original_price = None
+        return
+
+    # Calculate discount percentage from prices
+    discount_pct = round((1 - (data.discount_price / product.price)) * 100, 2)
+    if discount_pct <= 0 or discount_pct >= 100:
+        return
+
+    days = data.discount_days or 0
+    hours = data.discount_hours or 0
+    minutes = data.discount_minutes or 0
+    total_seconds = days * 86400 + hours * 3600 + minutes * 60
+    if total_seconds <= 0:
+        total_seconds = 86400  # default 24h if no duration given
+
+    start_time = datetime.utcnow()
+    end_time = start_time + timedelta(seconds=total_seconds)
+
+    # Set original_price so frontend can show strikethrough
+    product.original_price = product.price
+
+    if existing_sale:
+        existing_sale.discount_percentage = discount_pct
+        existing_sale.start_time = start_time
+        existing_sale.end_time = end_time
+        existing_sale.is_active = True
+    else:
+        new_sale = FlashSale(
+            product_id=product.product_id,
+            discount_percentage=discount_pct,
+            start_time=start_time,
+            end_time=end_time,
+            is_active=True,
+        )
+        db.add(new_sale)
+
+
 @router.post("/products", response_model=ProductResponse)
 async def create_product(
     data: ProductCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create product dengan image URL (Super Admin only)"""
+    """Create product dengan image URL (Super Admin only). If discount_price is set,
+    a flash sale is automatically created with the given discount % and duration."""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    
-    product = Product(**data.dict())
+
+    base_fields = data.dict(exclude={"discount_price", "discount_days", "discount_hours", "discount_minutes"})
+    product = Product(**base_fields)
     db.add(product)
+    await db.flush()  # get product_id before creating flash sale
+
+    await _sync_flash_sale_from_discount(product, data, db)
+
     await db.commit()
     await db.refresh(product)
     return product
@@ -137,18 +195,23 @@ async def update_product(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Update product termasuk image (Super Admin only)"""
+    """Update product termasuk image (Super Admin only). If discount_price is set,
+    a flash sale is automatically created/updated. If left blank, any active
+    flash sale for this product is deactivated and original_price cleared."""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    
+
     result = await db.execute(select(Product).where(Product.product_id == product_id))
     product = result.scalar_one_or_none()
-    
+
     if not product:
         raise HTTPException(status_code=404, detail="Produk tak jumpa")
-    
-    for key, value in data.dict(exclude_unset=True).items():
+
+    base_fields = data.dict(exclude_unset=True, exclude={"discount_price", "discount_days", "discount_hours", "discount_minutes"})
+    for key, value in base_fields.items():
         setattr(product, key, value)
-    
+
+    await _sync_flash_sale_from_discount(product, data, db)
+
     await db.commit()
     await db.refresh(product)
     return product

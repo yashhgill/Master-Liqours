@@ -98,6 +98,7 @@ class Product(Base):
     image_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True, index=True)
     is_preorder = Column(Boolean, default=False)
+    original_price = Column(Float, nullable=True)  # set when product has an active discount
     created_at = Column(DateTime, default=utcnow)
     staff_id = Column(String(36), ForeignKey('staff.staff_id'), nullable=True, index=True)
     
