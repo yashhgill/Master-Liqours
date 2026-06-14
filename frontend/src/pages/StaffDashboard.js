@@ -419,10 +419,28 @@ const StaffDashboard = () => {
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ff007f20] text-[#ff007f] font-bold uppercase">Personal</span>
                           )}
                         </div>
-                        <div className="text-xs text-white/40 mt-0.5">{new Date(o.created_at).toLocaleString()} · {(o.items || []).length} items</div>
-                        {o.customer_name && <div className="text-xs text-white/60 mt-0.5">👤 {o.customer_name} · {o.customer_whatsapp}</div>}
+                        <div className="text-xs text-white/40 mt-0.5">{new Date(o.created_at).toLocaleString()}</div>
+
+                        {/* Items ordered — this is what staff needs to prepare */}
+                        {(o.items || []).length > 0 && (
+                          <div className="mt-2 mb-1 space-y-1">
+                            {o.items.map((it, idx) => (
+                              <div key={idx} className="text-sm text-white/90 flex items-center gap-2">
+                                <span className="text-[#39ff14] font-bold">{it.quantity}×</span>
+                                <span className="font-bold">{it.product_name || 'Unknown Product'}</span>
+                                <span className="text-white/30 text-xs">@ RM{Number(it.price).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {o.customer_name && <div className="text-xs text-white/60 mt-1">👤 {o.customer_name} · {o.customer_whatsapp}</div>}
                         {o.customer_whatsapp && (
-                          <a href={`https://wa.me/${o.customer_whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
+                          <a href={`https://wa.me/${o.customer_whatsapp.replace(/\D/g,'')}?text=${encodeURIComponent(
+                              `Hi ${o.customer_name || ''}! Re your order #${o.order_id.slice(0,8).toUpperCase()}:\n` +
+                              o.items.map(it => `• ${it.quantity}x ${it.product_name}`).join('\n') +
+                              `\nTotal: RM${o.total.toFixed(2)}`
+                            )}`} target="_blank" rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-[10px] text-[#25d366] mt-1 hover:underline" onClick={e => e.stopPropagation()}>
                             <FaWhatsapp size={10} /> Message customer
                           </a>

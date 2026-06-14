@@ -27,9 +27,20 @@ def _clean_dict(obj):
 
 
 async def _enrich_with_staff(order, db):
+    # Look up product names for all items in this order
+    item_dicts = [_clean_dict(item) for item in order.order_items]
+    product_ids = [i["product_id"] for i in item_dicts if i.get("product_id")]
+    product_names = {}
+    if product_ids:
+        prod_result = await db.execute(select(Product).where(Product.product_id.in_(product_ids)))
+        for p in prod_result.scalars().all():
+            product_names[p.product_id] = p.name
+    for i in item_dicts:
+        i["product_name"] = product_names.get(i.get("product_id"), "Unknown Product")
+
     payload = {
         **_clean_dict(order),
-        "items": [_clean_dict(item) for item in order.order_items],
+        "items": item_dicts,
         "staff_whatsapp": None,
         "staff_name": None,
     }

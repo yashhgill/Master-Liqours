@@ -68,7 +68,8 @@ const OrderDetail = () => {
   const isCancelled = order.status === 'cancelled';
   const phone = (order.staff_whatsapp || '60126884925').replace(/\D/g, '');
   const staffName = order.staff_name || 'Staff';
-  const waMsg = `Hi ${staffName}! Re-checking order #${order.order_id.slice(0,8).toUpperCase()} — total RM${order.total.toFixed(2)}.`;
+  const itemsList = (order.items || []).map(it => `${it.quantity}x ${it.product_name || 'Item'}`).join(', ');
+  const waMsg = `Hi ${staffName}! Re order #${order.order_id.slice(0,8).toUpperCase()} (${itemsList}) — total RM${order.total.toFixed(2)}.`;
   const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}`;
 
   return (
@@ -151,8 +152,8 @@ const OrderDetail = () => {
               {(order.items || []).map((it, i) => (
                 <div key={i} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs text-white/40">Product ID: {it.product_id?.slice(0,8)}</div>
-                    <div className="font-bold text-sm mt-0.5">RM{Number(it.price).toFixed(2)} each</div>
+                    <div className="font-bold text-base">{it.product_name || 'Unknown Product'}</div>
+                    <div className="text-xs text-white/40 mt-0.5">RM{Number(it.price).toFixed(2)} each</div>
                   </div>
                   <div className="text-center px-4 shrink-0">
                     <div className="text-xs text-white/40">Qty</div>

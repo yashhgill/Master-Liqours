@@ -86,9 +86,14 @@ const UserDashboard = () => {
                 className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center justify-between hover:border-[#ff007f]/40 transition-colors block"
                 data-testid={`dash-order-${o.order_id}`}
               >
-                <div>
+                <div className="flex-1 min-w-0 mr-3">
                   <div className="font-bold">#{o.order_id.slice(0, 8).toUpperCase()}</div>
-                  <div className="text-xs text-white/50">{new Date(o.created_at).toLocaleDateString()} · {o.points_earned}pts earned</div>
+                  <div className="text-xs text-white/50 mb-1">{new Date(o.created_at).toLocaleDateString()} · {o.points_earned}pts earned</div>
+                  {(o.items || []).length > 0 && (
+                    <div className="text-xs text-white/70 truncate">
+                      {o.items.map(it => `${it.quantity}× ${it.product_name || 'Item'}`).join(', ')}
+                    </div>
+                  )}
                 </div>
                 <div className="text-right">
                   <div className="font-display text-xl neon-pink-text">RM{o.total.toFixed(2)}</div>

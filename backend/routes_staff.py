@@ -58,13 +58,24 @@ async def get_staff_orders(
     query = query.order_by(Order.created_at.desc())
     result = await db.execute(query)
     orders = result.scalars().all()
-    return [
-        {
-            **_clean(o),
-            "items": [_clean(i) for i in o.order_items],
-        }
-        for o in orders
-    ]
+
+    # Look up product names for all items across all orders in one go
+    all_product_ids = {i.product_id for o in orders for i in o.order_items if i.product_id}
+    product_names = {}
+    if all_product_ids:
+        prod_result = await db.execute(select(Product).where(Product.product_id.in_(all_product_ids)))
+        for p in prod_result.scalars().all():
+            product_names[p.product_id] = p.name
+
+    out = []
+    for o in orders:
+        items = []
+        for i in o.order_items:
+            item_dict = _clean(i)
+            item_dict["product_name"] = product_names.get(i.product_id, "Unknown Product")
+            items.append(item_dict)
+        out.append({**_clean(o), "items": items})
+    return out
 
 
 @router.get("/my-stock")
