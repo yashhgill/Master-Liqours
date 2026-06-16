@@ -122,7 +122,10 @@ const TransferModal = ({ order, allStaff, onClose, onTransferred }) => {
       await axios.post(`${API}/staff/orders/${order.order_id}/transfer`, { target_staff_id: targetId }, { withCredentials: true });
       onTransferred();
       onClose();
-    } catch (e) { alert(e.response?.data?.detail || 'Transfer failed'); }
+    } catch (e) {
+      const msg = e.response?.data?.detail || e.message || 'Transfer failed — check connection';
+      alert(msg);
+    }
     finally { setSaving(false); }
   };
 

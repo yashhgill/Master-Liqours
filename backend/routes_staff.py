@@ -197,43 +197,55 @@ async def transfer_order(
     db: AsyncSession = Depends(get_db),
 ):
     """Transfer an order to another staff member"""
-    # Must be staff, super_admin, or master_admin
-    if user.role == UserRole.CUSTOMER:
-        raise HTTPException(status_code=403, detail="Access denied")
+    try:
+        # Must be staff, super_admin, or master_admin
+        if user.role == UserRole.CUSTOMER:
+            raise HTTPException(status_code=403, detail="Access denied")
 
-    r = await db.execute(
-        select(Order).options(selectinload(Order.order_items)).where(Order.order_id == order_id)
-    )
-    order = r.scalar_one_or_none()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order tak jumpa")
+        if not payload.target_staff_id:
+            raise HTTPException(status_code=400, detail="Pick a staff to transfer to lah")
 
-    # Staff can only transfer orders assigned to them
-    if user.role == UserRole.STAFF:
-        staff = await _staff_record_for(user, db)
-        if order.staff_id != staff.staff_id:
-            raise HTTPException(status_code=403, detail="Order ni bukan yours to transfer")
+        r = await db.execute(
+            select(Order).options(selectinload(Order.order_items)).where(Order.order_id == order_id)
+        )
+        order = r.scalar_one_or_none()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order tak jumpa")
 
-    # Validate target staff exists
-    tr = await db.execute(select(Staff).where(Staff.staff_id == payload.target_staff_id))
-    target = tr.scalar_one_or_none()
-    if not target:
-        raise HTTPException(status_code=404, detail="Target staff tak jumpa")
+        # Staff can only transfer orders assigned to them (admins can transfer any order)
+        if user.role == UserRole.STAFF:
+            staff = await _staff_record_for(user, db)
+            if order.staff_id and order.staff_id != staff.staff_id:
+                raise HTTPException(status_code=403, detail="Order ni bukan yours to transfer")
 
-    # Can't transfer already delivered/cancelled orders
-    if order.status in (OrderStatus.DELIVERED, OrderStatus.CANCELLED):
-        raise HTTPException(status_code=400, detail="Can't transfer a completed/cancelled order")
+        if payload.target_staff_id == order.staff_id:
+            raise HTTPException(status_code=400, detail="Order already with this staff boss")
 
-    order.staff_id = payload.target_staff_id
-    await db.commit()
+        # Validate target staff exists
+        tr = await db.execute(select(Staff).where(Staff.staff_id == payload.target_staff_id))
+        target = tr.scalar_one_or_none()
+        if not target:
+            raise HTTPException(status_code=404, detail="Target staff tak jumpa")
 
-    return {
-        "message": f"Order transferred to {target.name}",
-        "order_id": order_id,
-        "new_staff_id": payload.target_staff_id,
-        "new_staff_name": target.name,
-        "new_staff_whatsapp": target.whatsapp_number,
-    }
+        # Can't transfer already delivered/cancelled orders
+        if order.status in (OrderStatus.DELIVERED, OrderStatus.CANCELLED):
+            raise HTTPException(status_code=400, detail="Can't transfer a completed/cancelled order")
+
+        order.staff_id = payload.target_staff_id
+        await db.commit()
+
+        return {
+            "message": f"Order transferred to {target.name}",
+            "order_id": order_id,
+            "new_staff_id": payload.target_staff_id,
+            "new_staff_name": target.name,
+            "new_staff_whatsapp": target.whatsapp_number,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Transfer error: {str(e)}")
 
 
 @router.get("/info")
