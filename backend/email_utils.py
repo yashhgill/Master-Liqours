@@ -1,10 +1,16 @@
-"""Resend email helpers — order confirmations + low stock alerts.
+"""Resend email helpers.
 
-Reuses the same RESEND_API_KEY already configured for password reset emails
-in routes_auth.py. No-ops gracefully (logs only) if the key isn't set, so it
-never breaks the checkout flow.
+Two things live here:
+1. Staff-triggered "Notify Customer" emails — sent FROM the staff member's own
+   alias (e.g. "Sam <sam@masterliqours.my>") rather than a generic noreply@.
+   Template is auto-picked based on the order's current status.
+2. Low stock alerts — sent TO staff when their stock runs low.
+
+Both no-op gracefully (log only) if RESEND_API_KEY isn't set, so they never
+break the checkout/dashboard flow.
 """
 import os
+import re
 import logging
 
 import resend
@@ -12,95 +18,127 @@ import resend
 logger = logging.getLogger(__name__)
 
 resend.api_key = os.environ.get("RESEND_API_KEY", "")
-SENDER = os.environ.get("SENDER_EMAIL", "noreply@masterliqours.my")
+SENDER_DOMAIN = os.environ.get("SENDER_DOMAIN", "masterliqours.my")
+FALLBACK_SENDER = os.environ.get("SENDER_EMAIL", f"noreply@{SENDER_DOMAIN}")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://masterliqours.my")
 
 LOW_STOCK_THRESHOLD = int(os.environ.get("LOW_STOCK_THRESHOLD", "3"))
 
 
-def _send(to: str, subject: str, html: str) -> dict:
+def _send(to: str, subject: str, html: str, from_addr: str = None, reply_to: str = None) -> dict:
     """Shared sender. Returns {sent, reason}. Never raises."""
     if not resend.api_key:
-        logger.info("[Email dormant] would send to %s: %s", to, subject)
+        logger.info("[Email dormant] would send to %s from %s: %s", to, from_addr, subject)
         return {"sent": False, "reason": "resend_not_configured"}
     if not to:
         return {"sent": False, "reason": "missing_to_address"}
     try:
-        resend.Emails.send({"from": SENDER, "to": to, "subject": subject, "html": html})
+        payload = {"from": from_addr or FALLBACK_SENDER, "to": to, "subject": subject, "html": html}
+        if reply_to:
+            payload["reply_to"] = reply_to
+        resend.Emails.send(payload)
         return {"sent": True, "reason": None}
-    except Exception as e:  # noqa: BLE001 — never break order flow on email failure
+    except Exception as e:  # noqa: BLE001 — never break order/dashboard flow on email failure
         logger.exception("Resend email failed: %s", e)
         return {"sent": False, "reason": str(e)}
 
 
-def send_order_confirmation(
+def staff_sender_address(staff_name: str) -> str:
+    """Turn 'Sam Tan' into 'Sam from Masterliqours <sam@masterliqours.my>' —
+    a deliverable alias on our verified domain that still reads as personal,
+    since Resend can't send on behalf of inboxes we don't own (e.g. a
+    staff member's personal Gmail)."""
+    first_name = (staff_name or "staff").strip().split(" ")[0]
+    slug = re.sub(r"[^a-z0-9]", "", first_name.lower()) or "staff"
+    return f"{first_name} from Masterliqours <{slug}@{SENDER_DOMAIN}>"
+
+
+_STATUS_TEMPLATES = {
+    "pending": {
+        "subject": "Order #{oid} received — Masterliqours",
+        "heading": "Order Received!",
+        "color": "#ffd700",
+        "body": "Thanks for ordering boss. We've got your order and will confirm shortly. Settle payment via WhatsApp with {staff} when ready.",
+    },
+    "confirmed": {
+        "subject": "Order #{oid} confirmed — Masterliqours",
+        "heading": "Order Confirmed!",
+        "color": "#00f0ff",
+        "body": "Good news — your order is confirmed and {staff} is getting your bottles ready.",
+    },
+    "preparing": {
+        "subject": "Order #{oid} is being prepared — Masterliqours",
+        "heading": "Preparing Your Order",
+        "color": "#00f0ff",
+        "body": "{staff} is packing your order right now. Almost ready to ship boss!",
+    },
+    "out_for_delivery": {
+        "subject": "Order #{oid} is on the way! — Masterliqours",
+        "heading": "Out for Delivery",
+        "color": "#39ff14",
+        "body": "Your order is out for delivery — {staff} is on the way to you now. Have your payment ready lah.",
+    },
+    "delivered": {
+        "subject": "Order #{oid} delivered — Masterliqours",
+        "heading": "Delivered!",
+        "color": "#39ff14",
+        "body": "Your order has been delivered. Drink responsibly and enjoy! Don't forget to leave a review.",
+    },
+    "cancelled": {
+        "subject": "Order #{oid} cancelled — Masterliqours",
+        "heading": "Order Cancelled",
+        "color": "#ff007f",
+        "body": "This order has been cancelled. Reply to {staff} on WhatsApp if you have any questions.",
+    },
+}
+
+
+def send_status_notification(
     to_email: str,
     customer_name: str,
     order_id: str,
-    items: list,
-    total: float,
-    shipping_address: str,
-    staff_name: str = None,
+    status: str,
+    staff_name: str,
+    staff_email: str = None,
     staff_whatsapp: str = None,
 ) -> dict:
-    """Email sent right after checkout. `items` is a list of dicts with
-    product_name, quantity, price keys."""
+    """The 'Notify Customer' button on staff dashboard calls this. Auto-picks
+    the template based on the order's current status and sends FROM the
+    staff member's own alias."""
     short_id = order_id[:8].upper()
+    template = _STATUS_TEMPLATES.get(status, _STATUS_TEMPLATES["confirmed"])
 
-    rows_html = "".join(
-        f"""<tr>
-            <td style="padding:10px 0;color:#fff;border-bottom:1px solid #1a1a1a;">{i.get('product_name', 'Item')}</td>
-            <td style="padding:10px 0;color:#999;text-align:center;border-bottom:1px solid #1a1a1a;">×{i.get('quantity', 1)}</td>
-            <td style="padding:10px 0;color:#ff007f;text-align:right;border-bottom:1px solid #1a1a1a;">RM{(i.get('price', 0) * i.get('quantity', 1)):.2f}</td>
-        </tr>"""
-        for i in items
-    )
+    body_text = template["body"].format(staff=staff_name or "our staff")
+    subject = template["subject"].format(oid=short_id)
+    from_addr = staff_sender_address(staff_name)
 
-    staff_block = ""
-    if staff_name:
-        staff_block = f"""
-        <div style="background:#111;border-radius:12px;padding:16px;margin-top:20px;">
-            <p style="color:#999;margin:0 0 6px;font-size:13px;">Your order is being handled by</p>
-            <p style="color:#00f0ff;margin:0;font-weight:bold;font-size:16px;">{staff_name}</p>
-            {f'<p style="color:#666;margin:4px 0 0;font-size:13px;">{staff_whatsapp}</p>' if staff_whatsapp else ''}
-        </div>"""
+    whatsapp_block = ""
+    if staff_whatsapp:
+        wa_digits = re.sub(r"\D", "", staff_whatsapp)
+        whatsapp_block = f"""
+        <a href="https://wa.me/{wa_digits}" style="display:inline-block;background:#25d366;color:#fff;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:bold;font-size:14px;margin-top:16px;margin-right:8px;">Message {staff_name} on WhatsApp</a>"""
 
     html = f"""
     <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#0a0a0a;color:#fff;border-radius:16px;">
-        <h2 style="color:#ff007f;font-size:26px;margin-bottom:4px;">Order Confirmed!</h2>
-        <p style="color:#999;margin-bottom:4px;">Hi {customer_name or 'there'}, thanks for ordering boss.</p>
-        <p style="color:#555;margin-bottom:24px;font-size:13px;">Order #{short_id}</p>
+        <h2 style="color:{template['color']};font-size:26px;margin-bottom:8px;">{template['heading']}</h2>
+        <p style="color:#999;margin-bottom:4px;">Hi {customer_name or 'there'},</p>
+        <p style="color:#fff;margin-bottom:20px;font-size:15px;line-height:1.6;">{body_text}</p>
+        <p style="color:#555;margin-bottom:20px;font-size:13px;">Order #{short_id}</p>
 
-        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
-            <thead>
-                <tr>
-                    <th style="text-align:left;color:#666;font-size:11px;text-transform:uppercase;padding-bottom:8px;">Item</th>
-                    <th style="text-align:center;color:#666;font-size:11px;text-transform:uppercase;padding-bottom:8px;">Qty</th>
-                    <th style="text-align:right;color:#666;font-size:11px;text-transform:uppercase;padding-bottom:8px;">Subtotal</th>
-                </tr>
-            </thead>
-            <tbody>{rows_html}</tbody>
-        </table>
+        <a href="{FRONTEND_URL}/orders/{order_id}" style="display:inline-block;background:#ff007f;color:#fff;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:bold;font-size:14px;margin-top:4px;margin-right:8px;">Track Order</a>
+        {whatsapp_block}
 
-        <div style="display:flex;justify-content:space-between;padding-top:8px;">
-            <span style="color:#999;">Total</span>
-            <span style="color:#ff007f;font-size:22px;font-weight:bold;">RM{total:.2f}</span>
-        </div>
-
-        <div style="background:#111;border-radius:12px;padding:16px;margin-top:20px;">
-            <p style="color:#999;margin:0 0 6px;font-size:13px;">Delivery Address</p>
-            <p style="color:#fff;margin:0;font-size:14px;">{shipping_address}</p>
-        </div>
-
-        {staff_block}
-
-        <a href="{FRONTEND_URL}/orders/{order_id}" style="display:inline-block;background:#ff007f;color:#fff;padding:14px 28px;border-radius:50px;text-decoration:none;font-weight:bold;font-size:14px;margin-top:24px;">Track Your Order</a>
-
-        <p style="color:#555;margin-top:24px;font-size:12px;">Settle payment via WhatsApp with your assigned staff. Questions? Just reply to your staff's chat.</p>
+        <p style="color:#444;margin-top:28px;font-size:12px;">Sent by {staff_name} from Masterliqours</p>
     </div>
     """
 
-    return _send(to_email, f"Order #{short_id} confirmed — Masterliqours", html)
+    return _send(
+        to=to_email,
+        subject=subject,
+        html=html,
+        from_addr=from_addr,
+        reply_to=staff_email,
+    )
 
 
 def send_low_stock_alert(to_email: str, staff_name: str, product_name: str, quantity: int) -> dict:

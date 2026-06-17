@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../context';
 import {
   FaCheck, FaSpinner, FaTruck, FaBoxOpen, FaTimes, FaPlus,
-  FaMinus, FaEdit, FaRandom, FaWhatsapp, FaBox
+  FaMinus, FaEdit, FaRandom, FaWhatsapp, FaBox, FaEnvelope
 } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -310,6 +310,8 @@ const StaffDashboard = () => {
   const [allStaff, setAllStaff] = useState([]);
   const [filter, setFilter] = useState('');
   const [updating, setUpdating] = useState(null);
+  const [notifying, setNotifying] = useState(null);
+  const [notifiedIds, setNotifiedIds] = useState({});
   const [showPersonal, setShowPersonal] = useState(false);
   const [transferOrder, setTransferOrder] = useState(null);
   const [editingStock, setEditingStock] = useState(null);
@@ -340,6 +342,16 @@ const StaffDashboard = () => {
   const cancelOrder = async (orderId) => {
     if (!window.confirm('Cancel this order?')) return;
     await updateStatus(orderId, 'cancelled');
+  };
+
+  const notifyCustomer = async (orderId) => {
+    setNotifying(orderId);
+    try {
+      await axios.post(`${API}/staff/orders/${orderId}/notify-customer`, {}, { withCredentials: true });
+      setNotifiedIds(ids => ({ ...ids, [orderId]: Date.now() }));
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Could not send email');
+    } finally { setNotifying(null); }
   };
 
   const visibleOrders = filter ? orders.filter(o => o.status === filter) : orders;
@@ -467,6 +479,15 @@ const StaffDashboard = () => {
                         <button onClick={() => setTransferOrder(o)} disabled={isBusy}
                           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/15 text-white/60 hover:border-[#00f0ff] hover:text-[#00f0ff] text-xs uppercase tracking-wider font-bold transition-all">
                           <FaRandom size={12} /> Transfer
+                        </button>
+                        <button onClick={() => notifyCustomer(o.order_id)} disabled={isBusy || notifying === o.order_id}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/15 text-white/60 hover:border-[#ffd700] hover:text-[#ffd700] text-xs uppercase tracking-wider font-bold transition-all disabled:opacity-50">
+                          {notifying === o.order_id
+                            ? <><FaSpinner size={12} className="animate-spin" /> Sending...</>
+                            : notifiedIds[o.order_id]
+                              ? <><FaCheck size={12} /> Notified</>
+                              : <><FaEnvelope size={12} /> Notify Customer</>
+                          }
                         </button>
                         <button onClick={() => cancelOrder(o.order_id)} disabled={isBusy}
                           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/15 text-white/60 hover:border-[#ff007f] hover:text-[#ff007f] text-xs uppercase tracking-wider font-bold transition-all">

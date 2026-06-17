@@ -11,6 +11,7 @@ import uuid
 
 def _new_id(): return str(uuid.uuid4())
 from auth_utils import get_current_user
+from email_utils import send_status_notification
 
 router = APIRouter(prefix="/staff", tags=["Staff"])
 
@@ -246,6 +247,58 @@ async def transfer_order(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Transfer error: {str(e)}")
+
+
+@router.post("/orders/{order_id}/notify-customer")
+async def notify_customer(
+    order_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Staff clicks 'Notify Customer' on their dashboard. Sends an email from
+    the staff member's own alias (name@masterliqours.my), auto-picking the
+    template based on the order's current status. No body needed."""
+    if user.role == UserRole.CUSTOMER:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    order_result = await db.execute(select(Order).where(Order.order_id == order_id))
+    order = order_result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order tak jumpa")
+
+    # Staff can only notify for orders assigned to them (admins can notify any order)
+    if user.role == UserRole.STAFF:
+        staff = await _staff_record_for(user, db)
+        if order.staff_id and order.staff_id != staff.staff_id:
+            raise HTTPException(status_code=403, detail="Order ni bukan yours")
+
+    if not order.staff_id:
+        raise HTTPException(status_code=400, detail="No staff assigned to this order yet")
+
+    staff_result = await db.execute(select(Staff).where(Staff.staff_id == order.staff_id))
+    staff = staff_result.scalar_one_or_none()
+    if not staff:
+        raise HTTPException(status_code=404, detail="Assigned staff record not found")
+
+    customer_result = await db.execute(select(User).where(User.user_id == order.user_id))
+    customer = customer_result.scalar_one_or_none()
+    if not customer or not customer.email:
+        raise HTTPException(status_code=400, detail="Customer has no email on file")
+
+    result = send_status_notification(
+        to_email=customer.email,
+        customer_name=order.customer_name or customer.name,
+        order_id=order.order_id,
+        status=order.status.value if hasattr(order.status, "value") else order.status,
+        staff_name=staff.name,
+        staff_email=staff.email,
+        staff_whatsapp=staff.whatsapp_number,
+    )
+
+    if not result["sent"]:
+        raise HTTPException(status_code=502, detail=f"Email not sent — {result['reason']}")
+
+    return {"message": f"Customer notified about {order.status} status", "sent": True}
 
 
 @router.get("/info")
