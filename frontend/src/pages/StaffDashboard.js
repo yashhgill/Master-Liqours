@@ -238,10 +238,24 @@ const AddStockModal = ({ products, existingStock, onClose, onSaved }) => {
   const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [showOptions, setShowOptions] = useState(false);
 
   // Filter out products already in stock
   const existingIds = new Set(existingStock.map(s => s.product_id));
   const available = products.filter(p => !existingIds.has(p.product_id) && p.is_active);
+
+  const filtered = search.trim()
+    ? available.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    : available;
+
+  const selectedProduct = available.find(p => p.product_id === productId);
+
+  const pickProduct = (p) => {
+    setProductId(p.product_id);
+    setSearch(p.name);
+    setShowOptions(false);
+  };
 
   const submit = async () => {
     if (!productId) { alert('Select a product lah'); return; }
@@ -269,12 +283,43 @@ const AddStockModal = ({ products, existingStock, onClose, onSaved }) => {
           <p className="text-white/50 text-sm text-center py-4">All products already in your stock list.</p>
         ) : (
           <>
-            <div>
+            <div className="relative">
               <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Product</label>
-              <select className="input-dark" value={productId} onChange={e => setProductId(e.target.value)}>
-                <option value="">Select product</option>
-                {available.map(p => <option key={p.product_id} value={p.product_id}>{p.name} — RM{p.price}</option>)}
-              </select>
+              <input
+                type="text"
+                className="input-dark"
+                placeholder="Type to search..."
+                value={search}
+                onChange={e => {
+                  setSearch(e.target.value);
+                  setShowOptions(true);
+                  if (productId) setProductId('');
+                }}
+                onFocus={() => setShowOptions(true)}
+                onBlur={() => setTimeout(() => setShowOptions(false), 150)}
+              />
+              {showOptions && (
+                <div className="absolute z-10 mt-1 w-full max-h-52 overflow-y-auto bg-[#161616] border border-white/15 rounded-xl shadow-xl">
+                  {filtered.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-white/40">No products match "{search}"</div>
+                  ) : (
+                    filtered.map(p => (
+                      <button
+                        key={p.product_id}
+                        type="button"
+                        onMouseDown={() => pickProduct(p)}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#ff007f]/15 transition-colors flex justify-between items-center"
+                      >
+                        <span>{p.name}</span>
+                        <span className="text-white/40 text-xs shrink-0 ml-2">RM{p.price}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+              {selectedProduct && !showOptions && (
+                <div className="text-xs text-[#39ff14] mt-1.5">✓ {selectedProduct.name} selected</div>
+              )}
             </div>
             <div>
               <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Quantity Received</label>
@@ -291,7 +336,7 @@ const AddStockModal = ({ products, existingStock, onClose, onSaved }) => {
                 </button>
               </div>
             </div>
-            <button onClick={submit} disabled={saving} className="btn-pink w-full disabled:opacity-50">
+            <button onClick={submit} disabled={saving || !productId} className="btn-pink w-full disabled:opacity-50">
               {saving ? 'Adding...' : 'Add to My Stock'}
             </button>
           </>
