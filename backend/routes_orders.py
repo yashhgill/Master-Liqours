@@ -11,6 +11,7 @@ from sqlalchemy import and_
 from schemas import CheckoutRequest, OrderResponse, CartItem
 from auth_utils import get_current_user
 from sms_utils import send_sms, status_message
+from email_utils import send_order_confirmation, send_low_stock_alert, LOW_STOCK_THRESHOLD
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -139,6 +140,15 @@ async def checkout(
                 if not order.staff_id:
                     order.staff_id = staff_id_to_use
 
+                # Low stock alert — fire-and-forget, never blocks checkout
+                if stock_row.quantity <= LOW_STOCK_THRESHOLD:
+                    staff_for_alert = await db.execute(select(Staff).where(Staff.staff_id == stock_row.staff_id))
+                    staff_row = staff_for_alert.scalar_one_or_none()
+                    product_for_alert = await db.execute(select(Product).where(Product.product_id == item_data["product_id"]))
+                    product_row = product_for_alert.scalar_one_or_none()
+                    if staff_row and product_row:
+                        send_low_stock_alert(staff_row.email, staff_row.name, product_row.name, stock_row.quantity)
+
     reward = Reward(
         user_id=user.user_id,
         points=order.points_earned,
@@ -169,6 +179,25 @@ async def checkout(
         if staff:
             staff_whatsapp = staff.whatsapp_number
             staff_name = staff.name
+
+    items_for_email = [_clean_dict(item) for item in order.order_items]
+    product_ids_for_email = [i["product_id"] for i in items_for_email if i.get("product_id")]
+    if product_ids_for_email:
+        prod_lookup = await db.execute(select(Product).where(Product.product_id.in_(product_ids_for_email)))
+        names_by_id = {p.product_id: p.name for p in prod_lookup.scalars().all()}
+        for i in items_for_email:
+            i["product_name"] = names_by_id.get(i.get("product_id"), "Item")
+
+    send_order_confirmation(
+        to_email=user.email,
+        customer_name=data.customer_name.strip(),
+        order_id=order.order_id,
+        items=items_for_email,
+        total=order.total,
+        shipping_address=order.shipping_address,
+        staff_name=staff_name,
+        staff_whatsapp=staff_whatsapp,
+    )
 
     return {
         **_clean_dict(order),
