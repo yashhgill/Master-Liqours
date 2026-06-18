@@ -21,6 +21,61 @@ const nextStatus = (current) => {
   return idx >= 0 && idx < STATUS_FLOW.length - 1 ? STATUS_FLOW[idx + 1] : null;
 };
 
+// ── Reusable searchable product picker ──────────────────────────────────────
+const ProductPicker = ({ products, value, onSelect, placeholder = 'Type to search...' }) => {
+  const [search, setSearch] = useState(() => products.find(p => p.product_id === value)?.name || '');
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const match = products.find(p => p.product_id === value);
+    if (match && match.name !== search) setSearch(match.name);
+    if (!value) setSearch('');
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filtered = search.trim()
+    ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    : products;
+
+  const pick = (p) => {
+    onSelect(p.product_id);
+    setSearch(p.name);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        className="input-dark text-sm"
+        placeholder={placeholder}
+        value={search}
+        onChange={e => { setSearch(e.target.value); setOpen(true); if (value) onSelect(''); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && (
+        <div className="absolute z-20 mt-1 w-full max-h-52 overflow-y-auto bg-[#161616] border border-white/15 rounded-xl shadow-xl">
+          {filtered.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-white/40">No products match "{search}"</div>
+          ) : (
+            filtered.map(p => (
+              <button
+                key={p.product_id}
+                type="button"
+                onMouseDown={() => pick(p)}
+                className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#ff007f]/15 transition-colors flex justify-between items-center"
+              >
+                <span>{p.name}</span>
+                <span className="text-white/40 text-xs shrink-0 ml-2">RM{p.price}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Personal Order Modal ────────────────────────────────────────────────────
 const PersonalOrderModal = ({ products, onClose, onSaved }) => {
   const [items, setItems] = useState([{ product_id: '', quantity: 1, price: '' }]);
@@ -84,10 +139,7 @@ const PersonalOrderModal = ({ products, onClose, onSaved }) => {
           <div className="space-y-2">
             {items.map((it, i) => (
               <div key={i} className="grid grid-cols-[1fr_56px_80px_28px] gap-2 items-center">
-                <select className="input-dark text-sm" value={it.product_id} onChange={e => updateItem(i, 'product_id', e.target.value)}>
-                  <option value="">Select product</option>
-                  {products.map(p => <option key={p.product_id} value={p.product_id}>{p.name} — RM{p.price}</option>)}
-                </select>
+                <ProductPicker products={products} value={it.product_id} onSelect={(id) => updateItem(i, 'product_id', id)} />
                 <input type="number" min="1" className="input-dark text-sm text-center" placeholder="Qty" value={it.quantity} onChange={e => updateItem(i, 'quantity', e.target.value)} />
                 <input type="number" step="0.01" className="input-dark text-sm" placeholder="Price" title="Leave blank = product price" value={it.price} onChange={e => updateItem(i, 'price', e.target.value)} />
                 {items.length > 1 && <button onClick={() => removeItem(i)} className="text-white/30 hover:text-[#ff007f]"><FaTimes size={12} /></button>}
@@ -238,24 +290,10 @@ const AddStockModal = ({ products, existingStock, onClose, onSaved }) => {
   const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [saving, setSaving] = useState(false);
-  const [search, setSearch] = useState('');
-  const [showOptions, setShowOptions] = useState(false);
 
   // Filter out products already in stock
   const existingIds = new Set(existingStock.map(s => s.product_id));
   const available = products.filter(p => !existingIds.has(p.product_id) && p.is_active);
-
-  const filtered = search.trim()
-    ? available.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
-    : available;
-
-  const selectedProduct = available.find(p => p.product_id === productId);
-
-  const pickProduct = (p) => {
-    setProductId(p.product_id);
-    setSearch(p.name);
-    setShowOptions(false);
-  };
 
   const submit = async () => {
     if (!productId) { alert('Select a product lah'); return; }
@@ -283,43 +321,9 @@ const AddStockModal = ({ products, existingStock, onClose, onSaved }) => {
           <p className="text-white/50 text-sm text-center py-4">All products already in your stock list.</p>
         ) : (
           <>
-            <div className="relative">
+            <div>
               <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Product</label>
-              <input
-                type="text"
-                className="input-dark"
-                placeholder="Type to search..."
-                value={search}
-                onChange={e => {
-                  setSearch(e.target.value);
-                  setShowOptions(true);
-                  if (productId) setProductId('');
-                }}
-                onFocus={() => setShowOptions(true)}
-                onBlur={() => setTimeout(() => setShowOptions(false), 150)}
-              />
-              {showOptions && (
-                <div className="absolute z-10 mt-1 w-full max-h-52 overflow-y-auto bg-[#161616] border border-white/15 rounded-xl shadow-xl">
-                  {filtered.length === 0 ? (
-                    <div className="px-4 py-3 text-sm text-white/40">No products match "{search}"</div>
-                  ) : (
-                    filtered.map(p => (
-                      <button
-                        key={p.product_id}
-                        type="button"
-                        onMouseDown={() => pickProduct(p)}
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#ff007f]/15 transition-colors flex justify-between items-center"
-                      >
-                        <span>{p.name}</span>
-                        <span className="text-white/40 text-xs shrink-0 ml-2">RM{p.price}</span>
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-              {selectedProduct && !showOptions && (
-                <div className="text-xs text-[#39ff14] mt-1.5">✓ {selectedProduct.name} selected</div>
-              )}
+              <ProductPicker products={available} value={productId} onSelect={setProductId} />
             </div>
             <div>
               <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Quantity Received</label>

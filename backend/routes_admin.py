@@ -177,16 +177,22 @@ async def create_product(
     a flash sale is automatically created with the given discount % and duration."""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
 
-    base_fields = data.dict(exclude={"discount_price", "discount_days", "discount_hours", "discount_minutes"})
-    product = Product(**base_fields)
-    db.add(product)
-    await db.flush()  # get product_id before creating flash sale
+    try:
+        base_fields = data.dict(exclude={"discount_price", "discount_days", "discount_hours", "discount_minutes"})
+        product = Product(**base_fields)
+        db.add(product)
+        await db.flush()  # get product_id before creating flash sale
 
-    await _sync_flash_sale_from_discount(product, data, db)
+        await _sync_flash_sale_from_discount(product, data, db)
 
-    await db.commit()
-    await db.refresh(product)
-    return product
+        await db.commit()
+        await db.refresh(product)
+        return product
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Create product failed: {str(e)}")
 
 @router.patch("/products/{product_id}", response_model=ProductResponse)
 async def update_product(
@@ -200,21 +206,27 @@ async def update_product(
     flash sale for this product is deactivated and original_price cleared."""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
 
-    result = await db.execute(select(Product).where(Product.product_id == product_id))
-    product = result.scalar_one_or_none()
+    try:
+        result = await db.execute(select(Product).where(Product.product_id == product_id))
+        product = result.scalar_one_or_none()
 
-    if not product:
-        raise HTTPException(status_code=404, detail="Produk tak jumpa")
+        if not product:
+            raise HTTPException(status_code=404, detail="Produk tak jumpa")
 
-    base_fields = data.dict(exclude_unset=True, exclude={"discount_price", "discount_days", "discount_hours", "discount_minutes"})
-    for key, value in base_fields.items():
-        setattr(product, key, value)
+        base_fields = data.dict(exclude_unset=True, exclude={"discount_price", "discount_days", "discount_hours", "discount_minutes"})
+        for key, value in base_fields.items():
+            setattr(product, key, value)
 
-    await _sync_flash_sale_from_discount(product, data, db)
+        await _sync_flash_sale_from_discount(product, data, db)
 
-    await db.commit()
-    await db.refresh(product)
-    return product
+        await db.commit()
+        await db.refresh(product)
+        return product
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Update product failed: {str(e)}")
 
 @router.delete("/products/{product_id}")
 async def delete_product(

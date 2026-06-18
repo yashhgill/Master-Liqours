@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from typing import List, Optional
 import os
 from groq import Groq
@@ -30,9 +30,29 @@ async def chat(
     )
     db.add(user_msg)
     
-    # Get context about products
-    result = await db.execute(select(Product).where(Product.is_active == True).limit(10))
-    products = result.scalars().all()
+    # Get context about products — search for ones relevant to what the user is asking,
+    # falling back to a broader catalog sample so the AI never claims something
+    # "isn't in our list" when it actually exists further down the table.
+    keywords = [w for w in data.message.lower().split() if len(w) > 2]
+    relevant_products = []
+    if keywords:
+        or_clauses = [Product.name.ilike(f"%{kw}%") for kw in keywords]
+        result = await db.execute(
+            select(Product).where(Product.is_active == True, or_(*or_clauses)).limit(15)
+        )
+        relevant_products = result.scalars().all()
+
+    result = await db.execute(select(Product).where(Product.is_active == True).limit(60))
+    catalog_sample = result.scalars().all()
+
+    # Merge, relevant matches first, no duplicates
+    seen_ids = set()
+    products = []
+    for p in relevant_products + catalog_sample:
+        if p.product_id not in seen_ids:
+            seen_ids.add(p.product_id)
+            products.append(p)
+
     product_list = "\n".join([f"- {p.name}: RM{p.price} ({p.category})" for p in products])
     
     # Build conversation
@@ -42,7 +62,9 @@ async def chat(
             "content": f"""You are a helpful customer support assistant for Masterliqours, a premium liquor e-commerce platform in Malaysia. 
             
 Speak in casual Manglish (Malaysian English mix). Be friendly and helpful.
-            
+
+Below is a list of products that are actually in our catalog right now (matched to what the customer mentioned, plus a broader sample). Only say a product is unavailable if it's genuinely not in this list — don't guess.
+
 Our products:
 {product_list}
 
