@@ -235,14 +235,18 @@
 /* Logo pop-in animation + glow pulse (Masterliqours brand mark) */
 @keyframes logoPopIn {
   0% { transform: scale(0.4) rotate(-15deg); opacity: 0; }
-  60% { transform: scale(1.15) rotate(5deg); opacity: 1; }
+  60% { transform: scale(1.2) rotate(5deg); opacity: 1; }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 @keyframes logoGlowPulse {
-  0%, 100% { box-shadow: 0 0 25px rgba(255,215,0,0.35); }
-  50% { box-shadow: 0 0 40px rgba(255,215,0,0.65); }
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(236,72,153,0.55)) drop-shadow(0 0 18px rgba(59,130,246,0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px rgba(236,72,153,0.85)) drop-shadow(0 0 30px rgba(59,130,246,0.65));
+  }
 }
 .logo-pop {
   animation: logoPopIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both,
-             logoGlowPulse 3s ease-in-out 0.6s infinite;
+             logoGlowPulse 2.4s ease-in-out 0.6s infinite;
 }
