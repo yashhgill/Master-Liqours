@@ -40,7 +40,7 @@ const Navbar = () => {
         <Link to="/" className="flex items-center gap-3 shrink-0 group" data-testid="nav-logo">
           <div className="logo-pop w-12 h-12 rounded-full bg-gradient-to-br from-[#ffd700] to-[#b8860b] flex items-center justify-center text-black font-black text-xl shadow-[0_0_25px_rgba(255,215,0,0.35)] overflow-hidden transition-transform duration-300 group-hover:scale-110">
             <img
-              src="/logo-m.png"
+              src="/logo-m.jpeg"
               alt="Masterliqours"
               className="w-full h-full object-cover"
               onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
