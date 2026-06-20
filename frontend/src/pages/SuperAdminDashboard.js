@@ -31,7 +31,7 @@ const blankProduct = { name: '', price: '', description: '', category: '', image
 const blankBanner = { title: '', subtitle: '', cta_text: '', cta_link: '', background_image: '', is_active: true, order_position: 0 };
 const blankBrand = { name: '', short_name: '', subtitle: '', logo_url: '', color_hex: '#1a1a1a', search_term: '', is_active: true, order_position: 0 };
 const blankFlash = { product_id: '', discount_percentage: 10, start_time: '', end_time: '' };
-const blankStaff = { name: '', email: '', whatsapp_number: '', referral_code: '' };
+const blankStaff = { name: '', email: '', whatsapp_number: '', referral_code: '', warehouse_name: '' };
 
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
@@ -276,6 +276,7 @@ const SuperAdminDashboard = () => {
           name: staffForm.name,
           whatsapp_number: staffForm.whatsapp_number || null,
           referral_code: staffForm.referral_code || null,
+          warehouse_name: staffForm.warehouse_name || '',
         }, { withCredentials: true });
       } else {
         const res = await axios.post(`${API}/admin/staff`, staffForm, { withCredentials: true });
@@ -287,7 +288,7 @@ const SuperAdminDashboard = () => {
   };
   const editStaff = (s) => {
     setEditingStaff(s.staff_id);
-    setStaffForm({ name: s.name || '', email: s.email || '', whatsapp_number: s.whatsapp_number || '', referral_code: s.referral_code || '' });
+    setStaffForm({ name: s.name || '', email: s.email || '', whatsapp_number: s.whatsapp_number || '', referral_code: s.referral_code || '', warehouse_name: s.warehouse_name || '' });
     setShowStaff(true);
   };
   const delStaff = async (id) => {
@@ -940,6 +941,11 @@ const SuperAdminDashboard = () => {
                   <label className="text-xs uppercase tracking-[0.2em] text-[#ffd700] block mb-2">Referral Code <span className="text-white/30 normal-case">(auto-generated if blank)</span></label>
                   <input value={staffForm.referral_code} onChange={(e) => setStaffForm({ ...staffForm, referral_code: e.target.value.toUpperCase() })} className="input-dark" placeholder="SAM001" data-testid="staff-form-referral" />
                 </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs uppercase tracking-[0.2em] text-[#00f0ff] block mb-2">Shared Warehouse <span className="text-white/30 normal-case">(optional — staff sharing one physical storage place)</span></label>
+                  <input value={staffForm.warehouse_name} onChange={(e) => setStaffForm({ ...staffForm, warehouse_name: e.target.value })} className="input-dark" placeholder="e.g. Main Store — leave blank for personal stock" data-testid="staff-form-warehouse" />
+                  <p className="text-[10px] text-white/40 mt-1">Give two or more staff the exact same warehouse name and their "My Stock" becomes one shared pool — selling decrements it for everyone, no more double-counting.</p>
+                </div>
               </div>
               <div className="flex gap-2 pt-2">
                 <button onClick={saveStaff} className="btn-lime" data-testid="staff-form-save">{editingStaff ? 'Update' : 'Create Staff'}</button>
@@ -964,8 +970,11 @@ const SuperAdminDashboard = () => {
                   <div className="flex-1 min-w-0">
                     <div className="font-display text-lg uppercase truncate">{s.name}</div>
                     <div className="text-xs text-white/50 truncate">{s.email}</div>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-[10px] uppercase tracking-wider bg-[#ffd700]/15 text-[#ffd700] px-2 py-0.5 rounded-full font-bold">{s.referral_code}</span>
+                      {s.warehouse_name && (
+                        <span className="text-[10px] uppercase tracking-wider bg-[#00f0ff]/15 text-[#00f0ff] px-2 py-0.5 rounded-full font-bold">📦 {s.warehouse_name}</span>
+                      )}
                       {s.whatsapp_number && (
                         <a href={`https://wa.me/${s.whatsapp_number.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" className="text-[#39ff14] hover:scale-110 transition-transform"><FaWhatsapp size={12} /></a>
                       )}

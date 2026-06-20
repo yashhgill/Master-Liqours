@@ -150,6 +150,28 @@ const MysteryDropCard = ({ drop }) => {
   );
 };
 
+// Retry a flaky/slow request a few times with backoff. The Render free-tier
+// backend can take 30-50s+ to wake up from sleep on the first request after
+// being idle, and used to just be left swallowed by axios.catch() with
+// nothing retrying it -- so a page load that landed during a cold start
+// would permanently show the default hero / empty product grid until the
+// user manually reloaded (which often re-triggered the same cold start).
+const fetchWithRetry = async (url, { attempts = 4, baseDelayMs = 2500 } = {}) => {
+  let lastErr = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await axios.get(url, { timeout: 15000 });
+    } catch (e) {
+      lastErr = e;
+      if (i < attempts - 1) {
+        await new Promise((r) => setTimeout(r, baseDelayMs * (i + 1)));
+      }
+    }
+  }
+  console.warn(`Gave up fetching ${url} after ${attempts} attempts:`, lastErr?.message);
+  return null;
+};
+
 const Home = () => {
   const { user } = useAuth();
   const [products, setProducts] = useState([]);
@@ -169,14 +191,13 @@ const Home = () => {
   }, [slides.length]);
 
   const loadData = async () => {
-    // Fetch each independently — one failing won't kill the rest
-    const safe = (promise) => promise.catch(e => { console.warn(e.message); return null; });
-
+    // Each fetch retries on its own with backoff (see fetchWithRetry) — a slow
+    // cold-start backend no longer means a permanently empty/default homepage.
     const [bannersRes, salesRes, productsRes, dropsRes] = await Promise.all([
-      safe(axios.get(API + '/hero-banners')),
-      safe(axios.get(API + '/flash-sales/active')),
-      safe(axios.get(API + '/products')),
-      safe(axios.get(API + '/drink-reveal/today')),
+      fetchWithRetry(API + '/hero-banners'),
+      fetchWithRetry(API + '/flash-sales/active'),
+      fetchWithRetry(API + '/products'),
+      fetchWithRetry(API + '/drink-reveal/today'),
     ]);
 
     // Banners
