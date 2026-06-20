@@ -132,12 +132,17 @@ def send_status_notification(
     </div>
     """
 
+    # Reply-To is always the same masterliqours.my alias used as the From
+    # address -- never the staff member's actual personal inbox (staff_email
+    # may be a personal Gmail/etc since that's just their login). Customers
+    # should only ever see a masterliqours.my address, never a teammate's
+    # private email.
     return _send(
         to=to_email,
         subject=subject,
         html=html,
         from_addr=from_addr,
-        reply_to=staff_email,
+        reply_to=from_addr,
     )
 
 

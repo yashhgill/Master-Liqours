@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional
@@ -81,12 +81,20 @@ async def get_staff_orders(
 
 @router.get("/my-stock")
 async def get_my_stock(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    """Get staff's stock inventory"""
+    """Get staff's stock inventory. If this staff shares a warehouse with
+    others, this returns the shared pool (same rows every member of that
+    warehouse sees) instead of a personal-only count."""
     staff = await _staff_record_for(user, db)
+
+    if staff.warehouse_id:
+        cond = Stock.warehouse_id == staff.warehouse_id
+    else:
+        cond = and_(Stock.staff_id == staff.staff_id, Stock.warehouse_id.is_(None))
+
     r = await db.execute(
         select(Stock, Product)
         .join(Product, Stock.product_id == Product.product_id)
-        .where(Stock.staff_id == staff.staff_id)
+        .where(cond)
     )
     items = []
     for stock, product in r.all():
@@ -96,9 +104,9 @@ async def get_my_stock(user: User = Depends(get_current_user), db: AsyncSession 
             "product_name": product.name,
             "category": product.category,
             "quantity": stock.quantity,
+            "shared": bool(staff.warehouse_id),
         })
     return items
-
 
 
 class StockAddPayload(BaseModel):
@@ -112,7 +120,9 @@ async def add_my_stock(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Staff logs new stock received from boss for a product."""
+    """Staff logs new stock received from boss for a product. If staff is
+    part of a shared warehouse, this adds to the shared pool — every other
+    staff in that warehouse will immediately see the updated quantity."""
     staff = await _staff_record_for(user, db)
 
     if payload.quantity < 0:
@@ -124,23 +134,24 @@ async def add_my_stock(
     if not product:
         raise HTTPException(status_code=404, detail="Product tak jumpa")
 
-    # Check if stock entry already exists for this staff + product
-    existing = await db.execute(
-        select(Stock).where(
-            Stock.staff_id == staff.staff_id,
-            Stock.product_id == payload.product_id
-        )
-    )
+    # Check if a matching stock entry already exists (personal or shared pool)
+    if staff.warehouse_id:
+        cond = and_(Stock.warehouse_id == staff.warehouse_id, Stock.product_id == payload.product_id)
+    else:
+        cond = and_(Stock.staff_id == staff.staff_id, Stock.product_id == payload.product_id, Stock.warehouse_id.is_(None))
+
+    existing = await db.execute(select(Stock).where(cond))
     stock = existing.scalar_one_or_none()
 
     if stock:
         # Already exists — just add to quantity
         stock.quantity += payload.quantity
     else:
-        # Create new stock entry
+        # Create new stock entry — either personal or pointed at the shared warehouse
         stock = Stock(
             stock_id=str(uuid.uuid4()),
-            staff_id=staff.staff_id,
+            staff_id=None if staff.warehouse_id else staff.staff_id,
+            warehouse_id=staff.warehouse_id,
             product_id=payload.product_id,
             quantity=payload.quantity,
         )
@@ -153,6 +164,7 @@ async def add_my_stock(
         "product_id": payload.product_id,
         "product_name": product.name,
         "quantity": stock.quantity,
+        "shared": bool(staff.warehouse_id),
     }
 
 
@@ -167,12 +179,16 @@ async def update_my_stock(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Staff updates their own stock quantity for a product"""
+    """Staff updates their own stock quantity for a product (or the shared
+    warehouse pool's quantity, if they belong to one)."""
     staff = await _staff_record_for(user, db)
 
-    r = await db.execute(
-        select(Stock).where(Stock.stock_id == stock_id, Stock.staff_id == staff.staff_id)
-    )
+    if staff.warehouse_id:
+        cond = and_(Stock.stock_id == stock_id, Stock.warehouse_id == staff.warehouse_id)
+    else:
+        cond = and_(Stock.stock_id == stock_id, Stock.staff_id == staff.staff_id)
+
+    r = await db.execute(select(Stock).where(cond))
     stock = r.scalar_one_or_none()
     if not stock:
         raise HTTPException(status_code=404, detail="Stock item tak jumpa or tak belong to you")
@@ -255,9 +271,19 @@ async def notify_customer(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Staff clicks 'Notify Customer' on their dashboard. Sends an email from
-    the staff member's own alias (name@masterliqours.my), auto-picking the
-    template based on the order's current status. No body needed."""
+    """Staff/admin clicks 'Notify Customer' on the dashboard. Sends an email
+    from the *actual person clicking the button*'s own alias
+    (name@masterliqours.my), auto-picking the template based on the order's
+    current status. No body needed.
+
+    Previously this always credited whichever staff the order's staff_id
+    happened to point to -- which is really just "whoever's stock the order
+    was fulfilled from," an inventory detail. That meant if an admin (or any
+    staff member action that doesn't update staff_id) sent the notification,
+    the email could show a completely different person's name -- and worse,
+    used that other person's literal personal email as Reply-To. Now it
+    always credits whoever is actually logged in and clicking the button.
+    """
     if user.role == UserRole.CUSTOMER:
         raise HTTPException(status_code=403, detail="Access denied")
 
@@ -267,18 +293,31 @@ async def notify_customer(
         raise HTTPException(status_code=404, detail="Order tak jumpa")
 
     # Staff can only notify for orders assigned to them (admins can notify any order)
+    notifying_staff = None
     if user.role == UserRole.STAFF:
         staff = await _staff_record_for(user, db)
         if order.staff_id and order.staff_id != staff.staff_id:
             raise HTTPException(status_code=403, detail="Order ni bukan yours")
+        if not order.staff_id:
+            raise HTTPException(status_code=400, detail="No staff assigned to this order yet")
+        notifying_staff = staff
+    else:
+        # Admin/boss sending it themselves — credit whoever is actually
+        # clicking the button, not whichever staff member's stock happened
+        # to fulfil the order.
+        admin_staff_result = await db.execute(select(Staff).where(Staff.email == user.email))
+        notifying_staff = admin_staff_result.scalar_one_or_none()
 
-    if not order.staff_id:
-        raise HTTPException(status_code=400, detail="No staff assigned to this order yet")
-
-    staff_result = await db.execute(select(Staff).where(Staff.staff_id == order.staff_id))
-    staff = staff_result.scalar_one_or_none()
-    if not staff:
-        raise HTTPException(status_code=404, detail="Assigned staff record not found")
+    if notifying_staff:
+        staff_name = notifying_staff.name
+        staff_email = notifying_staff.email
+        staff_whatsapp = notifying_staff.whatsapp_number
+    else:
+        # Admin has no Staff row of their own — still send, attributed to
+        # their account name, just without a personal WhatsApp button.
+        staff_name = user.name
+        staff_email = None
+        staff_whatsapp = None
 
     customer_result = await db.execute(select(User).where(User.user_id == order.user_id))
     customer = customer_result.scalar_one_or_none()
@@ -290,9 +329,9 @@ async def notify_customer(
         customer_name=order.customer_name or customer.name,
         order_id=order.order_id,
         status=order.status.value if hasattr(order.status, "value") else order.status,
-        staff_name=staff.name,
-        staff_email=staff.email,
-        staff_whatsapp=staff.whatsapp_number,
+        staff_name=staff_name,
+        staff_email=staff_email,
+        staff_whatsapp=staff_whatsapp,
     )
 
     if not result["sent"]:

@@ -31,6 +31,7 @@ from routes_admin_staff import router as admin_staff_router
 from routes_push import router as push_router
 from routes_bulk_orders import router as bulk_orders_router
 from routes_google_auth import router as google_auth_router
+from routes_maintenance import router as maintenance_router
 
 # Load environment
 ROOT_DIR = Path(__file__).parent
@@ -80,7 +81,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == data.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email sudah digunakan")
-    
+
     # Assign staff (round-robin or by referral code)
     staff_id = None
     if data.referral_code:
@@ -90,7 +91,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         staff = result.scalar_one_or_none()
         if staff:
             staff_id = staff.staff_id
-    
+
     if not staff_id:
         # Round-robin
         result = await db.execute(
@@ -103,7 +104,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         staff_row = result.first()
         if staff_row:
             staff_id = staff_row[0].staff_id
-    
+
     user = User(
         email=data.email,
         name=data.name,
@@ -126,12 +127,12 @@ async def login(
     """Login dengan email/password"""
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
-    
+
     if not user or not user.password_hash or not verify_password(data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Email atau password salah")
-    
+
     session_token = await create_session(db, user.user_id)
-    
+
     response.set_cookie(
         key="session_token",
         value=session_token,
@@ -141,7 +142,7 @@ async def login(
         max_age=7 * 24 * 60 * 60,
         path="/"
     )
-    
+
     # session_token returned in body so the frontend can use header-based auth
     # (Authorization: Bearer) — works cross-domain where third-party cookies are blocked.
     return {"message": "Login berjaya!", "session_token": session_token, "user": UserResponse.model_validate(user, from_attributes=True)}
@@ -166,7 +167,7 @@ async def logout(
         if session:
             await db.delete(session)
             await db.commit()
-    
+
     response.delete_cookie("session_token", path="/")
     return {"message": "Logout berjaya"}
 
@@ -182,12 +183,12 @@ async def get_products(
 ):
     """Get all active products"""
     query = select(Product).where(Product.is_active == True)
-    
+
     if category:
         query = query.where(Product.category == category)
     if search:
         query = query.where(Product.name.ilike(f"%{search}%"))
-    
+
     result = await db.execute(query.order_by(Product.created_at.desc()))
     return result.scalars().all()
 
@@ -229,7 +230,7 @@ async def get_active_flash_sales(db: AsyncSession = Depends(get_db)):
     from sqlalchemy import and_
     from models import FlashSale
     from datetime import datetime
-    
+
     now = datetime.utcnow()
     result = await db.execute(
         select(FlashSale, Product)
@@ -241,7 +242,7 @@ async def get_active_flash_sales(db: AsyncSession = Depends(get_db)):
             Product.is_active == True
         ))
     )
-    
+
     sales = []
     for sale, product in result.all():
         discounted_price = product.price * (1 - sale.discount_percentage / 100)
@@ -253,7 +254,7 @@ async def get_active_flash_sales(db: AsyncSession = Depends(get_db)):
             "discount_percentage": sale.discount_percentage,
             "end_time": sale.end_time
         })
-    
+
     return sales
 
 # =============================================================================
@@ -276,6 +277,8 @@ async def get_my_rewards(
 
 # Include all route modules
 api_router.include_router(orders_router)
+api_router.include_router(auth_router)
+api_router.include_router(reviews_router)
 api_router.include_router(admin_router)
 api_router.include_router(newsletter_router)
 api_router.include_router(ai_router)
@@ -288,6 +291,7 @@ api_router.include_router(admin_staff_router)
 api_router.include_router(push_router)
 api_router.include_router(bulk_orders_router)
 api_router.include_router(google_auth_router)
+api_router.include_router(maintenance_router)
 
 # Health endpoint (used by Fly.io healthcheck)
 @api_router.get("/health")

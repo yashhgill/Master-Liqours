@@ -34,7 +34,7 @@ class OrderStatus(str, enum.Enum):
 # Models
 class User(Base):
     __tablename__ = 'users'
-    
+
     user_id = Column(String(36), primary_key=True, default=generate_uuid)
     email = Column(String(255), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)
@@ -49,29 +49,41 @@ class User(Base):
     created_at = Column(DateTime, default=utcnow)
     password_reset_token = Column(String(255), nullable=True)
     password_reset_expires = Column(DateTime, nullable=True)
-    
+
     assigned_staff = relationship('Staff', back_populates='customers', foreign_keys=[assigned_staff_id])
     orders = relationship('Order', back_populates='user', cascade='all, delete-orphan')
     rewards = relationship('Reward', back_populates='user', cascade='all, delete-orphan')
     sessions = relationship('UserSession', back_populates='user', cascade='all, delete-orphan')
     chat_messages = relationship('ChatMessage', back_populates='user', cascade='all, delete-orphan')
 
-
 class UserSession(Base):
     __tablename__ = 'user_sessions'
-    
+
     session_id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, index=True)
     session_token = Column(String(500), unique=True, nullable=False, index=True)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=utcnow)
-    
+
     user = relationship('User', back_populates='sessions')
 
+class Warehouse(Base):
+    """A shared physical storage location. Staff who physically share one
+    storage place are grouped under the same Warehouse so their stock is a
+    single shared pool instead of separate per-staff counts that drift out
+    of sync with reality."""
+    __tablename__ = 'warehouses'
+
+    warehouse_id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(255), nullable=False, unique=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    staff = relationship('Staff', back_populates='warehouse')
+    stock = relationship('Stock', back_populates='warehouse')
 
 class Staff(Base):
     __tablename__ = 'staff'
-    
+
     staff_id = Column(String(36), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, nullable=False, index=True)
@@ -79,17 +91,21 @@ class Staff(Base):
     qr_code_url = Column(String(500), nullable=True)
     whatsapp_number = Column(String(20), nullable=True)
     orders_count = Column(Integer, default=0)
+    # If set, this staff member draws from/contributes to a shared stock
+    # pool with every other staff member pointing at the same warehouse,
+    # instead of their own personal Stock rows.
+    warehouse_id = Column(String(36), ForeignKey('warehouses.warehouse_id', ondelete='SET NULL'), nullable=True, index=True)
     created_at = Column(DateTime, default=utcnow)
-    
+
     customers = relationship('User', back_populates='assigned_staff', foreign_keys=[User.assigned_staff_id])
     products = relationship('Product', back_populates='staff')
     stock = relationship('Stock', back_populates='staff')
     orders = relationship('Order', back_populates='staff')
-
+    warehouse = relationship('Warehouse', back_populates='staff')
 
 class Product(Base):
     __tablename__ = 'products'
-    
+
     product_id = Column(String(36), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False, index=True)
     price = Column(Float, nullable=False)
@@ -101,29 +117,32 @@ class Product(Base):
     original_price = Column(Float, nullable=True)  # set when product has an active discount
     created_at = Column(DateTime, default=utcnow)
     staff_id = Column(String(36), ForeignKey('staff.staff_id'), nullable=True, index=True)
-    
+
     staff = relationship('Staff', back_populates='products')
     stock = relationship('Stock', back_populates='product', cascade='all, delete-orphan')
     order_items = relationship('OrderItem', back_populates='product')
     flash_sales = relationship('FlashSale', back_populates='product', cascade='all, delete-orphan')
 
-
 class Stock(Base):
     __tablename__ = 'stocks'
-    
+
     stock_id = Column(String(36), primary_key=True, default=generate_uuid)
     product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)
     staff_id = Column(String(36), ForeignKey('staff.staff_id', ondelete='SET NULL'), nullable=True, index=True)
+    # Mutually exclusive with staff_id in practice: a Stock row either
+    # belongs to one staff member's personal count, OR to a shared
+    # warehouse pool that multiple staff draw from. Never both.
+    warehouse_id = Column(String(36), ForeignKey('warehouses.warehouse_id', ondelete='SET NULL'), nullable=True, index=True)
     quantity = Column(Integer, default=0)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
-    
+
     product = relationship('Product', back_populates='stock')
     staff = relationship('Staff', back_populates='stock')
-
+    warehouse = relationship('Warehouse', back_populates='stock')
 
 class Order(Base):
     __tablename__ = 'orders'
-    
+
     order_id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, index=True)
     staff_id = Column(String(36), ForeignKey('staff.staff_id', ondelete='SET NULL'), nullable=True, index=True)
@@ -138,42 +157,39 @@ class Order(Base):
     shipping_discount = Column(Float, default=0)
     points_earned = Column(Integer, default=0)
     created_at = Column(DateTime, default=utcnow, index=True)
-    
+
     user = relationship('User', back_populates='orders')
     staff = relationship('Staff', back_populates='orders')
     order_items = relationship('OrderItem', back_populates='order', cascade='all, delete-orphan')
 
-
 class OrderItem(Base):
     __tablename__ = 'order_items'
-    
+
     order_item_id = Column(String(36), primary_key=True, default=generate_uuid)
     order_id = Column(String(36), ForeignKey('orders.order_id', ondelete='CASCADE'), nullable=False, index=True)
     product_id = Column(String(36), ForeignKey('products.product_id'), nullable=False)
     quantity = Column(Integer, nullable=False)
     price = Column(Float, nullable=False)
     subtotal = Column(Float, nullable=False)
-    
+
     order = relationship('Order', back_populates='order_items')
     product = relationship('Product', back_populates='order_items')
 
-
 class Reward(Base):
     __tablename__ = 'rewards'
-    
+
     reward_id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, index=True)
     points = Column(Integer, nullable=False)
     type = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=utcnow, index=True)
-    
-    user = relationship('User', back_populates='rewards')
 
+    user = relationship('User', back_populates='rewards')
 
 class FlashSale(Base):
     __tablename__ = 'flash_sales'
-    
+
     sale_id = Column(String(36), primary_key=True, default=generate_uuid)
     product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)
     discount_percentage = Column(Float, nullable=False)
@@ -182,13 +198,12 @@ class FlashSale(Base):
     is_active = Column(Boolean, default=True, index=True)
     is_preorder = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utcnow)
-    
-    product = relationship('Product', back_populates='flash_sales')
 
+    product = relationship('Product', back_populates='flash_sales')
 
 class DiscountCode(Base):
     __tablename__ = 'discount_codes'
-    
+
     code_id = Column(String(36), primary_key=True, default=generate_uuid)
     code = Column(String(50), unique=True, nullable=False, index=True)
     discount_type = Column(String(20), nullable=False)
@@ -199,9 +214,6 @@ class DiscountCode(Base):
     active = Column(Boolean, default=True, index=True)
     expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utcnow)
-
-
-
 
 class Review(Base):
     __tablename__ = 'reviews'
@@ -217,29 +229,27 @@ class Review(Base):
 
 class NewsletterSubscriber(Base):
     __tablename__ = 'newsletter_subscribers'
-    
+
     subscriber_id = Column(String(36), primary_key=True, default=generate_uuid)
     email = Column(String(255), unique=True, nullable=False, index=True)
     subscribed = Column(Boolean, default=True)
     created_at = Column(DateTime, default=utcnow)
 
-
 class ChatMessage(Base):
     __tablename__ = 'chat_messages'
-    
+
     message_id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, index=True)
     role = Column(String(20), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=utcnow, index=True)
-    
-    user = relationship('User', back_populates='chat_messages')
 
+    user = relationship('User', back_populates='chat_messages')
 
 # NEW: Hero Banner Model for Super Admin to manage homepage
 class HeroBanner(Base):
     __tablename__ = 'hero_banners'
-    
+
     banner_id = Column(String(36), primary_key=True, default=generate_uuid)
     title = Column(String(255), nullable=False)
     subtitle = Column(Text, nullable=True)
@@ -251,7 +261,6 @@ class HeroBanner(Base):
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
-
 class PushSubscription(Base):
     __tablename__ = 'push_subscriptions'
 
@@ -261,7 +270,6 @@ class PushSubscription(Base):
     p256dh = Column(String(255), nullable=False)
     auth = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=utcnow)
-
 
 class BulkOrderInquiry(Base):
     __tablename__ = 'bulk_order_inquiries'
@@ -277,7 +285,6 @@ class BulkOrderInquiry(Base):
     message = Column(Text, nullable=True)
     status = Column(String(30), default="new")  # new, contacted, quoted, closed
     created_at = Column(DateTime, default=utcnow, index=True)
-
 
 class Brand(Base):
     __tablename__ = 'brands'

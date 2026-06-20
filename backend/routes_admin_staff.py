@@ -8,14 +8,15 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 
 from database import get_db
-from models import Staff, User, Order, Product, Stock, UserRole
+from models import Staff, User, Order, Product, Stock, UserRole, Warehouse
 from auth_utils import get_current_user, hash_password
 
 router = APIRouter(prefix="/admin/staff", tags=["Admin · Staff"])
 
 
-def _clean(s: Staff) -> dict:
+def _clean(s: Staff, warehouse_name: Optional[str] = None) -> dict:
     d = {k: v for k, v in s.__dict__.items() if not k.startswith('_')}
+    d['warehouse_name'] = warehouse_name
     return d
 
 
@@ -34,24 +35,46 @@ def _gen_referral(name: str) -> str:
     return f"{base}{rand}"
 
 
+async def _get_or_create_warehouse(name: str, db: AsyncSession) -> Warehouse:
+    """Staff sharing the same warehouse name automatically share one stock
+    pool. Case-insensitive match on name so 'Main Store' and 'main store'
+    resolve to the same warehouse."""
+    clean_name = name.strip()
+    r = await db.execute(select(Warehouse).where(Warehouse.name.ilike(clean_name)))
+    wh = r.scalar_one_or_none()
+    if wh:
+        return wh
+    wh = Warehouse(name=clean_name)
+    db.add(wh)
+    await db.flush()
+    return wh
+
+
 class StaffCreate(BaseModel):
     name: str
     email: EmailStr
     whatsapp_number: Optional[str] = None
     referral_code: Optional[str] = None
+    warehouse_name: Optional[str] = None
 
 
 class StaffUpdate(BaseModel):
     name: Optional[str] = None
     whatsapp_number: Optional[str] = None
     referral_code: Optional[str] = None
+    # Empty string clears the staff's warehouse (back to personal stock).
+    # Omit the field entirely to leave it unchanged.
+    warehouse_name: Optional[str] = None
 
 
 @router.get("")
 async def list_staff(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_super(user)
-    r = await db.execute(select(Staff).order_by(Staff.created_at.desc()))
-    return [_clean(s) for s in r.scalars().all()]
+    r = await db.execute(
+        select(Staff, Warehouse.name).outerjoin(Warehouse, Staff.warehouse_id == Warehouse.warehouse_id)
+        .order_by(Staff.created_at.desc())
+    )
+    return [_clean(s, wh_name) for s, wh_name in r.all()]
 
 
 @router.post("", status_code=201)
@@ -82,12 +105,18 @@ async def create_staff(
             raise HTTPException(status_code=409, detail="Referral code dah dipakai")
         referral = _gen_referral(data.name)
 
+    warehouse_id = None
+    if data.warehouse_name and data.warehouse_name.strip():
+        warehouse = await _get_or_create_warehouse(data.warehouse_name, db)
+        warehouse_id = warehouse.warehouse_id
+
     # Create staff record
     staff = Staff(
         name=data.name,
         email=data.email,
         referral_code=referral,
         whatsapp_number=data.whatsapp_number,
+        warehouse_id=warehouse_id,
     )
     db.add(staff)
 
@@ -106,7 +135,7 @@ async def create_staff(
     await db.refresh(staff)
 
     return {
-        **_clean(staff),
+        **_clean(staff, data.warehouse_name.strip() if data.warehouse_name else None),
         "temp_password": temp_password,  # Show ONCE — admin must share with staff
     }
 
@@ -124,7 +153,13 @@ async def update_staff(
     if not staff:
         raise HTTPException(status_code=404, detail="Staff tak jumpa")
 
-    updates = data.model_dump(exclude_unset=True, exclude_none=True)
+    raw_updates = data.model_dump(exclude_unset=True)
+    has_warehouse_update = 'warehouse_name' in raw_updates
+    warehouse_name = raw_updates.pop('warehouse_name', None)
+
+    # Drop None values for the remaining plain columns (referral_code/name/whatsapp_number)
+    updates = {k: v for k, v in raw_updates.items() if v is not None}
+
     if 'referral_code' in updates:
         updates['referral_code'] = updates['referral_code'].upper()
         # Check uniqueness
@@ -136,6 +171,15 @@ async def update_staff(
 
     for k, v in updates.items():
         setattr(staff, k, v)
+
+    # Handle shared-warehouse assignment separately — empty string clears it,
+    # a name gets/creates that warehouse, field omitted entirely = no change.
+    if has_warehouse_update:
+        if warehouse_name and warehouse_name.strip():
+            warehouse = await _get_or_create_warehouse(warehouse_name, db)
+            staff.warehouse_id = warehouse.warehouse_id
+        else:
+            staff.warehouse_id = None
 
     # Also sync name/phone to the linked user row
     if 'name' in updates or 'whatsapp_number' in updates:
@@ -149,7 +193,12 @@ async def update_staff(
 
     await db.commit()
     await db.refresh(staff)
-    return _clean(staff)
+
+    wh_name = None
+    if staff.warehouse_id:
+        wh_r = await db.execute(select(Warehouse.name).where(Warehouse.warehouse_id == staff.warehouse_id))
+        wh_name = wh_r.scalar_one_or_none()
+    return _clean(staff, wh_name)
 
 
 @router.post("/{staff_id}/reset-password")
