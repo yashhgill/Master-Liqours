@@ -30,7 +30,6 @@ from routes_uploads import router as uploads_router
 from routes_admin_staff import router as admin_staff_router
 from routes_push import router as push_router
 from routes_bulk_orders import router as bulk_orders_router
-from routes_maintenance import router as maintenance_router
 from routes_google_auth import router as google_auth_router
 
 # Load environment
@@ -288,7 +287,6 @@ api_router.include_router(uploads_router)
 api_router.include_router(admin_staff_router)
 api_router.include_router(push_router)
 api_router.include_router(bulk_orders_router)
-api_router.include_router(maintenance_router)
 api_router.include_router(google_auth_router)
 
 # Health endpoint (used by Fly.io healthcheck)
