@@ -43,7 +43,15 @@ const Footer = () => {
         {/* Brand */}
         <div className="md:col-span-4">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#ffd700] to-[#b8860b] flex items-center justify-center text-black font-black text-2xl">M</div>
+            <div className="w-14 h-14 flex items-center justify-center shrink-0">
+              <img
+                src="/logo-m.png"
+                alt="Masterliqours"
+                className="w-full h-full object-contain"
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+              />
+              <span className="hidden w-12 h-12 rounded-full bg-gradient-to-br from-[#ffd700] to-[#b8860b] items-center justify-center text-black font-black text-2xl">M</span>
+            </div>
             <div>
               <div className="text-[10px] uppercase tracking-[0.3em] text-[#ffd700]/80">Premium Liquor</div>
               <div className="logo-text text-3xl">Masterliqours</div>
