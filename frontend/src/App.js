@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
 import ChatWidget from './components/ChatWidget';
+import SignInPrompt from './components/SignInPrompt';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import Products from './pages/Products';
@@ -22,6 +23,7 @@ import ChangePassword from './pages/ChangePassword';
 import UserDashboard from './pages/UserDashboard';
 import StaffDashboard from './pages/StaffDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import BulkOrder from './pages/BulkOrder';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -60,6 +62,7 @@ function AppContent() {
           <Route path="/dashboard" element={<ProtectedRoute roles={['customer']}><UserDashboard /></ProtectedRoute>} />
           <Route path="/staff" element={<ProtectedRoute roles={['staff', 'super_admin', 'master_admin']}><StaffDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute roles={['super_admin', 'master_admin']}><SuperAdminDashboard /></ProtectedRoute>} />
+          <Route path="/bulk-order" element={<BulkOrder />} />
           <Route path="/master" element={<Navigate to="/admin" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -67,6 +70,7 @@ function AppContent() {
       <Footer />
       <FloatingWhatsApp />
       <ChatWidget />
+      <SignInPrompt />
     </div>
   );
 }

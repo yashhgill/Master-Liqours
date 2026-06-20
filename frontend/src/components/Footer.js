@@ -71,7 +71,7 @@ const Footer = () => {
         <div className="md:col-span-2">
           <div className="eyebrow mb-5">Shop</div>
           <ul className="space-y-3 text-white/70">
-            {['Wine', 'Beer', 'Whiskey', 'Gin', 'Rum', 'Vodka'].map((c) => (
+            {['Whiskey', 'Vodka', 'Gin', 'Rum', 'Cognac', 'Brandy', 'Tequila', 'Liqueur', 'Wine', 'Champagne', 'Beer', 'Sake'].map((c) => (
               <li key={c}>
                 <Link to={`/products?category=${c}`} className="hover:text-[#ff007f] transition-colors">{c}</Link>
               </li>
@@ -86,6 +86,7 @@ const Footer = () => {
             <li><Link to="/rewards" className="hover:text-[#ff007f] transition-colors">Welcome & Rewards</Link></li>
             <li><Link to="/products" className="hover:text-[#ff007f] transition-colors">Order & Delivery</Link></li>
             <li><Link to="/payment" className="hover:text-[#ff007f] transition-colors">Payment & Refunds</Link></li>
+            <li><Link to="/bulk-order" className="hover:text-[#ff007f] transition-colors">Bulk &amp; Event Orders</Link></li>
             <li><Link to="/products" className="hover:text-[#ff007f] transition-colors">Contact Us</Link></li>
             <li><Link to="/" className="hover:text-[#ff007f] transition-colors">Terms & Conditions</Link></li>
           </ul>

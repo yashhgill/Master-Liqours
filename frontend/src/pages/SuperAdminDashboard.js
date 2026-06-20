@@ -25,7 +25,7 @@ const TABS = [
   { id: 'staff-mode', label: 'My Sales', icon: FaBoxOpen },
 ];
 
-const CATEGORIES = ['Wine', 'Beer', 'Whiskey', 'Gin', 'Rum', 'Vodka', 'Champagne', 'Tequila', 'Sake', 'Cognac'];
+const CATEGORIES = ['Whiskey', 'Vodka', 'Gin', 'Rum', 'Cognac', 'Brandy', 'Tequila', 'Liqueur', 'Wine', 'Champagne', 'Beer', 'Sake'];
 
 const blankProduct = { name: '', price: '', description: '', category: '', image_url: '', is_active: true, is_preorder: false, discount_price: '', discount_days: 0, discount_hours: 0, discount_minutes: 0 };
 const blankBanner = { title: '', subtitle: '', cta_text: '', cta_link: '', background_image: '', is_active: true, order_position: 0 };

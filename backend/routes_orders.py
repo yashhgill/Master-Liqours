@@ -12,6 +12,7 @@ from schemas import CheckoutRequest, OrderResponse, CartItem
 from auth_utils import get_current_user
 from sms_utils import send_sms, status_message
 from email_utils import send_low_stock_alert, LOW_STOCK_THRESHOLD
+from routes_push import notify_staff_or_admins
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -107,47 +108,75 @@ async def checkout(
         order_item = OrderItem(order_id=order.order_id, **item_data)
         db.add(order_item)
 
-    # Auto-deduct stock
-    # If customer has no assigned staff, find any staff with stock for that product
+    # ── Auto-deduct stock (fixed for the multi-staff "shared stock" issue) ──
+    # Each staff can hold their own physical stock count for the same product, so a
+    # product is never one single shared pool — it's the sum of every staff's Stock
+    # row. Two problems used to happen here:
+    #   1) No row locking -> two concurrent checkouts could both read the same
+    #      Stock row before either committed, decrementing past zero (overselling).
+    #   2) If the customer's own assigned staff had 0/insufficient stock, the loop
+    #      just skipped silently — the order still went through with NOTHING
+    #      decremented anywhere, so the boss had no idea inventory was wrong.
+    # Fix: lock the candidate row with SELECT...FOR UPDATE, prefer the customer's
+    # assigned staff, fall back to whichever staff actually has enough on hand, and
+    # if literally nobody has enough stock, fail the checkout instead of pretending
+    # it succeeded.
     for item_data in order_items_data:
-        staff_id_to_use = order.staff_id
+        needed_qty = item_data["quantity"]
+        product_id = item_data["product_id"]
+        stock_row = None
 
-        if not staff_id_to_use:
-            # Find first staff that has this product in stock
-            any_stock = await db.execute(
-                select(Stock).where(
-                    Stock.product_id == item_data["product_id"],
-                    Stock.quantity > 0
-                ).order_by(Stock.quantity.desc()).limit(1)
+        # 1) Try the customer's assigned staff first (locks the row for this tx)
+        if order.staff_id:
+            preferred = await db.execute(
+                select(Stock)
+                .where(and_(Stock.staff_id == order.staff_id, Stock.product_id == product_id))
+                .with_for_update()
             )
-            any_stock_row = any_stock.scalar_one_or_none()
-            if any_stock_row:
-                staff_id_to_use = any_stock_row.staff_id
+            preferred_row = preferred.scalar_one_or_none()
+            if preferred_row and preferred_row.quantity >= needed_qty:
+                stock_row = preferred_row
 
-        if staff_id_to_use:
-            stock_result = await db.execute(
-                select(Stock).where(
-                    and_(
-                        Stock.staff_id == staff_id_to_use,
-                        Stock.product_id == item_data["product_id"]
-                    )
+        # 2) Fall back to ANY staff that actually has enough stock, locked too
+        if stock_row is None:
+            fallback = await db.execute(
+                select(Stock)
+                .where(Stock.product_id == product_id, Stock.quantity >= needed_qty)
+                .order_by(Stock.quantity.desc())
+                .with_for_update()
+            )
+            stock_row = fallback.scalars().first()
+
+        if stock_row is None:
+            # Nobody has enough — don't silently let this sale through.
+            product_result = await db.execute(select(Product).where(Product.product_id == product_id))
+            product_for_error = product_result.scalar_one_or_none()
+            product_label = product_for_error.name if product_for_error else product_id
+            raise HTTPException(
+                status_code=409,
+                detail=f"Sorry, not enough stock for {product_label} right now (need {needed_qty}). Please check with staff before retrying.",
+            )
+
+        stock_row.quantity -= needed_qty
+        # Always assign the order to whichever staff actually fulfilled it, so sales
+        # are attributed to the real stock holder, not left mismatched.
+        order.staff_id = stock_row.staff_id
+
+        # Low stock alert — fire-and-forget, never blocks checkout
+        if stock_row.quantity <= LOW_STOCK_THRESHOLD:
+            staff_for_alert = await db.execute(select(Staff).where(Staff.staff_id == stock_row.staff_id))
+            staff_row = staff_for_alert.scalar_one_or_none()
+            product_for_alert = await db.execute(select(Product).where(Product.product_id == product_id))
+            product_row = product_for_alert.scalar_one_or_none()
+            if staff_row and product_row:
+                send_low_stock_alert(staff_row.email, staff_row.name, product_row.name, stock_row.quantity)
+                await notify_staff_or_admins(
+                    db,
+                    title="Low stock warning ⚠️",
+                    body=f"{product_row.name} — only {stock_row.quantity} left for {staff_row.name}.",
+                    staff_user_email=staff_row.email,
+                    url="/staff",
                 )
-            )
-            stock_row = stock_result.scalar_one_or_none()
-            if stock_row and stock_row.quantity > 0:
-                stock_row.quantity = max(0, stock_row.quantity - item_data["quantity"])
-                # Assign this staff to the order if none was set
-                if not order.staff_id:
-                    order.staff_id = staff_id_to_use
-
-                # Low stock alert — fire-and-forget, never blocks checkout
-                if stock_row.quantity <= LOW_STOCK_THRESHOLD:
-                    staff_for_alert = await db.execute(select(Staff).where(Staff.staff_id == stock_row.staff_id))
-                    staff_row = staff_for_alert.scalar_one_or_none()
-                    product_for_alert = await db.execute(select(Product).where(Product.product_id == item_data["product_id"]))
-                    product_row = product_for_alert.scalar_one_or_none()
-                    if staff_row and product_row:
-                        send_low_stock_alert(staff_row.email, staff_row.name, product_row.name, stock_row.quantity)
 
     reward = Reward(
         user_id=user.user_id,
@@ -173,12 +202,22 @@ async def checkout(
 
     staff_whatsapp = None
     staff_name = None
+    staff_email_for_push = None
     if order.staff_id:
         staff_result = await db.execute(select(Staff).where(Staff.staff_id == order.staff_id))
         staff = staff_result.scalar_one_or_none()
         if staff:
             staff_whatsapp = staff.whatsapp_number
             staff_name = staff.name
+            staff_email_for_push = staff.email
+
+    await notify_staff_or_admins(
+        db,
+        title="New order received! 🍾",
+        body=f"RM{order.total:.2f} — {order.customer_name or 'A customer'} just checked out.",
+        staff_user_email=staff_email_for_push,
+        url=f"/staff",
+    )
 
     return {
         **_clean_dict(order),
@@ -264,6 +303,34 @@ async def log_personal_order(
         order_item = OrderItem(order_id=order.order_id, **item_data)
         db.add(order_item)
 
+    # Deduct from this staff's own recorded stock too — personal/walk-in sales
+    # used to skip this entirely, which is exactly how stock numbers drift out
+    # of sync between what staff think they have and what's actually left.
+    # We never block a walk-in log (the sale already physically happened), but
+    # we surface a clear warning if it pushes a staff's stock into a mismatch
+    # so the boss/staff can reconcile instead of finding out later.
+    stock_warnings = []
+    if staff:
+        for item_data in order_items_data:
+            sr = await db.execute(
+                select(Stock)
+                .where(and_(Stock.staff_id == staff.staff_id, Stock.product_id == item_data["product_id"]))
+                .with_for_update()
+            )
+            stock_row = sr.scalar_one_or_none()
+            if not stock_row:
+                stock_row = Stock(staff_id=staff.staff_id, product_id=item_data["product_id"], quantity=0)
+                db.add(stock_row)
+                await db.flush()
+            if stock_row.quantity < item_data["quantity"]:
+                prod_res = await db.execute(select(Product).where(Product.product_id == item_data["product_id"]))
+                prod = prod_res.scalar_one_or_none()
+                stock_warnings.append(
+                    f"{(prod.name if prod else item_data['product_id'])}: recorded stock was only "
+                    f"{stock_row.quantity}, logged sale of {item_data['quantity']} anyway — please recount this item."
+                )
+            stock_row.quantity = max(0, stock_row.quantity - item_data["quantity"])
+
     await db.commit()
     await db.refresh(order)
 
@@ -276,7 +343,8 @@ async def log_personal_order(
         **_clean_dict(order),
         "items": [_clean_dict(item) for item in order.order_items],
         "staff_whatsapp": staff.whatsapp_number if staff else None,
-        "staff_name": staff.name if staff else None
+        "staff_name": staff.name if staff else None,
+        "stock_warnings": stock_warnings,
     }
 
 

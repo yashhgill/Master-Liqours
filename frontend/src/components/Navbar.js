@@ -5,7 +5,7 @@ import {
   FaSearch, FaShoppingBag, FaUser, FaBars, FaTimes, FaSignOutAlt, FaChevronDown,
 } from 'react-icons/fa';
 
-const categories = ['Wine', 'Beer', 'Whiskey', 'Gin', 'Rum', 'Vodka'];
+const categories = ['Whiskey', 'Vodka', 'Gin', 'Rum', 'Cognac', 'Brandy', 'Tequila', 'Liqueur', 'Wine', 'Champagne', 'Beer', 'Sake'];
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -37,9 +37,15 @@ const Navbar = () => {
       {/* Top row: logo + search + account + cart */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-4 flex items-center gap-4 lg:gap-8">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 shrink-0" data-testid="nav-logo">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#ffd700] to-[#b8860b] flex items-center justify-center text-black font-black text-xl shadow-[0_0_25px_rgba(255,215,0,0.35)]">
-            M
+        <Link to="/" className="flex items-center gap-3 shrink-0 group" data-testid="nav-logo">
+          <div className="logo-pop w-12 h-12 rounded-full bg-gradient-to-br from-[#ffd700] to-[#b8860b] flex items-center justify-center text-black font-black text-xl shadow-[0_0_25px_rgba(255,215,0,0.35)] overflow-hidden transition-transform duration-300 group-hover:scale-110">
+            <img
+              src="/logo-m.png"
+              alt="Masterliqours"
+              className="w-full h-full object-cover"
+              onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+            />
+            <span className="hidden w-full h-full items-center justify-center">M</span>
           </div>
           <div className="hidden sm:block leading-none">
             <div className="text-[10px] uppercase tracking-[0.35em] text-[#ffd700]/80">Premium Liquor</div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context';
+import { subscribeStaffToPush } from '../lib/pwa';
 import {
   FaCheck, FaSpinner, FaTruck, FaBoxOpen, FaTimes, FaPlus,
   FaMinus, FaEdit, FaRandom, FaWhatsapp, FaBox, FaEnvelope
@@ -376,7 +377,7 @@ const StaffDashboard = () => {
     axios.get(`${API}/products`, { withCredentials: true }).then(r => setProducts(r.data?.products || r.data || [])).catch(() => {});
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); subscribeStaffToPush(); }, []);
 
   const updateStatus = async (orderId, newStatus) => {
     setUpdating(orderId);

@@ -28,6 +28,8 @@ from routes_drink_reveal import router as drink_reveal_router
 from routes_brands import public_router as brands_public_router, admin_router as brands_admin_router, seed_default_brands
 from routes_uploads import router as uploads_router
 from routes_admin_staff import router as admin_staff_router
+from routes_push import router as push_router
+from routes_bulk_orders import router as bulk_orders_router
 from routes_google_auth import router as google_auth_router
 
 # Load environment
@@ -283,6 +285,8 @@ api_router.include_router(brands_public_router)
 api_router.include_router(brands_admin_router)
 api_router.include_router(uploads_router)
 api_router.include_router(admin_staff_router)
+api_router.include_router(push_router)
+api_router.include_router(bulk_orders_router)
 api_router.include_router(google_auth_router)
 
 # Health endpoint (used by Fly.io healthcheck)

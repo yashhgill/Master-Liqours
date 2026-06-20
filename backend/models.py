@@ -252,6 +252,33 @@ class HeroBanner(Base):
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
+class PushSubscription(Base):
+    __tablename__ = 'push_subscriptions'
+
+    subscription_id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False, index=True)
+    endpoint = Column(Text, nullable=False, unique=True)
+    p256dh = Column(String(255), nullable=False)
+    auth = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+
+
+class BulkOrderInquiry(Base):
+    __tablename__ = 'bulk_order_inquiries'
+
+    inquiry_id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(255), nullable=False)
+    company = Column(String(255), nullable=True)
+    email = Column(String(255), nullable=False)
+    whatsapp = Column(String(50), nullable=False)
+    event_date = Column(String(50), nullable=True)
+    estimated_cartons = Column(String(100), nullable=True)
+    items_wanted = Column(Text, nullable=True)
+    message = Column(Text, nullable=True)
+    status = Column(String(30), default="new")  # new, contacted, quoted, closed
+    created_at = Column(DateTime, default=utcnow, index=True)
+
+
 class Brand(Base):
     __tablename__ = 'brands'
 

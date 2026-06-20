@@ -88,6 +88,7 @@ class OrderResponse(BaseModel):
     staff_whatsapp: Optional[str] = None
     staff_name: Optional[str] = None
     is_personal_order: Optional[bool] = False
+    stock_warnings: Optional[List[str]] = None
 
 # Staff Schemas
 class StaffResponse(BaseModel):
