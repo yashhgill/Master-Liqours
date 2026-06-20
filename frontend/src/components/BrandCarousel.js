@@ -35,12 +35,15 @@ const BrandCard = ({ brand }) => {
       <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
 
       {brand.logo_url && (
-        <img
-          src={brand.logo_url}
-          alt={brand.name}
-          className="absolute inset-0 w-full h-full object-contain p-8 mix-blend-screen opacity-90"
-          onError={(e) => { e.target.style.display = 'none'; }}
-        />
+        <div className="absolute inset-0 flex items-center justify-center p-8">
+          <div className="absolute inset-6 rounded-2xl bg-white/90 shadow-lg" />
+          <img
+            src={brand.logo_url}
+            alt={brand.name}
+            className="relative w-full h-full object-contain p-4"
+            onError={(e) => { e.target.style.display = 'none'; e.target.previousSibling.style.display = 'none'; }}
+          />
+        </div>
       )}
 
       <div className="relative h-full flex flex-col justify-between p-6">
