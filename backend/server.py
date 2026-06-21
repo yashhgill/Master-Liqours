@@ -13,8 +13,10 @@ from database import get_db
 from models import User, UserSession, Staff, Product, UserRole, UserTier
 from schemas import RegisterRequest, LoginRequest, UserResponse, ProductResponse
 from auth_utils import (
-    hash_password, verify_password, create_session, get_current_user
+    hash_password, verify_password, create_session, get_current_user,
+    assign_staff_round_robin, record_failed_login, record_successful_login, is_locked_out
 )
+from sqlalchemy.exc import IntegrityError
 
 # Import route modules
 from routes_orders import router as orders_router
@@ -48,19 +50,25 @@ app = FastAPI(
 )
 api_router = APIRouter(prefix="/api")
 
-# CORS — always allow masterliqours.my regardless of env var
-_cors_env = os.environ.get("CORS_ORIGINS", "*").strip()
+# CORS — always allow masterliqours.my regardless of env var.
+# IMPORTANT: never resolve this to a literal "*" origin list. The session
+# cookie is issued with `samesite="none"` (required since frontend/backend
+# are different domains), which means it's sent on cross-site requests by
+# design. Combined with allow_credentials=True, a wildcard origin list lets
+# *any* website ride a logged-in user's session to read their data — so the
+# allow-list is always the real, fixed set of domains, never "*".
+_cors_env = os.environ.get("CORS_ORIGINS", "").strip()
 _hardcoded = [
     "https://masterliqours.my",
     "https://www.masterliqours.my",
     "http://localhost:3000",
     "http://localhost:3001",
 ]
-if _cors_env == "*":
-    _origins = ["*"]
-else:
+if _cors_env and _cors_env != "*":
     _env_list = [o.strip() for o in _cors_env.split(",") if o.strip()]
     _origins = list(set(_hardcoded + _env_list))
+else:
+    _origins = _hardcoded
 
 app.add_middleware(
     CORSMiddleware,
@@ -92,17 +100,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
             staff_id = staff.staff_id
 
     if not staff_id:
-        # Round-robin
-        result = await db.execute(
-            select(Staff, func.count(User.user_id).label('count'))
-            .outerjoin(User, User.assigned_staff_id == Staff.staff_id)
-            .group_by(Staff.staff_id)
-            .order_by(func.count(User.user_id).asc())
-            .limit(1)
-        )
-        staff_row = result.first()
-        if staff_row:
-            staff_id = staff_row[0].staff_id
+        staff_id = await assign_staff_round_robin(db)
 
     user = User(
         email=data.email,
@@ -113,7 +111,14 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         role=UserRole.CUSTOMER
     )
     db.add(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Two concurrent registrations with the same email — the unique
+        # constraint on User.email caught it. Give back the same friendly
+        # message instead of a raw 500.
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Email sudah digunakan")
     await db.refresh(user)
     return user
 
@@ -127,9 +132,20 @@ async def login(
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
 
+    # Brute-force protection: lock the account for a while after too many
+    # wrong passwords in a row, regardless of which IP they're coming from.
+    if user and is_locked_out(user):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many wrong attempts. Try again in a few minutes.",
+        )
+
     if not user or not user.password_hash or not verify_password(data.password, user.password_hash):
+        if user:
+            await record_failed_login(db, user)
         raise HTTPException(status_code=401, detail="Email atau password salah")
 
+    await record_successful_login(db, user)
     session_token = await create_session(db, user.user_id)
 
     response.set_cookie(

@@ -107,5 +107,5 @@ class NewsletterSubscribe(BaseModel):
 
 # AI Chat Schema
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(min_length=1, max_length=1000)
     conversation_history: Optional[List[dict]] = []

@@ -7,6 +7,7 @@ import os
 import csv
 import io
 import uuid
+import logging
 from pathlib import Path
 from typing import List
 from pydantic import BaseModel
@@ -19,17 +20,30 @@ from models import Product, User, UserRole
 from auth_utils import get_current_user
 
 router = APIRouter(prefix="/admin", tags=["Admin · Uploads"])
+logger = logging.getLogger(__name__)
 
 # Local fallback dir (only used when R2 is not configured)
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "/tmp/uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
+# .svg intentionally excluded — SVGs can embed <script>/event handlers and
+# get rendered with that script active if ever opened directly or embedded
+# via <object>/<iframe>, unlike raster formats. Upload already requires an
+# admin session, but there's no reason to keep an XSS-capable file type
+# around for product/banner/brand images that are always raster art anyway.
+ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 ALLOWED_CT = {
     ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-    ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml",
+    ".webp": "image/webp", ".gif": "image/gif",
 }
 MAX_BYTES = 8 * 1024 * 1024  # 8 MB
+
+# Sane price bounds for CSV bulk import — catches typo'd extra zeros/decimal
+# points before they go live on the storefront (e.g. RM50.00 fat-fingered to
+# RM5000.00, or a stray RM0.01).
+MIN_PRICE = 0.50
+MAX_PRICE = 50000.0
+MAX_CSV_ROWS = 2000
 
 # --- R2 client (lazy) ---
 def _get_r2_config():
@@ -98,7 +112,16 @@ async def upload_file(
             raise HTTPException(status_code=500, detail=f"R2 upload failed: {str(e)[:200]}") from e
         return {"url": f"{R2_PUBLIC_URL}/{new_name}", "filename": new_name, "size": len(body), "storage": "r2"}
 
-    # Local fallback
+    # Local fallback — Render's filesystem is ephemeral (wiped on every
+    # restart/redeploy), so anything saved here is at real risk of vanishing
+    # in production. Make noise about it instead of silently degrading, so
+    # whoever's running this notices and fixes the R2 env vars instead of
+    # finding out weeks later when product images break sitewide.
+    if os.environ.get("ENVIRONMENT", "").lower() == "production":
+        logger.warning(
+            "Image upload used the LOCAL DISK fallback in production (R2 not "
+            "configured) — this file will be lost on the next restart/redeploy."
+        )
     dest = UPLOAD_DIR / new_name
     dest.write_bytes(body)
     return {"url": f"/api/uploads/{new_name}", "filename": new_name, "size": len(body), "storage": "local"}
@@ -206,8 +229,15 @@ async def bulk_import_products(
     if not reader.fieldnames or not required.issubset({c.strip().lower() for c in reader.fieldnames}):
         raise HTTPException(status_code=400, detail=f"CSV must have columns: {', '.join(sorted(required))}, description, image_url")
 
+    rows = list(reader)
+    if len(rows) > MAX_CSV_ROWS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many rows ({len(rows)}) — split into batches of {MAX_CSV_ROWS} or fewer.",
+        )
+
     created, skipped, errors = 0, 0, []
-    for idx, row in enumerate(reader, start=2):
+    for idx, row in enumerate(rows, start=2):
         try:
             row_l = {k.strip().lower(): (v or "").strip() for k, v in row.items() if k}
             name = row_l.get("name")
@@ -217,6 +247,15 @@ async def bulk_import_products(
                 skipped += 1
                 continue
             price = float(price_str)
+
+            # Catch the typo'd-extra-zero / misplaced-decimal class of bug —
+            # without this, a bad row goes live on the storefront instantly
+            # (products default to is_active=True) at a price a customer
+            # could actually check out at before anyone notices.
+            if price < MIN_PRICE or price > MAX_PRICE:
+                errors.append({"row": idx, "error": f"Price RM{price:.2f} outside allowed range RM{MIN_PRICE:.2f}–RM{MAX_PRICE:.2f}"})
+                skipped += 1
+                continue
 
             existing = await db.execute(select(Product).where(Product.name == name))
             if existing.scalar_one_or_none():

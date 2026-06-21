@@ -7,8 +7,8 @@ from pydantic import BaseModel
 
 from database import get_db
 from models import (
-    User, Product, Order, Staff, FlashSale, DiscountCode, 
-    UserRole, HeroBanner
+    User, Product, Order, Staff, FlashSale, DiscountCode,
+    UserRole, HeroBanner, MysteryDrop
 )
 from schemas import ProductCreate, ProductResponse
 from auth_utils import get_current_user, require_role
@@ -48,7 +48,7 @@ async def create_hero_banner(
 ):
     """Create hero banner (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    
+
     banner = HeroBanner(**data.dict())
     db.add(banner)
     await db.commit()
@@ -62,7 +62,7 @@ async def get_all_hero_banners(
 ):
     """Get all hero banners for admin"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    
+
     result = await db.execute(
         select(HeroBanner).order_by(HeroBanner.order_position.asc())
     )
@@ -77,16 +77,16 @@ async def update_hero_banner(
 ):
     """Update hero banner (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    
+
     result = await db.execute(select(HeroBanner).where(HeroBanner.banner_id == banner_id))
     banner = result.scalar_one_or_none()
-    
+
     if not banner:
         raise HTTPException(status_code=404, detail="Banner tak jumpa")
-    
+
     for key, value in data.dict(exclude_unset=True).items():
         setattr(banner, key, value)
-    
+
     banner.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(banner)
@@ -100,13 +100,13 @@ async def delete_hero_banner(
 ):
     """Delete hero banner (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    
+
     result = await db.execute(select(HeroBanner).where(HeroBanner.banner_id == banner_id))
     banner = result.scalar_one_or_none()
-    
+
     if not banner:
         raise HTTPException(status_code=404, detail="Banner tak jumpa")
-    
+
     await db.delete(banner)
     await db.commit()
     return {"message": "Banner dipadam"}
@@ -236,13 +236,13 @@ async def delete_product(
 ):
     """Delete/deactivate product (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    
+
     result = await db.execute(select(Product).where(Product.product_id == product_id))
     product = result.scalar_one_or_none()
-    
+
     if not product:
         raise HTTPException(status_code=404, detail="Produk tak jumpa")
-    
+
     product.is_active = False
     await db.commit()
     return {"message": "Produk dipadamkan"}
@@ -280,16 +280,16 @@ async def create_flash_sale(
 ):
     """Create flash sale dengan auto-timeout (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    
+
     # Validate dates (normalize to naive UTC for DB comparison)
     start_naive = data.start_time.replace(tzinfo=None) if data.start_time.tzinfo else data.start_time
     end_naive = data.end_time.replace(tzinfo=None) if data.end_time.tzinfo else data.end_time
     if end_naive <= start_naive:
         raise HTTPException(status_code=400, detail="End time mesti after start time")
-    
+
     if end_naive <= datetime.utcnow():
         raise HTTPException(status_code=400, detail="End time mesti di masa depan")
-    
+
     flash_sale = FlashSale(
         product_id=data.product_id,
         discount_percentage=data.discount_percentage,
@@ -310,12 +310,12 @@ async def get_all_flash_sales(
 ):
     """Get all flash sales (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    
+
     query = select(FlashSale)
-    
+
     if not include_expired:
         query = query.where(FlashSale.end_time > datetime.utcnow())
-    
+
     query = query.order_by(FlashSale.start_time.desc())
     result = await db.execute(query)
     return result.scalars().all()
@@ -328,13 +328,13 @@ async def toggle_flash_sale(
 ):
     """Activate/deactivate flash sale manually (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    
+
     result = await db.execute(select(FlashSale).where(FlashSale.sale_id == sale_id))
     sale = result.scalar_one_or_none()
-    
+
     if not sale:
         raise HTTPException(status_code=404, detail="Flash sale tak jumpa")
-    
+
     sale.is_active = not sale.is_active
     await db.commit()
     return {"message": f"Flash sale {'activated' if sale.is_active else 'deactivated'}"}
@@ -375,13 +375,13 @@ async def delete_flash_sale(
 ):
     """Delete flash sale (Super Admin only)"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    
+
     result = await db.execute(select(FlashSale).where(FlashSale.sale_id == sale_id))
     sale = result.scalar_one_or_none()
-    
+
     if not sale:
         raise HTTPException(status_code=404, detail="Flash sale tak jumpa")
-    
+
     await db.delete(sale)
     await db.commit()
     return {"message": "Flash sale dipadam"}
@@ -390,20 +390,11 @@ async def delete_flash_sale(
 # =============================================================================
 # MYSTERY DROPS — Full CRUD (Super Admin)
 # =============================================================================
-
-import json as _json, os as _os, uuid as _uuid
-
-_DROPS_PATH = _os.path.join(_os.path.dirname(__file__), "mystery_drops.json")
-
-def _load_drops():
-    if _os.path.exists(_DROPS_PATH):
-        try:
-            with open(_DROPS_PATH) as f: return _json.load(f)
-        except: pass
-    return []
-
-def _save_drops(drops):
-    with open(_DROPS_PATH, "w") as f: _json.dump(drops, f, indent=2)
+# Stored in the `mystery_drops` Postgres table (not a local JSON file). The
+# old local-file version lost all its data every time Render restarted/
+# redeployed (ephemeral disk), and had no protection against two admins
+# editing at the same time clobbering each other's changes. The DB gives us
+# both durability and transactional safety for free.
 
 class MysteryDropPayload(BaseModel):
     product_id: str
@@ -415,13 +406,21 @@ class MysteryDropPayload(BaseModel):
 async def list_mystery_drops(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """List all mystery drops"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    drops = _load_drops()
-    # Enrich with product info
+    result = await db.execute(select(MysteryDrop).order_by(MysteryDrop.created_at.desc()))
+    drops = result.scalars().all()
     enriched = []
     for d in drops:
-        product_result = await db.execute(select(Product).where(Product.product_id == d["product_id"]))
+        product_result = await db.execute(select(Product).where(Product.product_id == d.product_id))
         product = product_result.scalar_one_or_none()
-        enriched.append({**d, "product_name": product.name if product else "Unknown", "product_price": product.price if product else 0})
+        enriched.append({
+            "drop_id": d.drop_id,
+            "product_id": d.product_id,
+            "discount_pct": d.discount_pct,
+            "label": d.label,
+            "is_active": d.is_active,
+            "product_name": product.name if product else "Unknown",
+            "product_price": product.price if product else 0,
+        })
     return enriched
 
 @router.post("/mystery-drops")
@@ -433,45 +432,75 @@ async def create_mystery_drop(data: MysteryDropPayload, user: User = Depends(get
     product_result = await db.execute(select(Product).where(Product.product_id == data.product_id))
     if not product_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Product not found")
-    drops = _load_drops()
-    new_drop = {"drop_id": str(_uuid.uuid4()), "product_id": data.product_id, "discount_pct": data.discount_pct, "label": data.label, "is_active": data.is_active}
-    drops.append(new_drop)
-    _save_drops(drops)
-    return new_drop
+    drop = MysteryDrop(
+        product_id=data.product_id,
+        discount_pct=data.discount_pct,
+        label=data.label,
+        is_active=data.is_active,
+    )
+    db.add(drop)
+    await db.commit()
+    await db.refresh(drop)
+    return {
+        "drop_id": drop.drop_id,
+        "product_id": drop.product_id,
+        "discount_pct": drop.discount_pct,
+        "label": drop.label,
+        "is_active": drop.is_active,
+    }
 
 @router.patch("/mystery-drops/{drop_id}")
 async def update_mystery_drop(drop_id: str, data: MysteryDropPayload, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Update a mystery drop"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    drops = _load_drops()
-    for i, d in enumerate(drops):
-        if d["drop_id"] == drop_id:
-            drops[i] = {**d, "product_id": data.product_id, "discount_pct": data.discount_pct, "label": data.label, "is_active": data.is_active}
-            _save_drops(drops)
-            return drops[i]
-    raise HTTPException(status_code=404, detail="Drop not found")
+    result = await db.execute(select(MysteryDrop).where(MysteryDrop.drop_id == drop_id))
+    drop = result.scalar_one_or_none()
+    if not drop:
+        raise HTTPException(status_code=404, detail="Drop not found")
+    if not (1 <= data.discount_pct <= 90):
+        raise HTTPException(status_code=400, detail="discount_pct must be 1-90")
+    drop.product_id = data.product_id
+    drop.discount_pct = data.discount_pct
+    drop.label = data.label
+    drop.is_active = data.is_active
+    await db.commit()
+    await db.refresh(drop)
+    return {
+        "drop_id": drop.drop_id,
+        "product_id": drop.product_id,
+        "discount_pct": drop.discount_pct,
+        "label": drop.label,
+        "is_active": drop.is_active,
+    }
 
 @router.patch("/mystery-drops/{drop_id}/toggle")
 async def toggle_mystery_drop(drop_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Toggle a mystery drop on/off"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    drops = _load_drops()
-    for i, d in enumerate(drops):
-        if d["drop_id"] == drop_id:
-            drops[i]["is_active"] = not d.get("is_active", True)
-            _save_drops(drops)
-            return drops[i]
-    raise HTTPException(status_code=404, detail="Drop not found")
+    result = await db.execute(select(MysteryDrop).where(MysteryDrop.drop_id == drop_id))
+    drop = result.scalar_one_or_none()
+    if not drop:
+        raise HTTPException(status_code=404, detail="Drop not found")
+    drop.is_active = not drop.is_active
+    await db.commit()
+    return {
+        "drop_id": drop.drop_id,
+        "product_id": drop.product_id,
+        "discount_pct": drop.discount_pct,
+        "label": drop.label,
+        "is_active": drop.is_active,
+    }
 
 @router.delete("/mystery-drops/{drop_id}")
 async def delete_mystery_drop(drop_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Delete a mystery drop"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    drops = _load_drops()
-    new_drops = [d for d in drops if d["drop_id"] != drop_id]
-    if len(new_drops) == len(drops):
+    result = await db.execute(select(MysteryDrop).where(MysteryDrop.drop_id == drop_id))
+    drop = result.scalar_one_or_none()
+    if not drop:
         raise HTTPException(status_code=404, detail="Drop not found")
-    _save_drops(new_drops)
+    await db.delete(drop)
+    await db.commit()
     return {"message": "Deleted"}
 
 # =============================================================================
@@ -486,11 +515,11 @@ async def get_analytics(
 ):
     """Get sales analytics (Admin only)"""
     await require_role(user, UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN)
-    
+
     # Total sales
     result = await db.execute(select(func.sum(Order.total), func.count(Order.order_id)))
     total_sales, total_orders = result.first()
-    
+
     # Sales by staff
     result = await db.execute(
         select(Staff.name, func.sum(Order.total), func.count(Order.order_id))
@@ -498,14 +527,14 @@ async def get_analytics(
         .group_by(Staff.staff_id, Staff.name)
     )
     staff_sales = [{"name": row[0], "sales": row[1], "orders": row[2]} for row in result.all()]
-    
+
     # Pending orders
     result = await db.execute(
         select(func.count(Order.order_id))
         .where(Order.status == "pending")
     )
     pending_orders = result.scalar()
-    
+
     # Active flash sales
     result = await db.execute(
         select(func.count(FlashSale.sale_id))
@@ -516,7 +545,7 @@ async def get_analytics(
         ))
     )
     active_sales = result.scalar()
-    
+
     return {
         "total_sales": total_sales or 0,
         "total_orders": total_orders or 0,
@@ -528,17 +557,31 @@ async def get_analytics(
 @router.get("/all-orders")
 async def get_all_orders(
     status: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    limit: int = 100,
+    offset: int = 0,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all orders (Admin only)"""
+    """Get orders (Admin only). Paginated — defaults to the most recent 100
+    so this doesn't load every order in the database into memory on every
+    page view as order history grows over time."""
     await require_role(user, UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN)
-    
+
+    limit = max(1, min(limit, 500))
+    offset = max(0, offset)
+
     query = select(Order).order_by(Order.created_at.desc())
-    
+
     if status:
         query = query.where(Order.status == status)
-    
+    if start_date:
+        query = query.where(Order.created_at >= start_date)
+    if end_date:
+        query = query.where(Order.created_at <= end_date)
+
+    query = query.limit(limit).offset(offset)
     result = await db.execute(query)
     return result.scalars().all()
 
@@ -549,10 +592,14 @@ async def get_all_orders(
 
 @router.get("/staff-performance")
 async def staff_performance(
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Per-staff performance: orders count, status breakdown, revenue, customers, last activity."""
+    """Per-staff performance: orders count, status breakdown, revenue, customers, last activity.
+    Optional start_date/end_date narrow the order aggregation so the boss isn't
+    forced to scan full order history every time this loads as the store grows."""
     await require_role(user, UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN)
 
     # All staff
@@ -560,15 +607,18 @@ async def staff_performance(
     staff_list = sr.scalars().all()
 
     # Aggregate per-staff order metrics
-    om = await db.execute(
-        select(
-            Order.staff_id,
-            Order.status,
-            func.count(Order.order_id),
-            func.sum(Order.total),
-            func.max(Order.created_at),
-        ).group_by(Order.staff_id, Order.status)
+    om_query = select(
+        Order.staff_id,
+        Order.status,
+        func.count(Order.order_id),
+        func.sum(Order.total),
+        func.max(Order.created_at),
     )
+    if start_date:
+        om_query = om_query.where(Order.created_at >= start_date)
+    if end_date:
+        om_query = om_query.where(Order.created_at <= end_date)
+    om = await db.execute(om_query.group_by(Order.staff_id, Order.status))
 
     # Build a dict: {staff_id: {status: {count, revenue}, last_at}}
     bucket = {}
@@ -616,9 +666,12 @@ async def staff_performance(
     rows.sort(key=lambda r: r["total_revenue"], reverse=True)
 
     # Unassigned-orders summary
-    unassigned = await db.execute(
-        select(func.count(Order.order_id), func.sum(Order.total)).where(Order.staff_id.is_(None))
-    )
+    unassigned_query = select(func.count(Order.order_id), func.sum(Order.total)).where(Order.staff_id.is_(None))
+    if start_date:
+        unassigned_query = unassigned_query.where(Order.created_at >= start_date)
+    if end_date:
+        unassigned_query = unassigned_query.where(Order.created_at <= end_date)
+    unassigned = await db.execute(unassigned_query)
     u_cnt, u_rev = unassigned.first()
 
     return {

@@ -5,14 +5,15 @@ Works for both customers and staff.
 import secrets
 import hashlib
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Cookie
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
 from database import get_db
 from models import User
-from auth_utils import get_current_user, hash_password, verify_password
+from auth_utils import get_current_user, hash_password, verify_password, invalidate_other_sessions
 import resend
 import os
 
@@ -97,7 +98,13 @@ async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(
     user.password_hash = hash_password(data.new_password)
     user.password_reset_token = None
     user.password_reset_expires = None
+    # Account was just reset, almost always because the old password was
+    # compromised or forgotten — wipe every other active session so a stolen
+    # session token doesn't stay valid for up to 7 more days after this.
+    user.failed_login_attempts = 0
+    user.locked_until = None
     await db.commit()
+    await invalidate_other_sessions(db, user.user_id)
 
     return {"message": "Password reset successful — you can now log in"}
 
@@ -112,7 +119,8 @@ class ChangePasswordRequest(BaseModel):
 async def change_password(
     data: ChangePasswordRequest,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    session_token: Optional[str] = Cookie(None),
 ):
     if not user.password_hash:
         raise HTTPException(status_code=400, detail="Account uses Google login — no password to change")
@@ -128,5 +136,9 @@ async def change_password(
 
     user.password_hash = hash_password(data.new_password)
     await db.commit()
+    # Keep the session the user is currently using (so they're not immediately
+    # logged out of the tab they just changed their password from), but kill
+    # every other active session for this account.
+    await invalidate_other_sessions(db, user.user_id, keep_token=session_token)
 
     return {"message": "Password changed successfully"}

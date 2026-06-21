@@ -49,6 +49,11 @@ class User(Base):
     created_at = Column(DateTime, default=utcnow)
     password_reset_token = Column(String(255), nullable=True)
     password_reset_expires = Column(DateTime, nullable=True)
+    # Brute-force login protection — see auth_utils.record_failed_login /
+    # is_locked_out. failed_login_attempts resets to 0 once locked_until is set,
+    # so it's just "how many wrong tries since the last lock or success".
+    failed_login_attempts = Column(Integer, default=0)
+    locked_until = Column(DateTime, nullable=True)
 
     assigned_staff = relationship('Staff', back_populates='customers', foreign_keys=[assigned_staff_id])
     orders = relationship('Order', back_populates='user', cascade='all, delete-orphan')
@@ -285,6 +290,20 @@ class BulkOrderInquiry(Base):
     message = Column(Text, nullable=True)
     status = Column(String(30), default="new")  # new, contacted, quoted, closed
     created_at = Column(DateTime, default=utcnow, index=True)
+
+class MysteryDrop(Base):
+    """Admin-controlled limited-time discounted product, shown on the homepage
+    Drink Reveal section. Lives in Postgres (not a local JSON file) so it
+    survives Render restarts/redeploys and two admins editing at once don't
+    silently clobber each other's changes."""
+    __tablename__ = 'mystery_drops'
+
+    drop_id = Column(String(36), primary_key=True, default=generate_uuid)
+    product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)
+    discount_pct = Column(Integer, default=20)
+    label = Column(String(255), default="Mystery Drop")
+    is_active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=utcnow)
 
 class Brand(Base):
     __tablename__ = 'brands'

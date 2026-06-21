@@ -9,7 +9,7 @@ from typing import Optional
 
 from database import get_db
 from models import Staff, User, Order, Product, Stock, UserRole, Warehouse
-from auth_utils import get_current_user, hash_password
+from auth_utils import get_current_user, hash_password, invalidate_other_sessions
 
 router = APIRouter(prefix="/admin/staff", tags=["Admin · Staff"])
 
@@ -221,7 +221,12 @@ async def reset_staff_password(
 
     new_pw = _gen_password()
     u.password_hash = hash_password(new_pw)
+    u.failed_login_attempts = 0
+    u.locked_until = None
     await db.commit()
+    # Boss reset this because of a lost/compromised password — kill any
+    # session that staff member is already logged in with.
+    await invalidate_other_sessions(db, u.user_id)
     return {"temp_password": new_pw}
 
 

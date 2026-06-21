@@ -13,6 +13,7 @@ from auth_utils import get_current_user
 from sms_utils import send_sms, status_message
 from email_utils import send_low_stock_alert, LOW_STOCK_THRESHOLD
 from routes_push import notify_staff_or_admins
+from datetime import datetime
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -51,6 +52,39 @@ async def _enrich_with_staff(order, db):
             payload["staff_name"] = staff.name
     return payload
 
+async def _apply_promo_code(code_str: Optional[str], subtotal: float, db: AsyncSession):
+    """Re-validate a promo code server-side and return (discount_amount, code_row).
+    Locks the code row so concurrent checkouts can't both squeeze past max_uses.
+    Raises HTTPException on any invalid/expired/exhausted code — checkout should
+    not silently ignore a bad code, since the customer was shown a discount."""
+    code_str = (code_str or "").upper().strip()
+    if not code_str:
+        return 0.0, None
+
+    result = await db.execute(
+        select(DiscountCode)
+        .where(DiscountCode.code == code_str, DiscountCode.active == True)
+        .with_for_update()
+    )
+    code = result.scalar_one_or_none()
+    if not code:
+        raise HTTPException(status_code=400, detail="Invalid promo code lah")
+    if code.expires_at and code.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Promo code dah expired boss")
+    if code.max_uses and code.used_count >= code.max_uses:
+        raise HTTPException(status_code=400, detail="Promo code dah habis quota")
+    if code.min_purchase and subtotal < code.min_purchase:
+        raise HTTPException(status_code=400, detail=f"Minimum spend RM{code.min_purchase:.2f} for this code")
+
+    if code.discount_type == "percentage":
+        discount = subtotal * (code.discount_value / 100)
+    else:
+        discount = code.discount_value
+    discount = max(0.0, min(discount, subtotal))
+
+    code.used_count = (code.used_count or 0) + 1
+    return discount, code
+
 # ─── CUSTOMER CHECKOUT ────────────────────────────────────────────────────────
 
 @router.post("/checkout", response_model=OrderResponse)
@@ -82,7 +116,13 @@ async def checkout(
         })
 
     product_discount = calculate_tier_discount(user, subtotal)
-    total = subtotal - product_discount
+
+    # Promo code — validated server-side here too (not just at /validate-promo),
+    # so the discount the customer was shown is the discount that's actually
+    # applied, and `max_uses` is properly enforced via used_count incrementing.
+    promo_discount, promo_code_row = await _apply_promo_code(data.discount_code, subtotal, db)
+    total_discount = product_discount + promo_discount
+    total = max(0.0, subtotal - total_discount)
 
     order = Order(
         user_id=user.user_id,
@@ -91,7 +131,7 @@ async def checkout(
         customer_name=data.customer_name.strip(),
         customer_whatsapp=data.customer_whatsapp.strip(),
         shipping_address=data.shipping_address.strip(),
-        discount_applied=product_discount,
+        discount_applied=total_discount,
         shipping_discount=0,
         points_earned=int(total / 10),
         status=OrderStatus.PENDING,
@@ -287,7 +327,19 @@ async def log_personal_order(
         if not product:
             raise HTTPException(status_code=404, detail=f"Produk {item.product_id} tak jumpa")
 
-        unit_price = item.price if item.price is not None else product.price
+        # Price override is meant for genuine negotiated discounts, not a blank
+        # cheque — bound it so a typo or a bad-faith entry can't record a sale
+        # at RM0, a negative number, or above the product's own listed price
+        # (which would make "personal order" revenue look inflated vs reality).
+        if item.price is not None:
+            if item.price <= 0 or item.price > product.price:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Price for {product.name} must be between RM0.01 and RM{product.price:.2f} (listed price)."
+                )
+            unit_price = item.price
+        else:
+            unit_price = product.price
         item_total = unit_price * item.quantity
         subtotal += item_total
         order_items_data.append({
@@ -388,7 +440,6 @@ async def validate_promo(
     db: AsyncSession = Depends(get_db)
 ):
     """Validate a discount code and return the discount amount."""
-    from datetime import datetime
     result = await db.execute(
         select(DiscountCode).where(
             DiscountCode.code == data.code.upper().strip(),
@@ -445,6 +496,18 @@ async def get_order(
 
     return await _enrich_with_staff(order, db)
 
+# Allowed forward-moving status transitions. Cancelling is allowed from any
+# non-terminal state. Nothing can move OUT of a terminal state (delivered/
+# cancelled) — if that's genuinely needed, the boss should create a new order.
+_ALLOWED_TRANSITIONS = {
+    OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
+    OrderStatus.CONFIRMED: {OrderStatus.PREPARING, OrderStatus.CANCELLED},
+    OrderStatus.PREPARING: {OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED},
+    OrderStatus.OUT_FOR_DELIVERY: {OrderStatus.DELIVERED, OrderStatus.CANCELLED},
+    OrderStatus.DELIVERED: set(),
+    OrderStatus.CANCELLED: set(),
+}
+
 @router.patch("/{order_id}/status")
 async def update_order_status(
     order_id: str,
@@ -473,6 +536,17 @@ async def update_order_status(
         staff_record = staff_row.scalar_one_or_none()
         if not staff_record or order.staff_id != staff_record.staff_id:
             raise HTTPException(status_code=403, detail="Order ni tak assigned to you boss")
+
+    # No-op update (e.g. a double-click/retry) — don't re-send the SMS.
+    if new_status_enum == order.status:
+        return {"message": "Status unchanged", "status": new_status, "order_id": order_id}
+
+    allowed_next = _ALLOWED_TRANSITIONS.get(order.status, set())
+    if new_status_enum not in allowed_next:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Can't move an order from '{order.status.value}' to '{new_status_enum.value}'.",
+        )
 
     order.status = new_status_enum
     await db.commit()

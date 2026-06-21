@@ -7,13 +7,13 @@ import os
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
-from models import User, Staff, UserRole
+from models import User, UserRole
 from schemas import UserResponse
-from auth_utils import create_session
+from auth_utils import create_session, assign_staff_round_robin
 
 router = APIRouter(prefix="/auth/google", tags=["Auth · Google OAuth"])
 
@@ -78,16 +78,9 @@ async def google_exchange(
     user = r.scalar_one_or_none()
 
     if not user:
-        # Round-robin staff assignment (NULL if no staff exists yet)
-        sr = await db.execute(
-            select(Staff, func.count(User.user_id).label("count"))
-            .outerjoin(User, User.assigned_staff_id == Staff.staff_id)
-            .group_by(Staff.staff_id)
-            .order_by(func.count(User.user_id).asc())
-            .limit(1)
-        )
-        staff_row = sr.first()
-        staff_id = staff_row[0].staff_id if staff_row else None
+        # Round-robin staff assignment, shared with the email/password
+        # registration flow in server.py so the two paths can't drift apart.
+        staff_id = await assign_staff_round_robin(db)
 
         user = User(
             email=email,
