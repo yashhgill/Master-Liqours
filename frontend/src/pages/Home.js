@@ -8,6 +8,7 @@ import {
 import ProductCard from '../components/ProductCard';
 import ReviewSection from '../components/ReviewSection';
 import BrandCarousel from '../components/BrandCarousel';
+import IntroAnimation from '../components/IntroAnimation';
 import { useAuth } from '../context';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -150,28 +151,6 @@ const MysteryDropCard = ({ drop }) => {
   );
 };
 
-// Retry a flaky/slow request a few times with backoff. The Render free-tier
-// backend can take 30-50s+ to wake up from sleep on the first request after
-// being idle, and used to just be left swallowed by axios.catch() with
-// nothing retrying it -- so a page load that landed during a cold start
-// would permanently show the default hero / empty product grid until the
-// user manually reloaded (which often re-triggered the same cold start).
-const fetchWithRetry = async (url, { attempts = 4, baseDelayMs = 2500 } = {}) => {
-  let lastErr = null;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await axios.get(url, { timeout: 15000 });
-    } catch (e) {
-      lastErr = e;
-      if (i < attempts - 1) {
-        await new Promise((r) => setTimeout(r, baseDelayMs * (i + 1)));
-      }
-    }
-  }
-  console.warn(`Gave up fetching ${url} after ${attempts} attempts:`, lastErr?.message);
-  return null;
-};
-
 const Home = () => {
   const { user } = useAuth();
   const [products, setProducts] = useState([]);
@@ -182,6 +161,11 @@ const Home = () => {
   const [slide, setSlide] = useState(0);
   const [heroLoaded, setHeroLoaded] = useState(false);
 
+  // Show intro once per browser session
+  const [showIntro, setShowIntro] = useState(
+    () => !sessionStorage.getItem('ml_intro_seen')
+  );
+
   useEffect(() => { loadData(); }, []);
 
   useEffect(() => {
@@ -191,16 +175,15 @@ const Home = () => {
   }, [slides.length]);
 
   const loadData = async () => {
-    // Each fetch retries on its own with backoff (see fetchWithRetry) — a slow
-    // cold-start backend no longer means a permanently empty/default homepage.
+    const safe = (promise) => promise.catch(e => { console.warn(e.message); return null; });
+
     const [bannersRes, salesRes, productsRes, dropsRes] = await Promise.all([
-      fetchWithRetry(API + '/hero-banners'),
-      fetchWithRetry(API + '/flash-sales/active'),
-      fetchWithRetry(API + '/products'),
-      fetchWithRetry(API + '/drink-reveal/today'),
+      safe(axios.get(API + '/hero-banners')),
+      safe(axios.get(API + '/flash-sales/active')),
+      safe(axios.get(API + '/products')),
+      safe(axios.get(API + '/drink-reveal/today')),
     ]);
 
-    // Banners
     if (bannersRes?.data && bannersRes.data.length > 0) {
       const mapped = bannersRes.data
         .map(b => ({
@@ -216,17 +199,14 @@ const Home = () => {
     }
     setHeroLoaded(true);
 
-    // Flash sales
     if (salesRes?.data) setFlashSales(salesRes.data);
 
-    // Products
     if (productsRes?.data) {
       const allProducts = productsRes.data?.products || productsRes.data || [];
       setProducts(allProducts.slice(0, 12));
       setNewArrivals([...allProducts].reverse().slice(0, 8));
     }
 
-    // Mystery drops
     if (dropsRes?.data?.available) {
       setMysteryDrops(dropsRes.data.drops || []);
     }
@@ -236,6 +216,16 @@ const Home = () => {
 
   return (
     <div>
+      {/* ═══ INTRO ANIMATION ═══ */}
+      {showIntro && (
+        <IntroAnimation
+          onDone={() => {
+            sessionStorage.setItem('ml_intro_seen', '1');
+            setShowIntro(false);
+          }}
+        />
+      )}
+
       {/* ═══ HERO ═══ */}
       <section className="relative min-h-[88vh] flex items-center overflow-hidden bg-black">
         <img key={slide} src={hero.bg} alt=""
@@ -254,7 +244,6 @@ const Home = () => {
                 <FaWhatsapp size={16} /> Chat With Us
               </a>
             </div>
-
           </div>
         </div>
 
