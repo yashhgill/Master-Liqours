@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { FaWhatsapp, FaCheckCircle, FaGlassCheers } from 'react-icons/fa';
+import { FaWhatsapp, FaCheckCircle, FaWineGlass } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -58,7 +58,7 @@ const BulkOrder = () => {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16">
-      <div className="eyebrow mb-3 flex items-center gap-2"><FaGlassCheers /> Bulk &amp; Event Orders</div>
+      <div className="eyebrow mb-3 flex items-center gap-2"><FaWineGlass /> Bulk &amp; Event Orders</div>
       <h1 className="display-xl mb-3">Planning a party, wedding or corporate event?</h1>
       <p className="text-white/60 mb-10">
         Tell us what you need by the carton and we'll send you bulk pricing — usually cheaper per bottle than

@@ -199,6 +199,8 @@ async def get_my_rewards(user: User = Depends(get_current_user), db: AsyncSessio
     result = await db.execute(select(Reward).where(Reward.user_id == user.user_id).order_by(Reward.created_at.desc()))
     return result.scalars().all()
 
+api_router.include_router(auth_router)
+api_router.include_router(reviews_router)
 api_router.include_router(orders_router)
 api_router.include_router(admin_router)
 api_router.include_router(newsletter_router)

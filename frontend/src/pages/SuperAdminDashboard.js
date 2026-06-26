@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context';
 import {
-  FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlassAlt,
+  FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlass,
   FaArrowUp, FaArrowDown, FaPen, FaFileCsv, FaDownload, FaSpinner,
   FaUsers, FaKey, FaCopy, FaWhatsapp, FaChartLine, FaTrophy, FaRandom, FaClock, FaToggleOff,
 } from 'react-icons/fa';
@@ -18,10 +18,10 @@ const TABS = [
   { id: 'banners', label: 'Hero Banners', icon: FaImage },
   { id: 'products', label: 'Products', icon: FaBoxOpen },
   { id: 'flash-sales', label: 'Flash Sales', icon: FaBolt },
-  { id: 'brands', label: 'Brands', icon: FaWineGlassAlt },
+  { id: 'brands', label: 'Brands', icon: FaWineGlass },
   { id: 'staff', label: 'Staff', icon: FaUsers },
   { id: 'staff-perf', label: 'Staff Performance', icon: FaTrophy },
-  { id: 'mystery-drop', label: 'Mystery Drop', icon: FaWineGlassAlt },
+  { id: 'mystery-drop', label: 'Mystery Drop', icon: FaWineGlass },
   { id: 'staff-mode', label: 'My Sales', icon: FaBoxOpen },
 ];
 
