@@ -10,13 +10,11 @@ import logging
 
 # Local imports
 from database import get_db
-from models import User, UserSession, Staff, Product, UserRole, UserTier
+from models import User, UserSession, Staff, Product, UserRole, UserTier, SupplierProduct, OrderItem
 from schemas import RegisterRequest, LoginRequest, UserResponse, ProductResponse
 from auth_utils import (
-    hash_password, verify_password, create_session, get_current_user,
-    assign_staff_round_robin, record_failed_login, record_successful_login, is_locked_out
+    hash_password, verify_password, create_session, get_current_user
 )
-from sqlalchemy.exc import IntegrityError
 
 # Import route modules
 from routes_orders import router as orders_router
@@ -33,6 +31,8 @@ from routes_admin_staff import router as admin_staff_router
 from routes_push import router as push_router
 from routes_bulk_orders import router as bulk_orders_router
 from routes_google_auth import router as google_auth_router
+from routes_suppliers import router as suppliers_router
+from routes_ai_staff import router as ai_staff_router
 
 # Load environment
 ROOT_DIR = Path(__file__).parent
@@ -50,25 +50,19 @@ app = FastAPI(
 )
 api_router = APIRouter(prefix="/api")
 
-# CORS — always allow masterliqours.my regardless of env var.
-# IMPORTANT: never resolve this to a literal "*" origin list. The session
-# cookie is issued with `samesite="none"` (required since frontend/backend
-# are different domains), which means it's sent on cross-site requests by
-# design. Combined with allow_credentials=True, a wildcard origin list lets
-# *any* website ride a logged-in user's session to read their data — so the
-# allow-list is always the real, fixed set of domains, never "*".
-_cors_env = os.environ.get("CORS_ORIGINS", "").strip()
+# CORS
+_cors_env = os.environ.get("CORS_ORIGINS", "*").strip()
 _hardcoded = [
     "https://masterliqours.my",
     "https://www.masterliqours.my",
     "http://localhost:3000",
     "http://localhost:3001",
 ]
-if _cors_env and _cors_env != "*":
+if _cors_env == "*":
+    _origins = ["*"]
+else:
     _env_list = [o.strip() for o in _cors_env.split(",") if o.strip()]
     _origins = list(set(_hardcoded + _env_list))
-else:
-    _origins = _hardcoded
 
 app.add_middleware(
     CORSMiddleware,
@@ -78,222 +72,134 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# =============================================================================
-# AUTHENTICATION ROUTES
-# =============================================================================
-
 @api_router.post("/auth/register", response_model=UserResponse)
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    """Register new user dengan email/password"""
     result = await db.execute(select(User).where(User.email == data.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email sudah digunakan")
-
-    # Assign staff (round-robin or by referral code)
     staff_id = None
     if data.referral_code:
-        result = await db.execute(
-            select(Staff).where(Staff.referral_code == data.referral_code)
-        )
+        result = await db.execute(select(Staff).where(Staff.referral_code == data.referral_code))
         staff = result.scalar_one_or_none()
         if staff:
             staff_id = staff.staff_id
-
     if not staff_id:
-        staff_id = await assign_staff_round_robin(db)
-
+        result = await db.execute(
+            select(Staff, func.count(User.user_id).label('count'))
+            .outerjoin(User, User.assigned_staff_id == Staff.staff_id)
+            .group_by(Staff.staff_id)
+            .order_by(func.count(User.user_id).asc())
+            .limit(1)
+        )
+        staff_row = result.first()
+        if staff_row:
+            staff_id = staff_row[0].staff_id
     user = User(
-        email=data.email,
-        name=data.name,
+        email=data.email, name=data.name,
         password_hash=hash_password(data.password),
-        phone=data.phone,
-        assigned_staff_id=staff_id,
-        role=UserRole.CUSTOMER
+        phone=data.phone, assigned_staff_id=staff_id, role=UserRole.CUSTOMER
     )
     db.add(user)
-    try:
-        await db.commit()
-    except IntegrityError:
-        # Two concurrent registrations with the same email — the unique
-        # constraint on User.email caught it. Give back the same friendly
-        # message instead of a raw 500.
-        await db.rollback()
-        raise HTTPException(status_code=400, detail="Email sudah digunakan")
+    await db.commit()
     await db.refresh(user)
     return user
 
 @api_router.post("/auth/login")
-async def login(
-    data: LoginRequest,
-    response: Response,
-    db: AsyncSession = Depends(get_db)
-):
-    """Login dengan email/password"""
+async def login(data: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
-
-    # Brute-force protection: lock the account for a while after too many
-    # wrong passwords in a row, regardless of which IP they're coming from.
-    if user and is_locked_out(user):
-        raise HTTPException(
-            status_code=429,
-            detail="Too many wrong attempts. Try again in a few minutes.",
-        )
-
     if not user or not user.password_hash or not verify_password(data.password, user.password_hash):
-        if user:
-            await record_failed_login(db, user)
         raise HTTPException(status_code=401, detail="Email atau password salah")
-
-    await record_successful_login(db, user)
     session_token = await create_session(db, user.user_id)
-
-    response.set_cookie(
-        key="session_token",
-        value=session_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        max_age=7 * 24 * 60 * 60,
-        path="/"
-    )
-
-    # session_token returned in body so the frontend can use header-based auth
-    # (Authorization: Bearer) — works cross-domain where third-party cookies are blocked.
+    response.set_cookie(key="session_token", value=session_token, httponly=True, secure=True, samesite="none", max_age=7*24*60*60, path="/")
     return {"message": "Login berjaya!", "session_token": session_token, "user": UserResponse.model_validate(user, from_attributes=True)}
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(user: User = Depends(get_current_user)):
-    """Get current user info"""
     return user
 
 @api_router.post("/auth/logout")
-async def logout(
-    response: Response,
-    session_token: Optional[str] = Cookie(None),
-    db: AsyncSession = Depends(get_db)
-):
-    """Logout user"""
+async def logout(response: Response, session_token: Optional[str] = Cookie(None), db: AsyncSession = Depends(get_db)):
     if session_token:
-        result = await db.execute(
-            select(UserSession).where(UserSession.session_token == session_token)
-        )
+        result = await db.execute(select(UserSession).where(UserSession.session_token == session_token))
         session = result.scalar_one_or_none()
         if session:
             await db.delete(session)
             await db.commit()
-
     response.delete_cookie("session_token", path="/")
     return {"message": "Logout berjaya"}
 
-# =============================================================================
-# PRODUCT ROUTES
-# =============================================================================
-
-@api_router.get("/products", response_model=List[ProductResponse])
-async def get_products(
-    category: Optional[str] = None,
-    search: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
-):
-    """Get all active products"""
+async def _products_with_stock(db, category=None, search=None, sort=None):
     query = select(Product).where(Product.is_active == True)
-
     if category:
         query = query.where(Product.category == category)
     if search:
         query = query.where(Product.name.ilike(f"%{search}%"))
-
     result = await db.execute(query.order_by(Product.created_at.desc()))
-    return result.scalars().all()
+    products = result.scalars().all()
+    stock_r = await db.execute(select(SupplierProduct.product_id, func.sum(SupplierProduct.quantity).label("total")).group_by(SupplierProduct.product_id))
+    stock_map = {row.product_id: int(row.total) for row in stock_r.all()}
+    sales_r = await db.execute(select(OrderItem.product_id, func.sum(OrderItem.quantity).label("sold")).group_by(OrderItem.product_id))
+    sales_map = {row.product_id: int(row.sold) for row in sales_r.all()}
+    out = []
+    for p in products:
+        out.append({"product_id": p.product_id, "name": p.name, "price": p.price, "description": p.description, "category": p.category, "image_url": p.image_url, "is_active": p.is_active, "is_preorder": p.is_preorder, "original_price": p.original_price, "staff_id": p.staff_id, "created_at": p.created_at, "available_stock": stock_map.get(p.product_id, -1), "sales_count": sales_map.get(p.product_id, 0)})
+    if sort == "trending":
+        out.sort(key=lambda x: x["sales_count"], reverse=True)
+    return out
 
-@api_router.get("/products/{product_id}", response_model=ProductResponse)
+@api_router.get("/products")
+async def get_products(category: Optional[str] = None, search: Optional[str] = None, sort: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+    return await _products_with_stock(db, category=category, search=search, sort=sort)
+
+@api_router.get("/products/trending")
+async def get_trending_products(limit: int = 12, db: AsyncSession = Depends(get_db)):
+    products = await _products_with_stock(db, sort="trending")
+    return [p for p in products if p["available_stock"] != 0][:limit]
+
+@api_router.get("/products/{product_id}")
 async def get_product(product_id: str, db: AsyncSession = Depends(get_db)):
-    """Get single product"""
     result = await db.execute(select(Product).where(Product.product_id == product_id))
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Produk tidak dijumpai")
-    return product
+    stock_r = await db.execute(select(func.sum(SupplierProduct.quantity)).where(SupplierProduct.product_id == product_id))
+    total_stock = stock_r.scalar()
+    sales_r = await db.execute(select(func.sum(OrderItem.quantity)).where(OrderItem.product_id == product_id))
+    sales_count = sales_r.scalar() or 0
+    return {"product_id": product.product_id, "name": product.name, "price": product.price, "description": product.description, "category": product.category, "image_url": product.image_url, "is_active": product.is_active, "is_preorder": product.is_preorder, "original_price": product.original_price, "staff_id": product.staff_id, "created_at": product.created_at, "available_stock": int(total_stock) if total_stock is not None else -1, "sales_count": sales_count}
 
 @api_router.get("/categories")
 async def get_categories(db: AsyncSession = Depends(get_db)):
-    """Get all product categories"""
-    result = await db.execute(
-        select(Product.category).distinct().where(Product.is_active == True)
-    )
+    result = await db.execute(select(Product.category).distinct().where(Product.is_active == True))
     return {"categories": [row[0] for row in result.all()]}
-
-# =============================================================================
-# HERO BANNERS & FLASH SALES (Public)
-# =============================================================================
 
 @api_router.get("/hero-banners")
 async def get_active_hero_banners(db: AsyncSession = Depends(get_db)):
-    """Get active hero banners untuk homepage"""
     from models import HeroBanner
-    result = await db.execute(
-        select(HeroBanner)
-        .where(HeroBanner.is_active == True)
-        .order_by(HeroBanner.order_position.asc())
-    )
+    result = await db.execute(select(HeroBanner).where(HeroBanner.is_active == True).order_by(HeroBanner.order_position.asc()))
     return result.scalars().all()
 
 @api_router.get("/flash-sales/active")
 async def get_active_flash_sales(db: AsyncSession = Depends(get_db)):
-    """Get active flash sales sekarang"""
     from sqlalchemy import and_
     from models import FlashSale
     from datetime import datetime
-
     now = datetime.utcnow()
-    result = await db.execute(
-        select(FlashSale, Product)
-        .join(Product, FlashSale.product_id == Product.product_id)
-        .where(and_(
-            FlashSale.is_active == True,
-            FlashSale.start_time <= now,
-            FlashSale.end_time > now,
-            Product.is_active == True
-        ))
-    )
-
+    result = await db.execute(select(FlashSale, Product).join(Product, FlashSale.product_id == Product.product_id).where(and_(FlashSale.is_active == True, FlashSale.start_time <= now, FlashSale.end_time > now, Product.is_active == True)))
     sales = []
     for sale, product in result.all():
         discounted_price = product.price * (1 - sale.discount_percentage / 100)
-        sales.append({
-            "sale_id": sale.sale_id,
-            "product": product,
-            "original_price": product.price,
-            "discounted_price": round(discounted_price, 2),
-            "discount_percentage": sale.discount_percentage,
-            "end_time": sale.end_time
-        })
-
+        sales.append({"sale_id": sale.sale_id, "product": product, "original_price": product.price, "discounted_price": round(discounted_price, 2), "discount_percentage": sale.discount_percentage, "end_time": sale.end_time})
     return sales
 
-# =============================================================================
-# USER ROUTES
-# =============================================================================
-
 @api_router.get("/users/rewards")
-async def get_my_rewards(
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get user's reward points history"""
+async def get_my_rewards(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     from models import Reward
-    result = await db.execute(
-        select(Reward)
-        .where(Reward.user_id == user.user_id)
-        .order_by(Reward.created_at.desc())
-    )
+    result = await db.execute(select(Reward).where(Reward.user_id == user.user_id).order_by(Reward.created_at.desc()))
     return result.scalars().all()
 
-# Include all route modules
 api_router.include_router(orders_router)
-api_router.include_router(auth_router)
-api_router.include_router(reviews_router)
 api_router.include_router(admin_router)
 api_router.include_router(newsletter_router)
 api_router.include_router(ai_router)
@@ -306,16 +212,15 @@ api_router.include_router(admin_staff_router)
 api_router.include_router(push_router)
 api_router.include_router(bulk_orders_router)
 api_router.include_router(google_auth_router)
+api_router.include_router(suppliers_router)
+api_router.include_router(ai_staff_router)
 
-# Health endpoint (used by Fly.io healthcheck)
 @api_router.get("/health")
 async def api_health_check():
     return {"status": "healthy", "service": "masterliqours-api"}
 
-# Include main router
 app.include_router(api_router)
 
-# Serve uploaded files
 from fastapi.staticfiles import StaticFiles
 import os as _os
 _UPLOAD_DIR = _os.environ.get("UPLOAD_DIR", "/tmp/uploads")
@@ -324,22 +229,15 @@ app.mount("/api/uploads", StaticFiles(directory=_UPLOAD_DIR), name="uploads")
 
 @app.get("/")
 async def root():
-    return {
-        "message": "Masterliqours API - Selamat datang!",
-        "version": "1.0.0",
-        "domain": "masterliqours.my"
-    }
+    return {"message": "Masterliqours API", "version": "1.0.0"}
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "masterliqours-api"}
 
-# Startup event
 @app.on_event("startup")
 async def startup():
-    logger.info("🚀 Masterliqours API started!")
-    logger.info("📦 Domain: masterliqours.my")
-    # Ensure new tables exist + seed default brands
+    logger.info("Masterliqours API started!")
     try:
         from database import engine, AsyncSessionLocal
         from models import Base
@@ -348,10 +246,10 @@ async def startup():
         async with AsyncSessionLocal() as db:
             n = await seed_default_brands(db)
             if n:
-                logger.info(f"🍷 Seeded {n} default brands")
+                logger.info(f"Seeded {n} default brands")
     except Exception as e:
         logger.exception("Startup table/seed failed: %s", e)
-    logger.info("✅ All routes loaded")
+    logger.info("All routes loaded - suppliers + AI RBAC active")
 
 if __name__ == "__main__":
     import uvicorn
