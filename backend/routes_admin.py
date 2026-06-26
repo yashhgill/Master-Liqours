@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from database import get_db
 from models import (
     User, Product, Order, Staff, FlashSale, DiscountCode,
-    UserRole, HeroBanner, MysteryDrop
+    UserRole, HeroBanner
 )
 from schemas import ProductCreate, ProductResponse
 from auth_utils import get_current_user, require_role
