@@ -65,7 +65,10 @@ const SupplierTab = ({ API }) => {
       setForm({ name: '', contact: '', notes: '' });
       setShowForm(false); setEditId(null);
       loadSuppliers();
-    } catch (e) { alert(e.response?.data?.detail || 'Save failed'); }
+    } catch (e) {
+      const msg = e.response?.data?.detail || e.message || 'Save failed';
+      alert(msg);
+    }
     finally { setSaving(false); }
   };
 

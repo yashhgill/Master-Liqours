@@ -63,14 +63,14 @@ async def _supplier_detail(supplier: Supplier, db: AsyncSession) -> dict:
             "selling_price": sp.selling_price,
             "quantity": sp.quantity,
             "margin_pct": round(margin, 1),
-            "created_at": sp.created_at,
+            "created_at": sp.created_at.isoformat() if sp.created_at else None,
         })
     return {
         "supplier_id": supplier.supplier_id,
         "name": supplier.name,
         "contact": supplier.contact,
         "notes": supplier.notes,
-        "created_at": supplier.created_at,
+        "created_at": supplier.created_at.isoformat() if supplier.created_at else None,
         "products": products,
         "total_stock": sum(p["quantity"] for p in products),
         "total_products": len(products),
@@ -106,7 +106,15 @@ async def create_supplier(
     db.add(s)
     await db.commit()
     await db.refresh(s)
-    return await _supplier_detail(s, db)
+    return {
+        "supplier_id": s.supplier_id,
+        "name": s.name,
+        "contact": s.contact,
+        "notes": s.notes,
+        "products": [],
+        "total_stock": 0,
+        "total_products": 0,
+    }
 
 
 @router.put("/{supplier_id}")
