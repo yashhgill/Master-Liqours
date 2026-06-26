@@ -324,7 +324,7 @@ class SupplierProduct(Base):
     """A product line carried by a supplier â qty, cost price, selling price."""
     __tablename__ = 'supplier_products'
 
-    sp_id = Column(String(36), primary_key=True, default=generate_uuid)
+    id = Column(String(36), primary_key=True, default=generate_uuid)
     supplier_id = Column(String(36), ForeignKey('suppliers.supplier_id', ondelete='CASCADE'), nullable=False, index=True)
     product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)
     cost_price = Column(Float, nullable=False, default=0.0)

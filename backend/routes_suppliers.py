@@ -54,7 +54,7 @@ async def _supplier_detail(supplier: Supplier, db: AsyncSession) -> dict:
     for sp, product in sp_result.all():
         margin = ((sp.selling_price - sp.cost_price) / sp.cost_price * 100) if sp.cost_price > 0 else 0
         products.append({
-            "sp_id": sp.sp_id,
+            "sp_id": sp.id,
             "product_id": product.product_id,
             "product_name": product.name,
             "category": product.category,
@@ -99,7 +99,7 @@ async def list_suppliers(
             for sp, product in sp_result.all():
                 margin = ((sp.selling_price - sp.cost_price) / sp.cost_price * 100) if sp.cost_price > 0 else 0
                 products.append({
-                    "sp_id": sp.sp_id,
+                    "sp_id": sp.id,
                     "product_id": product.product_id,
                     "product_name": product.name,
                     "cost_price": sp.cost_price,
@@ -208,7 +208,7 @@ async def add_supplier_product(
         raise HTTPException(status_code=400, detail="Quantity cannot be negative")
 
     sp = SupplierProduct(
-        sp_id=str(uuid.uuid4()),
+        id=str(uuid.uuid4()),
         supplier_id=supplier_id,
         product_id=payload.product_id,
         cost_price=payload.cost_price,
@@ -220,7 +220,7 @@ async def add_supplier_product(
     await db.refresh(sp)
     margin = ((sp.selling_price - sp.cost_price) / sp.cost_price * 100) if sp.cost_price > 0 else 0
     return {
-        "sp_id": sp.sp_id,
+        "sp_id": sp.id,
         "product_id": product.product_id,
         "product_name": product.name,
         "category": product.category,
@@ -243,7 +243,7 @@ async def update_supplier_product(
     _require_master(user)
     result = await db.execute(
         select(SupplierProduct).where(
-            SupplierProduct.sp_id == sp_id,
+            SupplierProduct.id == sp_id,
             SupplierProduct.supplier_id == supplier_id,
         )
     )
@@ -272,7 +272,7 @@ async def delete_supplier_product(
     _require_master(user)
     result = await db.execute(
         select(SupplierProduct).where(
-            SupplierProduct.sp_id == sp_id,
+            SupplierProduct.id == sp_id,
             SupplierProduct.supplier_id == supplier_id,
         )
     )
