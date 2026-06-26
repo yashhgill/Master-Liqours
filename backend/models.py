@@ -293,6 +293,18 @@ class Brand(Base):
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
+
+class MysteryDrop(Base):
+    """Admin-controlled mystery drops stored in DB (survives Render restarts)."""
+    __tablename__ = 'mystery_drops'
+
+    drop_id = Column(String(36), primary_key=True, default=generate_uuid)
+    product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)
+    discount_pct = Column(Float, default=10, nullable=False)
+    label = Column(String(255), default='Mystery Drop', nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+
 # ââ Supplier Management (boss-only, staff never see this) âââââââââââââââââââââ
 
 class Supplier(Base):
