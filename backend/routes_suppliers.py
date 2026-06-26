@@ -13,8 +13,8 @@ router = APIRouter(prefix="/admin/suppliers", tags=["Suppliers"])
 
 
 def _require_master(user: User):
-    if user.role != UserRole.MASTER_ADMIN:
-        raise HTTPException(status_code=403, detail="Master admin only boss")
+    if user.role not in (UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN):
+        raise HTTPException(status_code=403, detail="Admin only boss")
 
 
 # ââ Pydantic Schemas âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ

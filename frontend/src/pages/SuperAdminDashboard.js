@@ -58,7 +58,7 @@ const SupplierTab = ({ API }) => {
     setSaving(true);
     try {
       if (editId) {
-        await axios.patch(`${API}/admin/suppliers/${editId}`, form, { withCredentials: true });
+        await axios.put(`${API}/admin/suppliers/${editId}`, form, { withCredentials: true });
       } else {
         await axios.post(`${API}/admin/suppliers`, form, { withCredentials: true });
       }
