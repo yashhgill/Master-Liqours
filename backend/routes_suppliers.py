@@ -85,9 +85,24 @@ async def list_suppliers(
     db: AsyncSession = Depends(get_db),
 ):
     _require_master(user)
-    result = await db.execute(select(Supplier).order_by(Supplier.created_at.desc()))
-    suppliers = result.scalars().all()
-    return [await _supplier_detail(s, db) for s in suppliers]
+    try:
+        result = await db.execute(select(Supplier).order_by(Supplier.created_at.desc()))
+        suppliers = result.scalars().all()
+        return [
+            {
+                "supplier_id": s.supplier_id,
+                "name": s.name,
+                "contact": s.contact,
+                "notes": s.notes,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "products": [],
+                "total_stock": 0,
+                "total_products": 0,
+            }
+            for s in suppliers
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"List suppliers failed: {str(e)}")
 
 
 @router.post("")

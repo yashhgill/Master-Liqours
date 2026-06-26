@@ -50,7 +50,10 @@ const SupplierTab = ({ API }) => {
     try {
       const r = await axios.get(`${API}/admin/suppliers`, { withCredentials: true });
       setSuppliers(r.data || []);
-    } catch {} finally { setLoading(false); }
+    } catch (e) {
+      console.error('Load suppliers failed:', e.response?.status, e.response?.data);
+      alert('Could not load suppliers: ' + (e.response?.data?.detail || e.message));
+    } finally { setLoading(false); }
   };
 
   const save = async () => {
