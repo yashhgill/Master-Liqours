@@ -88,19 +88,36 @@ async def list_suppliers(
     try:
         result = await db.execute(select(Supplier).order_by(Supplier.created_at.desc()))
         suppliers = result.scalars().all()
-        return [
-            {
+        out = []
+        for s in suppliers:
+            sp_result = await db.execute(
+                select(SupplierProduct, Product)
+                .join(Product, SupplierProduct.product_id == Product.product_id)
+                .where(SupplierProduct.supplier_id == s.supplier_id)
+            )
+            products = []
+            for sp, product in sp_result.all():
+                margin = ((sp.selling_price - sp.cost_price) / sp.cost_price * 100) if sp.cost_price > 0 else 0
+                products.append({
+                    "sp_id": sp.sp_id,
+                    "product_id": product.product_id,
+                    "product_name": product.name,
+                    "cost_price": sp.cost_price,
+                    "selling_price": sp.selling_price,
+                    "quantity": sp.quantity,
+                    "margin_pct": round(margin, 1),
+                })
+            out.append({
                 "supplier_id": s.supplier_id,
                 "name": s.name,
                 "contact": s.contact,
                 "notes": s.notes,
                 "created_at": s.created_at.isoformat() if s.created_at else None,
-                "products": [],
-                "total_stock": 0,
-                "total_products": 0,
-            }
-            for s in suppliers
-        ]
+                "products": products,
+                "total_stock": sum(p["quantity"] for p in products),
+                "total_products": len(products),
+            })
+        return out
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"List suppliers failed: {str(e)}")
 

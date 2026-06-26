@@ -37,22 +37,32 @@ const blankStaff = { name: '', email: '', whatsapp_number: '', referral_code: ''
 // ── Supplier Tab ─────────────────────────────────────────────────────────────
 const SupplierTab = ({ API }) => {
   const [suppliers, setSuppliers] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ name: '', contact: '', notes: '' });
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [expanded, setExpanded] = useState(null); // which supplier is open
+  const [spForm, setSpForm] = useState({ product_id: '', cost_price: '', selling_price: '', quantity: '' });
+  const [addingProduct, setAddingProduct] = useState(null); // supplier_id
+  const [savingSp, setSavingSp] = useState(false);
+  const [spSearch, setSpSearch] = useState('');
+  const [spDropdown, setSpDropdown] = useState(false);
 
-  useEffect(() => { loadSuppliers(); }, []);
+  useEffect(() => { loadAll(); }, []);
 
-  const loadSuppliers = async () => {
+  const loadAll = async () => {
     setLoading(true);
     try {
-      const r = await axios.get(`${API}/admin/suppliers`, { withCredentials: true });
-      setSuppliers(r.data || []);
+      const [sr, pr] = await Promise.all([
+        axios.get(`${API}/admin/suppliers`, { withCredentials: true }),
+        axios.get(`${API}/products`, { withCredentials: true }),
+      ]);
+      setSuppliers(sr.data || []);
+      setAllProducts(pr.data?.products || pr.data || []);
     } catch (e) {
-      console.error('Load suppliers failed:', e.response?.status, e.response?.data);
-      alert('Could not load suppliers: ' + (e.response?.data?.detail || e.message));
+      alert('Load failed: ' + (e.response?.data?.detail || e.message));
     } finally { setLoading(false); }
   };
 
@@ -67,12 +77,10 @@ const SupplierTab = ({ API }) => {
       }
       setForm({ name: '', contact: '', notes: '' });
       setShowForm(false); setEditId(null);
-      loadSuppliers();
+      loadAll();
     } catch (e) {
-      const msg = e.response?.data?.detail || e.message || 'Save failed';
-      alert(msg);
-    }
-    finally { setSaving(false); }
+      alert(e.response?.data?.detail || e.message || 'Save failed');
+    } finally { setSaving(false); }
   };
 
   const del = async (id) => {
@@ -80,16 +88,59 @@ const SupplierTab = ({ API }) => {
     try {
       await axios.delete(`${API}/admin/suppliers/${id}`, { withCredentials: true });
       setSuppliers(s => s.filter(x => x.supplier_id !== id));
+      if (expanded === id) setExpanded(null);
     } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
   };
 
+  const addProduct = async (supplierId) => {
+    if (!spForm.product_id) { alert('Select a product lah'); return; }
+    setSavingSp(true);
+    try {
+      await axios.post(`${API}/admin/suppliers/${supplierId}/products`, {
+        product_id: spForm.product_id,
+        cost_price: parseFloat(spForm.cost_price) || 0,
+        selling_price: parseFloat(spForm.selling_price) || 0,
+        quantity: parseInt(spForm.quantity) || 0,
+      }, { withCredentials: true });
+      setAddingProduct(null);
+      setSpForm({ product_id: '', cost_price: '', selling_price: '', quantity: '' });
+      setSpSearch('');
+      loadAll();
+    } catch (e) { alert(e.response?.data?.detail || 'Failed to add product'); }
+    finally { setSavingSp(false); }
+  };
+
+  const delProduct = async (supplierId, spId) => {
+    if (!window.confirm('Remove this product from supplier?')) return;
+    try {
+      await axios.delete(`${API}/admin/suppliers/${supplierId}/products/${spId}`, { withCredentials: true });
+      loadAll();
+    } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
+  };
+
+  const filteredProducts = spSearch.trim()
+    ? allProducts.filter(p => p.name.toLowerCase().includes(spSearch.toLowerCase()))
+    : allProducts;
+
+  const pickProduct = (p) => {
+    const cost = p.original_price ? p.price / 1.35 : p.price;
+    setSpForm(f => ({
+      ...f,
+      product_id: p.product_id,
+      cost_price: cost.toFixed(2),
+      selling_price: p.price.toFixed(2),
+    }));
+    setSpSearch(p.name);
+    setSpDropdown(false);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="surface p-6">
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div>
             <h2 className="display-md">Suppliers</h2>
-            <p className="text-white/40 text-xs mt-1">Boss-only. Staff cannot see this.</p>
+            <p className="text-white/40 text-xs mt-1">Boss-only. Staff cannot see cost prices.</p>
           </div>
           <button onClick={() => { setShowForm(true); setEditId(null); setForm({ name: '', contact: '', notes: '' }); }}
             className="btn-pink flex items-center gap-2"><FaPlus size={12} /> Add Supplier</button>
@@ -115,18 +166,122 @@ const SupplierTab = ({ API }) => {
         ) : (
           <div className="space-y-3">
             {suppliers.map(s => (
-              <div key={s.supplier_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <div className="font-bold">{s.name}</div>
-                  {s.contact && <div className="text-xs text-white/50 mt-0.5">{s.contact}</div>}
-                  {s.notes && <div className="text-xs text-white/30 mt-0.5">{s.notes}</div>}
+              <div key={s.supplier_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden">
+                {/* Supplier header */}
+                <div className="p-4 flex items-center justify-between gap-4 flex-wrap">
+                  <button onClick={() => setExpanded(expanded === s.supplier_id ? null : s.supplier_id)}
+                    className="flex-1 text-left">
+                    <div className="font-bold flex items-center gap-2">
+                      {s.name}
+                      <span className="text-[10px] text-white/30 font-normal">
+                        {expanded === s.supplier_id ? '▲ collapse' : '▼ expand'}
+                      </span>
+                    </div>
+                    {s.contact && <div className="text-xs text-white/50 mt-0.5">{s.contact}</div>}
+                    {s.notes && <div className="text-xs text-white/30 mt-0.5">{s.notes}</div>}
+                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setEditId(s.supplier_id); setForm({ name: s.name, contact: s.contact || '', notes: s.notes || '' }); setShowForm(true); }}
+                      className="px-3 py-1.5 rounded-full text-xs border border-white/15 text-white/60 hover:border-[#00f0ff] hover:text-[#00f0ff] transition-all">Edit</button>
+                    <button onClick={() => del(s.supplier_id)}
+                      className="px-3 py-1.5 rounded-full text-xs border border-white/15 text-white/60 hover:border-[#ff007f] hover:text-[#ff007f] transition-all">Delete</button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => { setEditId(s.supplier_id); setForm({ name: s.name, contact: s.contact || '', notes: s.notes || '' }); setShowForm(true); }}
-                    className="px-3 py-1.5 rounded-full text-xs border border-white/15 text-white/60 hover:border-[#00f0ff] hover:text-[#00f0ff] transition-all">Edit</button>
-                  <button onClick={() => del(s.supplier_id)}
-                    className="px-3 py-1.5 rounded-full text-xs border border-white/15 text-white/60 hover:border-[#ff007f] hover:text-[#ff007f] transition-all">Delete</button>
-                </div>
+
+                {/* Expanded: product list */}
+                {expanded === s.supplier_id && (
+                  <div className="border-t border-white/5 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs uppercase tracking-[0.2em] text-white/40">Products from this supplier</div>
+                      <button onClick={() => { setAddingProduct(s.supplier_id); setSpForm({ product_id: '', cost_price: '', selling_price: '', quantity: '' }); setSpSearch(''); }}
+                        className="px-3 py-1.5 rounded-full text-xs bg-[#ff007f] text-white font-bold flex items-center gap-1.5 hover:brightness-110 transition-all">
+                        <FaPlus size={10} /> Add Product
+                      </button>
+                    </div>
+
+                    {/* Add product form */}
+                    {addingProduct === s.supplier_id && (
+                      <div className="bg-[#111] border border-white/10 rounded-xl p-4 space-y-3">
+                        <div className="text-xs text-white/50 font-bold uppercase tracking-wider">Add Product to Supplier</div>
+
+                        {/* Searchable product picker */}
+                        <div className="relative">
+                          <input type="text" className="input-dark text-sm" placeholder="Search product..."
+                            value={spSearch}
+                            onChange={e => { setSpSearch(e.target.value); setSpDropdown(true); if (spForm.product_id) setSpForm(f => ({...f, product_id: ''})); }}
+                            onFocus={() => setSpDropdown(true)}
+                            onBlur={() => setTimeout(() => setSpDropdown(false), 150)} />
+                          {spDropdown && (
+                            <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto bg-[#161616] border border-white/15 rounded-xl shadow-xl">
+                              {filteredProducts.slice(0, 20).map(p => (
+                                <button key={p.product_id} type="button" onMouseDown={() => pickProduct(p)}
+                                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#ff007f]/15 flex justify-between items-center">
+                                  <span>{p.name}</span>
+                                  <span className="text-white/40 text-xs">RM{p.price}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1">Cost Price (RM)</label>
+                            <input type="number" step="0.01" className="input-dark text-sm" placeholder="0.00"
+                              value={spForm.cost_price} onChange={e => setSpForm(f => ({...f, cost_price: e.target.value}))} />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1">Selling Price (RM)</label>
+                            <input type="number" step="0.01" className="input-dark text-sm" placeholder="0.00"
+                              value={spForm.selling_price} onChange={e => setSpForm(f => ({...f, selling_price: e.target.value}))} />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1">Qty in Stock</label>
+                            <input type="number" className="input-dark text-sm" placeholder="0"
+                              value={spForm.quantity} onChange={e => setSpForm(f => ({...f, quantity: e.target.value}))} />
+                          </div>
+                        </div>
+
+                        {spForm.cost_price && spForm.selling_price && (
+                          <div className="text-xs text-[#39ff14]">
+                            Margin: {(((parseFloat(spForm.selling_price) - parseFloat(spForm.cost_price)) / parseFloat(spForm.cost_price)) * 100).toFixed(1)}%
+                            &nbsp;— Profit per unit: RM{(parseFloat(spForm.selling_price) - parseFloat(spForm.cost_price)).toFixed(2)}
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <button onClick={() => addProduct(s.supplier_id)} disabled={savingSp || !spForm.product_id}
+                            className="btn-pink text-sm disabled:opacity-50">{savingSp ? 'Adding...' : 'Add'}</button>
+                          <button onClick={() => setAddingProduct(null)} className="btn-ghost text-sm">Cancel</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Product list */}
+                    {(!s.products || s.products.length === 0) ? (
+                      <div className="text-white/30 text-sm text-center py-4">No products linked yet.</div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-[1fr_80px_80px_60px_40px] gap-2 text-[10px] text-white/30 uppercase tracking-wider px-2">
+                          <span>Product</span><span className="text-right">Cost</span><span className="text-right">Sell</span><span className="text-right">Qty</span><span></span>
+                        </div>
+                        {s.products.map(sp => (
+                          <div key={sp.sp_id} className="grid grid-cols-[1fr_80px_80px_60px_40px] gap-2 items-center bg-[#0a0a0a] rounded-xl px-3 py-2">
+                            <div>
+                              <div className="text-sm font-medium">{sp.product_name}</div>
+                              <div className="text-[10px] text-[#39ff14]">Margin: {sp.margin_pct}%</div>
+                            </div>
+                            <div className="text-right text-sm text-white/60">RM{sp.cost_price}</div>
+                            <div className="text-right text-sm text-[#ff007f] font-bold">RM{sp.selling_price}</div>
+                            <div className="text-right text-sm font-display">{sp.quantity}</div>
+                            <button onClick={() => delProduct(s.supplier_id, sp.sp_id)}
+                              className="text-white/20 hover:text-[#ff007f] transition-colors"><FaTrash size={11} /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

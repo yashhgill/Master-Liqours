@@ -50,26 +50,28 @@ app = FastAPI(
 )
 api_router = APIRouter(prefix="/api")
 
-# CORS
-_cors_env = os.environ.get("CORS_ORIGINS", "*").strip()
-_hardcoded = [
+# CORS — always allow masterliqours.my + localhost regardless of env var
+_cors_env = os.environ.get("CORS_ORIGINS", "").strip()
+_origins = [
     "https://masterliqours.my",
     "https://www.masterliqours.my",
     "http://localhost:3000",
     "http://localhost:3001",
 ]
-if _cors_env == "*":
-    _origins = ["*"]
-else:
-    _env_list = [o.strip() for o in _cors_env.split(",") if o.strip()]
-    _origins = list(set(_hardcoded + _env_list))
+if _cors_env:
+    for o in _cors_env.split(","):
+        o = o.strip()
+        if o and o not in _origins:
+            _origins.append(o)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
 )
 
 @api_router.post("/auth/register", response_model=UserResponse)
