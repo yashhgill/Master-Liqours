@@ -4,7 +4,7 @@ import { useAuth } from '../context';
 import {
   FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlass,
   FaArrowUp, FaArrowDown, FaPen, FaFileCsv, FaDownload, FaSpinner,
-  FaUsers, FaKey, FaCopy, FaWhatsapp, FaChartLine, FaTrophy, FaRandom, FaClock, FaToggleOff,
+  FaUsers, FaKey, FaCopy, FaWhatsapp, FaChartLine, FaTrophy, FaRandom, FaClock, FaToggleOff, FaTruck,
 } from 'react-icons/fa';
 import ImageUploader from '../components/ImageUploader';
 import { resolveImageUrl } from '../lib/imageUrl';
@@ -22,6 +22,7 @@ const TABS = [
   { id: 'staff', label: 'Staff', icon: FaUsers },
   { id: 'staff-perf', label: 'Staff Performance', icon: FaTrophy },
   { id: 'mystery-drop', label: 'Mystery Drop', icon: FaWineGlass },
+  { id: 'suppliers', label: 'Suppliers', icon: FaTruck },
   { id: 'staff-mode', label: 'My Sales', icon: FaBoxOpen },
 ];
 
@@ -32,6 +33,102 @@ const blankBanner = { title: '', subtitle: '', cta_text: '', cta_link: '', backg
 const blankBrand = { name: '', short_name: '', subtitle: '', logo_url: '', color_hex: '#1a1a1a', search_term: '', is_active: true, order_position: 0 };
 const blankFlash = { product_id: '', discount_percentage: 10, start_time: '', end_time: '' };
 const blankStaff = { name: '', email: '', whatsapp_number: '', referral_code: '', warehouse_name: '' };
+
+// ── Supplier Tab ─────────────────────────────────────────────────────────────
+const SupplierTab = ({ API }) => {
+  const [suppliers, setSuppliers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ name: '', contact: '', notes: '' });
+  const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState(null);
+
+  useEffect(() => { loadSuppliers(); }, []);
+
+  const loadSuppliers = async () => {
+    setLoading(true);
+    try {
+      const r = await axios.get(`${API}/admin/suppliers`, { withCredentials: true });
+      setSuppliers(r.data || []);
+    } catch {} finally { setLoading(false); }
+  };
+
+  const save = async () => {
+    if (!form.name.trim()) { alert('Supplier name required'); return; }
+    setSaving(true);
+    try {
+      if (editId) {
+        await axios.patch(`${API}/admin/suppliers/${editId}`, form, { withCredentials: true });
+      } else {
+        await axios.post(`${API}/admin/suppliers`, form, { withCredentials: true });
+      }
+      setForm({ name: '', contact: '', notes: '' });
+      setShowForm(false); setEditId(null);
+      loadSuppliers();
+    } catch (e) { alert(e.response?.data?.detail || 'Save failed'); }
+    finally { setSaving(false); }
+  };
+
+  const del = async (id) => {
+    if (!window.confirm('Delete this supplier?')) return;
+    try {
+      await axios.delete(`${API}/admin/suppliers/${id}`, { withCredentials: true });
+      setSuppliers(s => s.filter(x => x.supplier_id !== id));
+    } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="surface p-6">
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+          <div>
+            <h2 className="display-md">Suppliers</h2>
+            <p className="text-white/40 text-xs mt-1">Boss-only. Staff cannot see this.</p>
+          </div>
+          <button onClick={() => { setShowForm(true); setEditId(null); setForm({ name: '', contact: '', notes: '' }); }}
+            className="btn-pink flex items-center gap-2"><FaPlus size={12} /> Add Supplier</button>
+        </div>
+
+        {showForm && (
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 mb-5 space-y-3">
+            <h3 className="font-display text-lg">{editId ? 'Edit Supplier' : 'New Supplier'}</h3>
+            <input className="input-dark" placeholder="Supplier name *" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} />
+            <input className="input-dark" placeholder="Contact (phone / email)" value={form.contact} onChange={e => setForm(f => ({...f, contact: e.target.value}))} />
+            <textarea className="input-dark resize-none" rows={2} placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} />
+            <div className="flex gap-3">
+              <button onClick={save} disabled={saving} className="btn-pink disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+              <button onClick={() => { setShowForm(false); setEditId(null); }} className="btn-ghost text-sm">Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-white/40 text-sm">Loading...</div>
+        ) : suppliers.length === 0 ? (
+          <div className="text-center py-10 text-white/30">No suppliers yet. Add your first one.</div>
+        ) : (
+          <div className="space-y-3">
+            {suppliers.map(s => (
+              <div key={s.supplier_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <div className="font-bold">{s.name}</div>
+                  {s.contact && <div className="text-xs text-white/50 mt-0.5">{s.contact}</div>}
+                  {s.notes && <div className="text-xs text-white/30 mt-0.5">{s.notes}</div>}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => { setEditId(s.supplier_id); setForm({ name: s.name, contact: s.contact || '', notes: s.notes || '' }); setShowForm(true); }}
+                    className="px-3 py-1.5 rounded-full text-xs border border-white/15 text-white/60 hover:border-[#00f0ff] hover:text-[#00f0ff] transition-all">Edit</button>
+                  <button onClick={() => del(s.supplier_id)}
+                    className="px-3 py-1.5 rounded-full text-xs border border-white/15 text-white/60 hover:border-[#ff007f] hover:text-[#ff007f] transition-all">Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
@@ -788,6 +885,11 @@ const SuperAdminDashboard = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* === SUPPLIERS (Master Admin only) === */}
+      {tab === 'suppliers' && (
+        <SupplierTab API={API} />
       )}
 
       {/* === STAFF MODE (redirect) === */}

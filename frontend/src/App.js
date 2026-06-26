@@ -4,7 +4,6 @@ import { AuthProvider, CartProvider, useAuth } from './context';
 import AnnouncementBar from './components/AnnouncementBar';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import FloatingWhatsApp from './components/FloatingWhatsApp';
 import ChatWidget from './components/ChatWidget';
 import SignInPrompt from './components/SignInPrompt';
 import Home from './pages/Home';
@@ -68,7 +67,6 @@ function AppContent() {
         </Routes>
       </main>
       <Footer />
-      <FloatingWhatsApp />
       <ChatWidget />
       <SignInPrompt />
     </div>

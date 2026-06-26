@@ -29,7 +29,7 @@ const ChatWidget = () => {
     } finally { setLoading(false); }
   };
 
-  if (!user) return null;
+  if (loading) return null;
 
   return (
     <>

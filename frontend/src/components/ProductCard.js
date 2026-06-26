@@ -38,7 +38,15 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
   const originalPrice = flashSale ? product.price : product.original_price;
   const discountPct = flashSale ? flashSale.discount_percentage : derivedDiscountPct;
   const hasDiscount = discountPct > 0;
-  const isOutOfStock = typeof totalStock === 'number' && totalStock === 0;
+
+  // Stock: use explicit totalStock prop, or read available_stock from API response
+  // available_stock === -1 means "not tracked via suppliers" → treat as in stock
+  const stockLevel = typeof totalStock === 'number'
+    ? totalStock
+    : typeof product.available_stock === 'number'
+      ? product.available_stock
+      : -1;
+  const isOutOfStock = stockLevel === 0;
   const isPreorder = product.is_preorder;
 
   const handleAdd = (e) => {
@@ -68,7 +76,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
   return (
     <Link
       to={`/product/${product.product_id}`}
-      className={`product-card-white group block relative ${cardState !== 'available' ? 'opacity-90' : ''}`}
+      className={`product-card-white group block relative ${cardState === 'oos' ? 'opacity-60 pointer-events-none' : cardState !== 'available' ? 'opacity-90' : ''}`}
       data-testid={`product-card-${product.product_id}`}
     >
       {/* Flash sale badge */}
@@ -90,8 +98,8 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
       )}
       {cardState === 'oos' && (
         <div className="absolute top-4 left-4 z-10">
-          <div className="bg-black/80 text-white/70 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest border border-white/20">
-            Out of Stock
+          <div className="bg-black/90 text-white/80 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest border border-white/30">
+            Unavailable
           </div>
         </div>
       )}
@@ -169,9 +177,10 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
           )}
           {cardState === 'oos' && (
             <button onClick={handleOutOfStock}
-              className="flex items-center gap-1.5 bg-[#25d366] text-white px-3 py-2 rounded-full text-xs font-bold hover:brightness-110 transition-all whitespace-nowrap"
+              style={{ pointerEvents: 'all' }}
+              className="flex items-center gap-1.5 bg-[#333] text-white/70 px-3 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer hover:bg-[#ff007f] hover:text-white"
               data-testid={`product-card-oos-btn-${product.product_id}`}>
-              <FaWhatsapp size={13} /> Pre-order
+              <FaWhatsapp size={13} /> Contact Boss
             </button>
           )}
           {cardState === 'available' && (
