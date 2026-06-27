@@ -412,12 +412,19 @@ const StaffDashboard = () => {
   const oosItems = stock.filter(s => s.quantity === 0).length;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12">
-      <div className="eyebrow mb-3">{isAdmin ? 'Admin Console' : 'Staff Console'}</div>
-      <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
+    <div style={{minHeight:'100vh',background:'#030303'}}>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-10">
+
+      {/* Header */}
+      <div style={{display:'flex',flexWrap:'wrap',justifyContent:'space-between',alignItems:'flex-start',gap:16,marginBottom:32}}>
         <div>
-          <h1 className="display-xl mb-1">Hi <span className="neon-cyan-text">{user?.name}</span></h1>
-          <p className="text-white/60">Manage orders, stock & personal sales here boss.</p>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.4em',textTransform:'uppercase',color:'rgba(255,215,0,0.7)',marginBottom:10,display:'flex',alignItems:'center',gap:10}}>
+            <span style={{width:20,height:1,background:'#ffd700',display:'inline-block'}} /> {isAdmin ? 'Admin Console' : 'Staff Console'}
+          </div>
+          <h1 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:'clamp(36px,5vw,60px)',letterSpacing:'0.02em',lineHeight:1,marginBottom:6}}>
+            Hi <span style={{color:'#00f0ff',textShadow:'0 0 30px rgba(0,240,255,0.4)'}}>{user?.name}</span>
+          </h1>
+          <p style={{color:'rgba(255,255,255,0.45)',fontSize:14}}>Manage orders, stock & personal sales here boss.</p>
         </div>
         <button onClick={() => setShowPersonal(true)} className="btn-lime flex items-center gap-2">
           <FaPlus size={12} /> Log Personal Sale
@@ -425,32 +432,35 @@ const StaffDashboard = () => {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:28}}>
         {STATUS_FLOW.slice(0, 3).map(s => (
           <button key={s.id} onClick={() => setFilter(filter === s.id ? '' : s.id)}
-            className={`surface p-5 text-left transition-all ${filter === s.id ? 'ring-2' : ''}`}
-            style={{ '--tw-ring-color': s.color, borderColor: filter === s.id ? `${s.color}55` : undefined }}>
-            <div className="eyebrow !mb-1" style={{ color: s.color }}>{s.label}</div>
-            <div className="display-lg" style={{ color: s.color }}>{counts[s.id] || 0}</div>
+            style={{padding:'20px 22px',textAlign:'left',border:`1px solid ${filter === s.id ? s.color+'66' : 'rgba(255,255,255,0.07)'}`,borderRadius:20,background:filter === s.id ? `${s.color}10` : 'rgba(255,255,255,0.03)',cursor:'pointer',transition:'all 0.25s'}}>
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.3em',textTransform:'uppercase',color:s.color,marginBottom:8}}>{s.label}</div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:42,color:s.color,textShadow:`0 0 20px ${s.color}55`,lineHeight:1}}>{counts[s.id] || 0}</div>
           </button>
         ))}
-        <div className="surface p-5">
-          <div className="eyebrow !mb-1 text-[#00f0ff]">Stock</div>
-          <div className="display-lg text-[#00f0ff]">{totalStockItems}</div>
+        <div style={{padding:'20px 22px',border:'1px solid rgba(0,240,255,0.15)',borderRadius:20,background:'rgba(0,240,255,0.04)'}}>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.3em',textTransform:'uppercase',color:'#00f0ff',marginBottom:8}}>My Stock</div>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:42,color:'#00f0ff',textShadow:'0 0 20px rgba(0,240,255,0.3)',lineHeight:1}}>{totalStockItems}</div>
           {(lowStockItems > 0 || oosItems > 0) && (
-            <div className="text-[10px] mt-1 space-y-0.5">
-              {oosItems > 0 && <div className="text-[#ff007f]">⚠ {oosItems} out of stock</div>}
-              {lowStockItems > 0 && <div className="text-[#ffd700]">⚠ {lowStockItems} running low</div>}
+            <div style={{fontSize:10,marginTop:6}}>
+              {oosItems > 0 && <div style={{color:'#ff007f',fontWeight:700}}>⚠ {oosItems} out of stock</div>}
+              {lowStockItems > 0 && <div style={{color:'#ffd700',fontWeight:700}}>⚠ {lowStockItems} running low</div>}
             </div>
           )}
         </div>
       </div>
 
+      {/* Main content + AI sidebar */}
+      <div style={{display:'flex',gap:20,alignItems:'flex-start'}}>
+      <div style={{flex:1,minWidth:0}}>
+
       {/* Tab switcher */}
-      <div className="flex gap-2 mb-6">
-        {['orders', 'stock'].map(t => (
+      <div style={{display:'flex',gap:8,marginBottom:20}}>
+        {['orders','stock'].map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${tab === t ? 'bg-[#ff007f] text-white' : 'border border-white/15 text-white/50 hover:border-white/30'}`}>
+            style={{padding:'10px 22px',borderRadius:50,fontSize:12,fontWeight:800,letterSpacing:'0.08em',textTransform:'uppercase',cursor:'pointer',border:'none',transition:'all 0.25s',background:tab===t?'linear-gradient(135deg,#ff007f,#c8005a)':'rgba(255,255,255,0.06)',color:tab===t?'#fff':'rgba(255,255,255,0.45)',boxShadow:tab===t?'0 0 20px rgba(255,0,127,0.3)':'none'}}>
             {t === 'orders' ? `Orders (${visibleOrders.length})` : `My Stock (${stock.length})`}
           </button>
         ))}
@@ -458,7 +468,7 @@ const StaffDashboard = () => {
 
       {/* ── ORDERS TAB ── */}
       {tab === 'orders' && (
-        <div className="surface p-6">
+        <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:24,padding:"20px 24px"}}>
           {filter && (
             <div className="mb-4 flex items-center gap-2 text-sm text-white/60">
               Filter: <span className="font-bold text-white">{STATUS_FLOW.find(s => s.id === filter)?.label}</span>
@@ -475,7 +485,7 @@ const StaffDashboard = () => {
                 const isBusy = updating === o.order_id;
                 const isFinal = o.status === 'delivered' || o.status === 'cancelled';
                 return (
-                  <div key={o.order_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4">
+                  <div key={o.order_id} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:20,padding:"16px 20px",transition:"border-color 0.2s"}}>
                     <div className="flex flex-wrap justify-between items-start gap-3 mb-3">
                       <div>
                         <div className="flex items-center gap-2 font-bold">
@@ -512,7 +522,7 @@ const StaffDashboard = () => {
                         )}
                       </div>
                       <div className="text-right">
-                        <div className="font-display text-2xl neon-pink-text">RM{o.total.toFixed(2)}</div>
+                        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,color:"#ff007f",textShadow:"0 0 20px rgba(255,0,127,0.3)"}}>RM{o.total.toFixed(2)}</div>
                         <span className="inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded-full mt-1"
                           style={{ background: `${meta.color}20`, color: meta.color }}>{meta.label}</span>
                       </div>
@@ -558,7 +568,7 @@ const StaffDashboard = () => {
         <div className="surface p-6">
           <div className="flex justify-between items-center mb-5 flex-wrap gap-3">
             <div>
-              <h2 className="display-md">My Stock</h2>
+              <h2 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,letterSpacing:"0.02em"}}>My Stock</h2>
               <div className="text-xs text-white/40 mt-1">Boss distributes stock → you log it here</div>
             </div>
             <button onClick={() => setShowAddStock(true)}
@@ -598,7 +608,7 @@ const StaffDashboard = () => {
                       }} className="w-7 h-7 rounded-full border border-white/15 flex items-center justify-center text-white/50 hover:border-[#ff007f] hover:text-[#ff007f] transition-all">
                         <FaMinus size={10} />
                       </button>
-                      <div className={`font-display text-2xl w-10 text-center ${s.quantity === 0 ? 'text-[#ff007f]' : s.quantity <= 2 ? 'text-[#ffd700]' : 'neon-cyan-text'}`}>
+                      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,width:40,textAlign:'center',color:s.quantity===0?'#ff007f':s.quantity<=2?'#ffd700':'#00f0ff'}}>
                         {s.quantity}
                       </div>
                       <button onClick={() => {
@@ -624,6 +634,13 @@ const StaffDashboard = () => {
         </div>
       )}
 
+      </div>{/* end main content */}
+
+      {/* AI Staff Assistant Sidebar */}
+      <StaffAIChat />
+
+      </div>{/* end flex */}
+
       {/* Modals */}
       {showPersonal && <PersonalOrderModal products={products} onClose={() => setShowPersonal(false)} onSaved={loadData} />}
       {transferOrder && <TransferModal order={transferOrder} allStaff={allStaff} onClose={() => setTransferOrder(null)} onTransferred={loadData} />}
@@ -645,6 +662,113 @@ const StaffDashboard = () => {
           }}
         />
       )}
+    </div>
+    </div>
+  );
+};
+
+// ── AI Chat Sidebar for Staff ──────────────────────────────────────────────
+const StaffAIChat = () => {
+  const [msgs, setMsgs] = useState([
+    { role: 'assistant', content: 'Hi! I can help you with orders, products, stock questions. Ask me anything boss.' }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const bottomRef = React.useRef(null);
+  const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+  React.useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [msgs]);
+
+  const send = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = { role: 'user', content: input };
+    setMsgs(m => [...m, userMsg]);
+    setInput('');
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API}/ai/chat`, {
+        message: input,
+        conversation_history: msgs.slice(-8),
+        context: 'staff_dashboard',
+      }, { withCredentials: true });
+      setMsgs(m => [...m, { role: 'assistant', content: res.data.response }]);
+    } catch {
+      setMsgs(m => [...m, { role: 'assistant', content: 'Sorry boss, AI is busy. Try again in a bit.' }]);
+    } finally { setLoading(false); }
+  };
+
+  if (collapsed) return (
+    <button onClick={() => setCollapsed(false)}
+      style={{width:48,height:48,borderRadius:'50%',background:'linear-gradient(135deg,#ff007f,#c8005a)',border:'none',color:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 20px rgba(255,0,127,0.4)',flexShrink:0,marginTop:4}}>
+      <FaRobot size={18} />
+    </button>
+  );
+
+  return (
+    <div style={{width:300,flexShrink:0,background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:24,overflow:'hidden',display:'flex',flexDirection:'column',maxHeight:600}}>
+      {/* Header */}
+      <div style={{background:'linear-gradient(135deg,#ff007f,#c8005a)',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <FaRobot size={15} />
+          <div>
+            <div style={{fontWeight:800,fontSize:13,letterSpacing:'0.04em'}}>AI ASSISTANT</div>
+            <div style={{fontSize:10,opacity:0.8}}>Ask about products & orders</div>
+          </div>
+        </div>
+        <button onClick={() => setCollapsed(true)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.7)',cursor:'pointer'}}>
+          <FaX size={13} />
+        </button>
+      </div>
+
+      {/* Quick prompts */}
+      <div style={{padding:'10px 12px',borderBottom:'1px solid rgba(255,255,255,0.06)',display:'flex',gap:6,flexWrap:'wrap'}}>
+        {['Low stock items?','Pending orders?','Best sellers?','Price of Hennessy?'].map(q => (
+          <button key={q} onClick={() => { setInput(q); }}
+            style={{fontSize:10,padding:'4px 10px',borderRadius:50,background:'rgba(255,0,127,0.08)',border:'1px solid rgba(255,0,127,0.2)',color:'rgba(255,255,255,0.6)',cursor:'pointer',fontWeight:600}}>
+            {q}
+          </button>
+        ))}
+      </div>
+
+      {/* Messages */}
+      <div style={{flex:1,overflowY:'auto',padding:'12px',display:'flex',flexDirection:'column',gap:10,minHeight:0}}>
+        {msgs.map((m, i) => (
+          <div key={i} style={{display:'flex',gap:8,flexDirection:m.role==='user'?'row-reverse':'row',alignItems:'flex-start'}}>
+            <div style={{width:26,height:26,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:m.role==='user'?'linear-gradient(135deg,#ff007f,#c8005a)':'rgba(255,255,255,0.08)',fontSize:10}}>
+              {m.role==='user'?'U':<FaRobot size={11} style={{color:'#ff007f'}} />}
+            </div>
+            <div style={{maxWidth:'85%',padding:'9px 13px',borderRadius:m.role==='user'?'16px 16px 4px 16px':'16px 16px 16px 4px',background:m.role==='user'?'linear-gradient(135deg,#ff007f,#c8005a)':'rgba(255,255,255,0.07)',fontSize:12,lineHeight:1.55,color:'#fff'}}>
+              {m.content}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{display:'flex',gap:8}}>
+            <div style={{width:26,height:26,borderRadius:'50%',background:'rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center'}}><FaRobot size={11} style={{color:'#ff007f'}} /></div>
+            <div style={{padding:'9px 13px',borderRadius:'16px 16px 16px 4px',background:'rgba(255,255,255,0.07)',display:'flex',gap:4,alignItems:'center'}}>
+              {[0,0.2,0.4].map((d,i) => <div key={i} style={{width:5,height:5,borderRadius:'50%',background:'rgba(255,255,255,0.4)',animation:`pulse 1s ${d}s ease-in-out infinite`}} />)}
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{padding:'10px 12px',borderTop:'1px solid rgba(255,255,255,0.07)',display:'flex',gap:8}}>
+        <input value={input} onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key==='Enter' && !e.shiftKey && (e.preventDefault(), send())}
+          placeholder="Ask lah boss..."
+          style={{flex:1,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:50,padding:'8px 14px',color:'#fff',fontSize:12,outline:'none'}}
+          onFocus={e=>e.target.style.borderColor='rgba(255,0,127,0.5)'}
+          onBlur={e=>e.target.style.borderColor='rgba(255,255,255,0.1)'} />
+        <button onClick={send} disabled={loading||!input.trim()}
+          style={{width:34,height:34,borderRadius:'50%',background:input.trim()?'linear-gradient(135deg,#ff007f,#c8005a)':'rgba(255,255,255,0.06)',border:'none',color:'#fff',cursor:input.trim()?'pointer':'not-allowed',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          <FaPaperPlane size={12} />
+        </button>
+      </div>
     </div>
   );
 };

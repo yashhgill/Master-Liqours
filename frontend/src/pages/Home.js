@@ -15,7 +15,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const DEFAULT_HERO = [
   {
-    eyebrow: 'Masterliqours · Malaysia · Premium Spirits',
+    eyebrow: 'KL & Klang Valley · Premium Drops',
     title: 'SPEND &',
     title2: 'THE NIGHT.',
     accent: 'NIGHT.',
@@ -25,7 +25,7 @@ const DEFAULT_HERO = [
     bottle: 'whiskey',
   },
   {
-    eyebrow: 'Flash Drop · Limited Stock',
+    eyebrow: 'Limited Stock · Today Only',
     title: 'PREMIUM',
     title2: 'UP TO 30% OFF.',
     accent: '30% OFF.',
@@ -35,7 +35,7 @@ const DEFAULT_HERO = [
     bottle: 'champagne',
   },
   {
-    eyebrow: 'New Arrivals · Just Landed',
+    eyebrow: 'Just Landed · Fresh Stock',
     title: 'CHAMPAGNE',
     title2: 'WEATHER.',
     accent: 'WEATHER.',
@@ -263,7 +263,7 @@ const Home = () => {
 
     if (bannersRes?.data?.length > 0) {
       const mapped = bannersRes.data.map(b => ({
-        eyebrow: 'Masterliqours · Malaysia · Premium Spirits',
+        eyebrow: 'KL & Klang Valley · Premium Drops',
         title: (b.title || 'PREMIUM LIQUOR').split(' ').slice(0, 2).join(' ').toUpperCase(),
         title2: (b.title || '').split(' ').slice(2).join(' ').toUpperCase() || 'DELIVERED.',
         accent: (b.title || '').split(' ').slice(-1)[0].toUpperCase() + '.',

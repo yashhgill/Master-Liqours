@@ -36,7 +36,11 @@ const GoogleAuthCallback = () => {
         sessionStorage.removeItem('g_oauth_return_to');
 
         if (res.data?.user) setUserDirect(res.data.user, res.data.session_token);
-        navigate(returnTo, { replace: true });
+        // Redirect staff/admin to their dashboard
+        const role = res.data?.user?.role || '';
+        if (role === 'staff') navigate('/staff', { replace: true });
+        else if (role === 'super_admin' || role === 'master_admin') navigate('/admin', { replace: true });
+        else navigate(returnTo || '/', { replace: true });
       } catch (e) {
         setError(e.response?.data?.detail || e.message || 'Google login failed lah');
       }

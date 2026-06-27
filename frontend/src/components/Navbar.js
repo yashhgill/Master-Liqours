@@ -134,45 +134,45 @@ const Navbar = () => {
 
           {/* ── Desktop nav bar ── */}
           <div className="hidden lg:flex items-center gap-6 py-2.5 border-t border-white/[0.05] text-[11px] font-bold uppercase tracking-[0.15em]">
-            <Link to="/products?promo=1" className="text-[#ff007f] hover:text-[#39ff14] transition-colors flex items-center gap-1.5"><FaBolt size={9} /> Promotions</Link>
-            <Link to="/products" className="text-white/60 hover:text-white transition-colors">All Products</Link>
 
-            {/* Categories dropdown */}
-            <div className="relative" onMouseEnter={() => setCatOpen(true)} onMouseLeave={() => setCatOpen(false)}>
-              <button className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors">
-                Categories <FaChevronDown size={8} className={`transition-transform duration-200 ${catOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {catOpen && (
-                <div className="absolute left-0 top-full pt-3 z-50">
-                  <div className="rounded-2xl p-3 grid grid-cols-3 gap-1 w-56 shadow-2xl"
-                    style={{ background: '#111', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)' }}>
-                    {CATEGORIES.map(([c, emoji]) => (
-                      <Link key={c} to={`/products?category=${encodeURIComponent(c)}`}
-                        className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs text-white/60 hover:bg-white/[0.06] hover:text-white transition-all">
-                        <span style={{fontSize:10,fontWeight:900,color:'rgba(255,0,127,0.5)',width:16,textAlign:'center'}}>{emoji}</span>{c}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <Link to="/bulk-order" className="text-white/60 hover:text-white transition-colors">Bulk Order</Link>
-
-            <div className="flex-1" />
-
-            {/* Right links — role based */}
-            {user && !isStaffOrAdmin && (
+            {/* Staff/Admin: show only dashboard links, no shop nav */}
+            {isStaffOrAdmin ? (
               <>
-                <Link to="/dashboard" className="text-[#ffd700] hover:text-white transition-colors">My Dashboard</Link>
-                <Link to="/dashboard" className="text-white/60 hover:text-[#39ff14] transition-colors">Rewards</Link>
+                {user?.role === 'staff' && <Link to="/staff" className="text-[#00f0ff] hover:text-[#39ff14] transition-colors flex items-center gap-1.5"><FaTachometerAlt size={9}/> Staff Dashboard</Link>}
+                {isAdmin && <Link to="/admin" className="text-[#39ff14] hover:text-white transition-colors flex items-center gap-1.5"><FaTachometerAlt size={9}/> Admin Console</Link>}
+                {isAdmin && <Link to="/staff" className="text-[#ffd700] hover:text-white transition-colors">Staff View</Link>}
+                <div className="flex-1" />
+                <span style={{fontSize:10,color:'rgba(255,255,255,0.2)',letterSpacing:'0.2em'}}>INTERNAL PORTAL</span>
               </>
-            )}
-            {user?.role === 'staff' && <Link to="/staff" className="text-[#00f0ff] hover:text-white transition-colors">Staff Dashboard</Link>}
-            {isAdmin && (
+            ) : (
               <>
-                <Link to="/admin" className="text-[#00f0ff] hover:text-white transition-colors">Admin Console</Link>
-                <Link to="/staff" className="text-[#ffd700] hover:text-white transition-colors">Staff View</Link>
+                <Link to="/products?promo=1" className="text-[#ff007f] hover:text-[#39ff14] transition-colors flex items-center gap-1.5"><FaBolt size={9} /> Promotions</Link>
+                <Link to="/products" className="text-white/60 hover:text-white transition-colors">All Products</Link>
+
+                {/* Categories dropdown */}
+                <div className="relative" onMouseEnter={() => setCatOpen(true)} onMouseLeave={() => setCatOpen(false)}>
+                  <button className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors">
+                    Categories <FaChevronDown size={8} className={`transition-transform duration-200 ${catOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {catOpen && (
+                    <div className="absolute left-0 top-full pt-3 z-50">
+                      <div className="rounded-2xl p-3 grid grid-cols-3 gap-1 w-56 shadow-2xl"
+                        style={{ background: '#111', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)' }}>
+                        {CATEGORIES.map(([c, emoji]) => (
+                          <Link key={c} to={`/products?category=${encodeURIComponent(c)}`}
+                            className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs text-white/60 hover:bg-white/[0.06] hover:text-white transition-all">
+                            <span style={{fontSize:10,fontWeight:900,color:'rgba(255,0,127,0.5)',width:16,textAlign:'center'}}>{emoji}</span>{c}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <Link to="/bulk-order" className="text-white/60 hover:text-white transition-colors">Bulk Order</Link>
+                <div className="flex-1" />
+                {user && <Link to="/dashboard" className="text-[#ffd700] hover:text-white transition-colors">My Dashboard</Link>}
+                {user && <Link to="/dashboard" className="text-white/60 hover:text-[#39ff14] transition-colors">Rewards</Link>}
               </>
             )}
           </div>

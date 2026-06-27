@@ -23,7 +23,14 @@ const Login = () => {
   const submit = async (e) => {
     e.preventDefault();
     setError(''); setLoading(true);
-    try { await login(email, password); navigate('/'); }
+    try {
+      const data = await login(email, password);
+      // Redirect staff/admin straight to their dashboard
+      const role = data?.user?.role || '';
+      if (role === 'staff') navigate('/staff');
+      else if (role === 'super_admin' || role === 'master_admin') navigate('/admin');
+      else navigate('/');
+    }
     catch (err) { setError(err.response?.data?.detail || 'Cannot login lah, try again'); }
     finally { setLoading(false); }
   };

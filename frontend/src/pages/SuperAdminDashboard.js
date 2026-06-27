@@ -5,6 +5,7 @@ import {
   FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlass,
   FaArrowUp, FaArrowDown, FaPen, FaFileCsv, FaDownload, FaSpinner,
   FaUsers, FaKey, FaCopy, FaWhatsapp, FaChartLine, FaTrophy, FaRandom, FaClock, FaToggleOff, FaTruck,
+  FaRobot, FaPaperPlane, FaTimes as FaXIcon,
 } from 'react-icons/fa';
 import ImageUploader from '../components/ImageUploader';
 import { resolveImageUrl } from '../lib/imageUrl';
@@ -50,10 +51,13 @@ const SupplierTab = ({ API }) => {
   const [spSearch, setSpSearch] = useState('');
   const [spDropdown, setSpDropdown] = useState(false);
 
-  useEffect(() => { loadAll(); }, []);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => { loadAll(); }, []); // eslint-disable-line
 
   const loadAll = async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const [sr, pr] = await Promise.all([
         axios.get(`${API}/admin/suppliers`, { withCredentials: true }),
@@ -62,7 +66,7 @@ const SupplierTab = ({ API }) => {
       setSuppliers(sr.data || []);
       setAllProducts(pr.data?.products || pr.data || []);
     } catch (e) {
-      alert('Load failed: ' + (e.response?.data?.detail || e.message));
+      setLoadError(e.response?.data?.detail || e.message || 'Cannot load suppliers — check connection');
     } finally { setLoading(false); }
   };
 
@@ -79,7 +83,7 @@ const SupplierTab = ({ API }) => {
       setShowForm(false); setEditId(null);
       loadAll();
     } catch (e) {
-      alert(e.response?.data?.detail || e.message || 'Save failed');
+      setLoadError(e.response?.data?.detail || e.message || 'Save failed');
     } finally { setSaving(false); }
   };
 
@@ -89,7 +93,7 @@ const SupplierTab = ({ API }) => {
       await axios.delete(`${API}/admin/suppliers/${id}`, { withCredentials: true });
       setSuppliers(s => s.filter(x => x.supplier_id !== id));
       if (expanded === id) setExpanded(null);
-    } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
+    } catch (e) { setLoadError(e.response?.data?.detail || 'Delete failed'); }
   };
 
   const addProduct = async (supplierId) => {
@@ -106,7 +110,7 @@ const SupplierTab = ({ API }) => {
       setSpForm({ product_id: '', cost_price: '', selling_price: '', quantity: '' });
       setSpSearch('');
       loadAll();
-    } catch (e) { alert(e.response?.data?.detail || 'Failed to add product'); }
+    } catch (e) { setLoadError(e.response?.data?.detail || 'Failed to add product'); }
     finally { setSavingSp(false); }
   };
 
@@ -115,7 +119,7 @@ const SupplierTab = ({ API }) => {
     try {
       await axios.delete(`${API}/admin/suppliers/${supplierId}/products/${spId}`, { withCredentials: true });
       loadAll();
-    } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
+    } catch (e) { setLoadError(e.response?.data?.detail || 'Delete failed'); }
   };
 
   const filteredProducts = spSearch.trim()
@@ -134,158 +138,185 @@ const SupplierTab = ({ API }) => {
     setSpDropdown(false);
   };
 
+  const selectedSupplier = suppliers.find(s => s.supplier_id === expanded);
+
   return (
-    <div className="space-y-4">
-      <div className="surface p-6">
-        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-          <div>
-            <h2 className="display-md">Suppliers</h2>
-            <p className="text-white/40 text-xs mt-1">Boss-only. Staff cannot see cost prices.</p>
+    <div>
+      {loadError && (
+        <div style={{background:'rgba(255,0,127,0.08)',border:'1px solid rgba(255,0,127,0.3)',borderRadius:14,padding:'12px 18px',color:'#ff007f',fontSize:13,marginBottom:16,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span>{loadError}</span>
+          <button onClick={() => { setLoadError(''); loadAll(); }} style={{fontSize:11,color:'#ff007f',background:'none',border:'none',cursor:'pointer',fontWeight:700}}>Retry</button>
+        </div>
+      )}
+
+      <div style={{display:'flex',gap:0,minHeight:500}}>
+
+        {/* LEFT SIDEBAR — Supplier list */}
+        <div style={{width:260,flexShrink:0,borderRight:'1px solid rgba(255,255,255,0.07)',paddingRight:0}}>
+          <div style={{padding:'16px 16px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:'0.02em'}}>Suppliers</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>Boss-only · {suppliers.length} total</div>
+            </div>
+            <button onClick={() => { setShowForm(true); setEditId(null); setForm({ name:'',contact:'',notes:'' }); setExpanded(null); }}
+              style={{width:32,height:32,borderRadius:'50%',background:'#ff007f',border:'none',color:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 12px rgba(255,0,127,0.4)'}}>
+              <FaPlus size={12} />
+            </button>
           </div>
-          <button onClick={() => { setShowForm(true); setEditId(null); setForm({ name: '', contact: '', notes: '' }); }}
-            className="btn-pink flex items-center gap-2"><FaPlus size={12} /> Add Supplier</button>
+
+          {loading ? (
+            <div style={{padding:'20px 16px',color:'rgba(255,255,255,0.3)',fontSize:13}}>Loading...</div>
+          ) : suppliers.length === 0 ? (
+            <div style={{padding:'20px 16px',color:'rgba(255,255,255,0.25)',fontSize:13,textAlign:'center'}}>No suppliers yet</div>
+          ) : (
+            <div style={{overflowY:'auto',maxHeight:560}}>
+              {suppliers.map(s => (
+                <button key={s.supplier_id} onClick={() => { setExpanded(s.supplier_id); setShowForm(false); setAddingProduct(null); }}
+                  style={{width:'100%',textAlign:'left',padding:'12px 16px',background:expanded===s.supplier_id?'rgba(255,0,127,0.08)':'transparent',borderLeft:expanded===s.supplier_id?'2px solid #ff007f':'2px solid transparent',border:'none',cursor:'pointer',transition:'all 0.2s',display:'block'}}>
+                  <div style={{fontWeight:700,fontSize:14,color:expanded===s.supplier_id?'#fff':'rgba(255,255,255,0.7)'}}>{s.name}</div>
+                  {s.contact && <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>{s.contact}</div>}
+                  <div style={{fontSize:10,color:'rgba(255,0,127,0.5)',marginTop:2}}>{(s.products||[]).length} product{(s.products||[]).length!==1?'s':''}</div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {showForm && (
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 mb-5 space-y-3">
-            <h3 className="font-display text-lg">{editId ? 'Edit Supplier' : 'New Supplier'}</h3>
-            <input className="input-dark" placeholder="Supplier name *" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} />
-            <input className="input-dark" placeholder="Contact (phone / email)" value={form.contact} onChange={e => setForm(f => ({...f, contact: e.target.value}))} />
-            <textarea className="input-dark resize-none" rows={2} placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} />
-            <div className="flex gap-3">
-              <button onClick={save} disabled={saving} className="btn-pink disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
-              <button onClick={() => { setShowForm(false); setEditId(null); }} className="btn-ghost text-sm">Cancel</button>
-            </div>
-          </div>
-        )}
+        {/* RIGHT PANEL — Selected supplier detail or Add form */}
+        <div style={{flex:1,padding:'16px 24px',minWidth:0}}>
 
-        {loading ? (
-          <div className="text-white/40 text-sm">Loading...</div>
-        ) : suppliers.length === 0 ? (
-          <div className="text-center py-10 text-white/30">No suppliers yet. Add your first one.</div>
-        ) : (
-          <div className="space-y-3">
-            {suppliers.map(s => (
-              <div key={s.supplier_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden">
-                {/* Supplier header */}
-                <div className="p-4 flex items-center justify-between gap-4 flex-wrap">
-                  <button onClick={() => setExpanded(expanded === s.supplier_id ? null : s.supplier_id)}
-                    className="flex-1 text-left">
-                    <div className="font-bold flex items-center gap-2">
-                      {s.name}
-                      <span className="text-[10px] text-white/30 font-normal">
-                        {expanded === s.supplier_id ? '▲ collapse' : '▼ expand'}
-                      </span>
-                    </div>
-                    {s.contact && <div className="text-xs text-white/50 mt-0.5">{s.contact}</div>}
-                    {s.notes && <div className="text-xs text-white/30 mt-0.5">{s.notes}</div>}
-                  </button>
-                  <div className="flex gap-2">
-                    <button onClick={() => { setEditId(s.supplier_id); setForm({ name: s.name, contact: s.contact || '', notes: s.notes || '' }); setShowForm(true); }}
-                      className="px-3 py-1.5 rounded-full text-xs border border-white/15 text-white/60 hover:border-[#00f0ff] hover:text-[#00f0ff] transition-all">Edit</button>
-                    <button onClick={() => del(s.supplier_id)}
-                      className="px-3 py-1.5 rounded-full text-xs border border-white/15 text-white/60 hover:border-[#ff007f] hover:text-[#ff007f] transition-all">Delete</button>
-                  </div>
+          {/* Add/Edit supplier form */}
+          {showForm ? (
+            <div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,marginBottom:16}}>{editId?'Edit Supplier':'New Supplier'}</div>
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                <input className="input-dark" placeholder="Supplier name *" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} />
+                <input className="input-dark" placeholder="Contact (phone / email)" value={form.contact} onChange={e => setForm(f => ({...f, contact: e.target.value}))} />
+                <textarea className="input-dark resize-none" rows={3} placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} />
+                <div style={{display:'flex',gap:10}}>
+                  <button onClick={save} disabled={saving} className="btn-pink disabled:opacity-50">{saving?'Saving...':'Save Supplier'}</button>
+                  <button onClick={() => { setShowForm(false); setEditId(null); }} className="btn-ghost text-sm">Cancel</button>
                 </div>
+              </div>
+            </div>
 
-                {/* Expanded: product list */}
-                {expanded === s.supplier_id && (
-                  <div className="border-t border-white/5 p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs uppercase tracking-[0.2em] text-white/40">Products from this supplier</div>
-                      <button onClick={() => { setAddingProduct(s.supplier_id); setSpForm({ product_id: '', cost_price: '', selling_price: '', quantity: '' }); setSpSearch(''); }}
-                        className="px-3 py-1.5 rounded-full text-xs bg-[#ff007f] text-white font-bold flex items-center gap-1.5 hover:brightness-110 transition-all">
-                        <FaPlus size={10} /> Add Product
-                      </button>
-                    </div>
+          ) : !selectedSupplier ? (
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:'rgba(255,255,255,0.2)',textAlign:'center',paddingTop:60}}>
+              <FaTruck size={32} style={{marginBottom:16,opacity:0.3}} />
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,marginBottom:8}}>Select a Supplier</div>
+              <div style={{fontSize:13}}>Click a supplier on the left to view their products</div>
+            </div>
 
-                    {/* Add product form */}
-                    {addingProduct === s.supplier_id && (
-                      <div className="bg-[#111] border border-white/10 rounded-xl p-4 space-y-3">
-                        <div className="text-xs text-white/50 font-bold uppercase tracking-wider">Add Product to Supplier</div>
+          ) : (
+            <div>
+              {/* Supplier header */}
+              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:20,gap:12}}>
+                <div>
+                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,letterSpacing:'0.02em'}}>{selectedSupplier.name}</div>
+                  {selectedSupplier.contact && <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginTop:2}}>{selectedSupplier.contact}</div>}
+                  {selectedSupplier.notes && <div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginTop:4}}>{selectedSupplier.notes}</div>}
+                </div>
+                <div style={{display:'flex',gap:8,flexShrink:0}}>
+                  <button onClick={() => { setEditId(selectedSupplier.supplier_id); setForm({ name:selectedSupplier.name, contact:selectedSupplier.contact||'', notes:selectedSupplier.notes||'' }); setShowForm(true); }}
+                    style={{padding:'7px 14px',borderRadius:50,fontSize:11,fontWeight:700,background:'rgba(0,240,255,0.08)',border:'1px solid rgba(0,240,255,0.25)',color:'#00f0ff',cursor:'pointer'}}>
+                    Edit
+                  </button>
+                  <button onClick={() => del(selectedSupplier.supplier_id)}
+                    style={{padding:'7px 14px',borderRadius:50,fontSize:11,fontWeight:700,background:'rgba(255,0,127,0.08)',border:'1px solid rgba(255,0,127,0.25)',color:'#ff007f',cursor:'pointer'}}>
+                    Delete
+                  </button>
+                </div>
+              </div>
 
-                        {/* Searchable product picker */}
-                        <div className="relative">
-                          <input type="text" className="input-dark text-sm" placeholder="Search product..."
-                            value={spSearch}
-                            onChange={e => { setSpSearch(e.target.value); setSpDropdown(true); if (spForm.product_id) setSpForm(f => ({...f, product_id: ''})); }}
-                            onFocus={() => setSpDropdown(true)}
-                            onBlur={() => setTimeout(() => setSpDropdown(false), 150)} />
-                          {spDropdown && (
-                            <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto bg-[#161616] border border-white/15 rounded-xl shadow-xl">
-                              {filteredProducts.slice(0, 20).map(p => (
-                                <button key={p.product_id} type="button" onMouseDown={() => pickProduct(p)}
-                                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#ff007f]/15 flex justify-between items-center">
-                                  <span>{p.name}</span>
-                                  <span className="text-white/40 text-xs">RM{p.price}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+              {/* Add product form */}
+              <div style={{marginBottom:20}}>
+                <button onClick={() => addingProduct===selectedSupplier.supplier_id ? setAddingProduct(null) : (setAddingProduct(selectedSupplier.supplier_id), setSpForm({product_id:'',cost_price:'',selling_price:'',quantity:''}), setSpSearch(''))}
+                  style={{display:'flex',alignItems:'center',gap:8,padding:'9px 18px',borderRadius:50,background:addingProduct?'rgba(255,0,127,0.08)':'linear-gradient(135deg,#ff007f,#c8005a)',border:addingProduct?'1px solid rgba(255,0,127,0.3)':'none',color:'#fff',fontSize:12,fontWeight:800,letterSpacing:'0.08em',textTransform:'uppercase',cursor:'pointer'}}>
+                  <FaPlus size={11} /> {addingProduct===selectedSupplier.supplier_id?'Cancel':'Add Product'}
+                </button>
+              </div>
 
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1">Cost Price (RM)</label>
-                            <input type="number" step="0.01" className="input-dark text-sm" placeholder="0.00"
-                              value={spForm.cost_price} onChange={e => setSpForm(f => ({...f, cost_price: e.target.value}))} />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1">Selling Price (RM)</label>
-                            <input type="number" step="0.01" className="input-dark text-sm" placeholder="0.00"
-                              value={spForm.selling_price} onChange={e => setSpForm(f => ({...f, selling_price: e.target.value}))} />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1">Qty in Stock</label>
-                            <input type="number" className="input-dark text-sm" placeholder="0"
-                              value={spForm.quantity} onChange={e => setSpForm(f => ({...f, quantity: e.target.value}))} />
-                          </div>
-                        </div>
-
-                        {spForm.cost_price && spForm.selling_price && (
-                          <div className="text-xs text-[#39ff14]">
-                            Margin: {(((parseFloat(spForm.selling_price) - parseFloat(spForm.cost_price)) / parseFloat(spForm.cost_price)) * 100).toFixed(1)}%
-                            &nbsp;— Profit per unit: RM{(parseFloat(spForm.selling_price) - parseFloat(spForm.cost_price)).toFixed(2)}
-                          </div>
-                        )}
-
-                        <div className="flex gap-2">
-                          <button onClick={() => addProduct(s.supplier_id)} disabled={savingSp || !spForm.product_id}
-                            className="btn-pink text-sm disabled:opacity-50">{savingSp ? 'Adding...' : 'Add'}</button>
-                          <button onClick={() => setAddingProduct(null)} className="btn-ghost text-sm">Cancel</button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Product list */}
-                    {(!s.products || s.products.length === 0) ? (
-                      <div className="text-white/30 text-sm text-center py-4">No products linked yet.</div>
-                    ) : (
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-[1fr_80px_80px_60px_40px] gap-2 text-[10px] text-white/30 uppercase tracking-wider px-2">
-                          <span>Product</span><span className="text-right">Cost</span><span className="text-right">Sell</span><span className="text-right">Qty</span><span></span>
-                        </div>
-                        {s.products.map(sp => (
-                          <div key={sp.sp_id} className="grid grid-cols-[1fr_80px_80px_60px_40px] gap-2 items-center bg-[#0a0a0a] rounded-xl px-3 py-2">
-                            <div>
-                              <div className="text-sm font-medium">{sp.product_name}</div>
-                              <div className="text-[10px] text-[#39ff14]">Margin: {sp.margin_pct}%</div>
-                            </div>
-                            <div className="text-right text-sm text-white/60">RM{sp.cost_price}</div>
-                            <div className="text-right text-sm text-[#ff007f] font-bold">RM{sp.selling_price}</div>
-                            <div className="text-right text-sm font-display">{sp.quantity}</div>
-                            <button onClick={() => delProduct(s.supplier_id, sp.sp_id)}
-                              className="text-white/20 hover:text-[#ff007f] transition-colors"><FaTrash size={11} /></button>
-                          </div>
+              {addingProduct === selectedSupplier.supplier_id && (
+                <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:20,padding:20,marginBottom:20}}>
+                  <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.3em',textTransform:'uppercase',color:'rgba(255,255,255,0.3)',marginBottom:12}}>Add Product to {selectedSupplier.name}</div>
+                  <div style={{position:'relative',marginBottom:12}}>
+                    <input type="text" className="input-dark" placeholder="Search product..." value={spSearch}
+                      onChange={e => { setSpSearch(e.target.value); setSpDropdown(true); if(spForm.product_id) setSpForm(f=>({...f,product_id:''})); }}
+                      onFocus={() => setSpDropdown(true)} onBlur={() => setTimeout(()=>setSpDropdown(false),150)} />
+                    {spDropdown && filteredProducts.length > 0 && (
+                      <div style={{position:'absolute',zIndex:20,marginTop:4,width:'100%',maxHeight:200,overflowY:'auto',background:'#161616',border:'1px solid rgba(255,255,255,0.15)',borderRadius:14,boxShadow:'0 12px 32px rgba(0,0,0,0.5)'}}>
+                        {filteredProducts.slice(0,20).map(p => (
+                          <button key={p.product_id} type="button" onMouseDown={() => pickProduct(p)}
+                            style={{width:'100%',textAlign:'left',padding:'10px 16px',fontSize:13,background:'transparent',border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',color:'#fff'}}
+                            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,0,127,0.1)'}
+                            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                            <span>{p.name}</span>
+                            <span style={{color:'rgba(255,255,255,0.4)',fontSize:11}}>RM{p.price}</span>
+                          </button>
                         ))}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:10}}>
+                    <div>
+                      <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:'0.2em',marginBottom:6}}>Cost (RM)</div>
+                      <input type="number" step="0.01" className="input-dark" placeholder="0.00" value={spForm.cost_price} onChange={e=>setSpForm(f=>({...f,cost_price:e.target.value}))} />
+                    </div>
+                    <div>
+                      <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:'0.2em',marginBottom:6}}>Sell (RM)</div>
+                      <input type="number" step="0.01" className="input-dark" placeholder="0.00" value={spForm.selling_price} onChange={e=>setSpForm(f=>({...f,selling_price:e.target.value}))} />
+                    </div>
+                    <div>
+                      <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:'0.2em',marginBottom:6}}>Qty</div>
+                      <input type="number" className="input-dark" placeholder="0" value={spForm.quantity} onChange={e=>setSpForm(f=>({...f,quantity:e.target.value}))} />
+                    </div>
+                  </div>
+                  {spForm.cost_price && spForm.selling_price && parseFloat(spForm.cost_price) > 0 && (
+                    <div style={{fontSize:12,color:'#39ff14',marginBottom:10}}>
+                      Margin: {(((parseFloat(spForm.selling_price)-parseFloat(spForm.cost_price))/parseFloat(spForm.cost_price))*100).toFixed(1)}% · Profit/unit: RM{(parseFloat(spForm.selling_price)-parseFloat(spForm.cost_price)).toFixed(2)}
+                    </div>
+                  )}
+                  <div style={{display:'flex',gap:10}}>
+                    <button onClick={() => addProduct(selectedSupplier.supplier_id)} disabled={savingSp||!spForm.product_id} className="btn-pink disabled:opacity-50">{savingSp?'Adding...':'Add Product'}</button>
+                    <button onClick={() => setAddingProduct(null)} className="btn-ghost text-sm">Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Products table */}
+              {(!selectedSupplier.products||selectedSupplier.products.length===0) ? (
+                <div style={{textAlign:'center',padding:'40px 24px',color:'rgba(255,255,255,0.2)',fontSize:14,border:'1px solid rgba(255,255,255,0.06)',borderRadius:16}}>
+                  No products linked to this supplier yet.
+                </div>
+              ) : (
+                <div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 80px 80px 60px 40px',gap:8,padding:'0 8px 8px',fontSize:10,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:'0.2em'}}>
+                    <span>Product</span><span style={{textAlign:'right'}}>Cost</span><span style={{textAlign:'right'}}>Sell</span><span style={{textAlign:'right'}}>Qty</span><span></span>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                    {selectedSupplier.products.map(sp => (
+                      <div key={sp.sp_id||sp.id} style={{display:'grid',gridTemplateColumns:'1fr 80px 80px 60px 40px',gap:8,alignItems:'center',background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:14,padding:'10px 12px'}}>
+                        <div>
+                          <div style={{fontSize:14,fontWeight:600}}>{sp.product_name}</div>
+                          <div style={{fontSize:10,color:'#39ff14'}}>Margin: {sp.margin_pct}%</div>
+                        </div>
+                        <div style={{textAlign:'right',fontSize:13,color:'rgba(255,255,255,0.5)'}}>RM{sp.cost_price}</div>
+                        <div style={{textAlign:'right',fontSize:13,color:'#ff007f',fontWeight:700}}>RM{sp.selling_price}</div>
+                        <div style={{textAlign:'right',fontFamily:"'Bebas Neue',sans-serif",fontSize:20}}>{sp.quantity}</div>
+                        <button onClick={() => delProduct(selectedSupplier.supplier_id, sp.sp_id||sp.id)}
+                          style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.2)',transition:'color 0.2s'}}
+                          onMouseEnter={e=>e.currentTarget.style.color='#ff007f'}
+                          onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.2)'}>
+                          <FaTrash size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -294,6 +325,7 @@ const SupplierTab = ({ API }) => {
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
   const [tab, setTab] = useState('overview');
+  const [showAI, setShowAI] = useState(false);
 
   const [banners, setBanners] = useState([]);
   const [products, setProducts] = useState([]);
@@ -628,16 +660,52 @@ const SuperAdminDashboard = () => {
     : products;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12">
-      <div className="eyebrow mb-3">Super Admin Console</div>
-      <h1 className="display-xl mb-2">Manage <span className="neon-pink-text">Everything</span></h1>
-      <p className="text-white/60 mb-10">Welcome {user?.name}. Drag-drop images, bulk import via CSV, edit anything boss.</p>
+    <div style={{minHeight:'100vh',background:'#030303'}}>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-10">
 
-      <div className="flex flex-wrap gap-2 mb-10">
+      {/* Header */}
+      <div style={{marginBottom:28}}>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.4em',textTransform:'uppercase',color:'rgba(255,215,0,0.7)',marginBottom:10,display:'flex',alignItems:'center',gap:10}}>
+          <span style={{width:20,height:1,background:'#ffd700',display:'inline-block'}} /> Super Admin Console
+        </div>
+        <h1 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:'clamp(36px,5vw,64px)',letterSpacing:'0.02em',lineHeight:1,marginBottom:8}}>
+          Manage <span style={{color:'#ff007f',textShadow:'0 0 30px rgba(255,0,127,0.4)'}}>Everything</span>
+        </h1>
+        <p style={{color:'rgba(255,255,255,0.4)',fontSize:14}}>Welcome {user?.name}. Drag-drop images, bulk import via CSV, edit anything boss.</p>
+      </div>
+
+      {/* Main layout: sidebar nav + content + AI */}
+      <div style={{display:'flex',gap:0,minHeight:'70vh',background:'rgba(255,255,255,0.01)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:24,overflow:'hidden',marginBottom:40}}>
+
+        {/* LEFT NAV — Tab list */}
+        <div style={{width:200,flexShrink:0,borderRight:'1px solid rgba(255,255,255,0.07)',padding:'12px 0',display:'flex',flexDirection:'column',gap:2}}>
+          {TABS.map(t => {
+            const Icon = t.icon;
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                style={{display:'flex',alignItems:'center',gap:10,padding:'11px 16px',background:tab===t.id?'rgba(255,0,127,0.1)':'transparent',borderLeft:tab===t.id?'2px solid #ff007f':'2px solid transparent',border:'none',cursor:'pointer',textAlign:'left',transition:'all 0.2s',width:'100%'}}>
+                <Icon size={13} style={{color:tab===t.id?'#ff007f':'rgba(255,255,255,0.35)',flexShrink:0}} />
+                <span style={{fontSize:12,fontWeight:700,letterSpacing:'0.05em',color:tab===t.id?'#fff':'rgba(255,255,255,0.5)',textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.label}</span>
+              </button>
+            );
+          })}
+          <div style={{flex:1}} />
+          {/* AI Toggle */}
+          <button onClick={() => setShowAI(v => !v)}
+            style={{display:'flex',alignItems:'center',gap:10,padding:'11px 16px',background:showAI?'rgba(255,0,127,0.1)':'transparent',borderLeft:showAI?'2px solid #ff007f':'2px solid transparent',border:'none',cursor:'pointer',width:'100%',marginTop:'auto'}}>
+            <FaRobot size={13} style={{color:showAI?'#ff007f':'rgba(255,255,255,0.35)'}} />
+            <span style={{fontSize:12,fontWeight:700,letterSpacing:'0.05em',color:showAI?'#fff':'rgba(255,255,255,0.5)',textTransform:'uppercase'}}>AI Chat</span>
+          </button>
+        </div>
+
+        {/* MAIN CONTENT */}
+        <div style={{flex:1,padding:'24px',minWidth:0,overflowX:'hidden'}}>
+        <div className="flex flex-wrap gap-2 mb-8" style={{display:'none'}}>
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
+            style={{display:'flex',alignItems:'center',gap:8,padding:'10px 18px',borderRadius:50,fontSize:11,fontWeight:800,letterSpacing:'0.08em',textTransform:'uppercase',cursor:'pointer',border:'none',transition:'all 0.25s'}}
             className={`px-5 py-3 rounded-full font-bold text-sm uppercase tracking-wider transition-all flex items-center gap-2 ${tab === t.id ? 'bg-[#ff007f] text-white' : 'border border-white/15 hover:border-[#ff007f]'}`}
             data-testid={`admin-tab-${t.id}`}
           >
@@ -1254,6 +1322,95 @@ const SuperAdminDashboard = () => {
           )}
         </div>
       )}
+        </div>{/* end main content */}
+
+        {/* AI SIDEBAR */}
+        {showAI && <AdminAIChat onClose={() => setShowAI(false)} />}
+
+      </div>{/* end sidebar layout */}
+    </div>
+    </div>
+  );
+};
+
+// ── AI Chat for Admin ──────────────────────────────────────────────────────
+const AdminAIChat = ({ onClose }) => {
+  const [msgs, setMsgs] = React.useState([
+    { role: 'assistant', content: 'Hi boss! Ask me about sales, products, staff performance or anything you need.' }
+  ]);
+  const [input, setInput] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const bottomRef = React.useRef(null);
+  const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+  React.useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [msgs]);
+
+  const send = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = { role: 'user', content: input };
+    setMsgs(m => [...m, userMsg]);
+    setInput('');
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API}/ai/chat`, {
+        message: input,
+        conversation_history: msgs.slice(-8),
+        context: 'admin_dashboard',
+      }, { withCredentials: true });
+      setMsgs(m => [...m, { role: 'assistant', content: res.data.response }]);
+    } catch {
+      setMsgs(m => [...m, { role: 'assistant', content: 'Sorry boss, AI unavailable. Try again.' }]);
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{width:280,flexShrink:0,borderLeft:'1px solid rgba(255,255,255,0.07)',display:'flex',flexDirection:'column',maxHeight:'70vh'}}>
+      <div style={{background:'linear-gradient(135deg,#ff007f,#c8005a)',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <FaRobot size={15} />
+          <div>
+            <div style={{fontWeight:800,fontSize:12,letterSpacing:'0.04em'}}>AI ASSISTANT</div>
+            <div style={{fontSize:10,opacity:0.8}}>Admin context</div>
+          </div>
+        </div>
+        <button onClick={onClose} style={{background:'none',border:'none',color:'rgba(255,255,255,0.7)',cursor:'pointer'}}><FaXIcon size={13} /></button>
+      </div>
+      <div style={{padding:'8px 10px',borderBottom:'1px solid rgba(255,255,255,0.06)',display:'flex',gap:4,flexWrap:'wrap'}}>
+        {['Sales today?','Top products?','Staff performance?','Pending orders?'].map(q => (
+          <button key={q} onClick={() => setInput(q)}
+            style={{fontSize:10,padding:'3px 8px',borderRadius:50,background:'rgba(255,0,127,0.08)',border:'1px solid rgba(255,0,127,0.2)',color:'rgba(255,255,255,0.6)',cursor:'pointer'}}>
+            {q}
+          </button>
+        ))}
+      </div>
+      <div style={{flex:1,overflowY:'auto',padding:'10px',display:'flex',flexDirection:'column',gap:8,minHeight:0}}>
+        {msgs.map((m, i) => (
+          <div key={i} style={{display:'flex',gap:6,flexDirection:m.role==='user'?'row-reverse':'row',alignItems:'flex-start'}}>
+            <div style={{width:22,height:22,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:m.role==='user'?'linear-gradient(135deg,#ff007f,#c8005a)':'rgba(255,255,255,0.08)',fontSize:9}}>
+              {m.role==='user'?'A':<FaRobot size={10} style={{color:'#ff007f'}} />}
+            </div>
+            <div style={{maxWidth:'85%',padding:'8px 11px',borderRadius:m.role==='user'?'14px 14px 4px 14px':'14px 14px 14px 4px',background:m.role==='user'?'linear-gradient(135deg,#ff007f,#c8005a)':'rgba(255,255,255,0.07)',fontSize:11,lineHeight:1.55,color:'#fff'}}>
+              {m.content}
+            </div>
+          </div>
+        ))}
+        {loading && <div style={{display:'flex',gap:6}}><div style={{width:22,height:22,borderRadius:'50%',background:'rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center'}}><FaRobot size={10} style={{color:'#ff007f'}} /></div><div style={{padding:'8px 11px',borderRadius:'14px 14px 14px 4px',background:'rgba(255,255,255,0.07)',display:'flex',gap:3,alignItems:'center'}}>{[0,0.15,0.3].map((d,i)=><div key={i} style={{width:4,height:4,borderRadius:'50%',background:'rgba(255,255,255,0.4)',animation:`pulse 1s ${d}s ease-in-out infinite`}} />)}</div></div>}
+        <div ref={bottomRef} />
+      </div>
+      <div style={{padding:'8px 10px',borderTop:'1px solid rgba(255,255,255,0.07)',display:'flex',gap:6}}>
+        <input value={input} onChange={e=>setInput(e.target.value)}
+          onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&(e.preventDefault(),send())}
+          placeholder="Ask lah boss..."
+          style={{flex:1,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:50,padding:'7px 12px',color:'#fff',fontSize:11,outline:'none'}}
+          onFocus={e=>e.target.style.borderColor='rgba(255,0,127,0.5)'}
+          onBlur={e=>e.target.style.borderColor='rgba(255,255,255,0.1)'} />
+        <button onClick={send} disabled={loading||!input.trim()}
+          style={{width:30,height:30,borderRadius:'50%',background:input.trim()?'linear-gradient(135deg,#ff007f,#c8005a)':'rgba(255,255,255,0.06)',border:'none',color:'#fff',cursor:input.trim()?'pointer':'not-allowed',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          <FaPaperPlane size={11} />
+        </button>
+      </div>
     </div>
   );
 };
