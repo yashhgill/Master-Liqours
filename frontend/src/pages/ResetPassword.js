@@ -41,7 +41,7 @@ const ResetPassword = () => {
 
   if (!token || !email) return sharedPage(
     <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 48, marginBottom: 20, opacity: 0.3 }}>🔗</div>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(255,0,127,0.3)', marginBottom: 20 }}>INVALID LINK</div>
       <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 40, color: '#ff007f', marginBottom: 12 }}>Invalid Link</div>
       <p style={{ color: 'rgba(255,255,255,0.45)', marginBottom: 28 }}>This reset link is invalid or expired. Request a new one boss.</p>
       <Link to="/forgot-password" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#ff007f,#c8005a)', color: '#fff', padding: '14px 28px', borderRadius: 50, fontWeight: 800, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none' }}>

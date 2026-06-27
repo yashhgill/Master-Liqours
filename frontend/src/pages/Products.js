@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FaSearch, FaSlidersH, FaTh, FaList, FaHeart, FaRegHeart, FaTimes } from 'react-icons/fa';
+import { FaSearch, FaSlidersH, FaTh, FaList, FaHeart, FaRegHeart, FaTimes, FaTag, FaSortAmountDown, FaBoxOpen, FaWineGlass } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -124,8 +124,10 @@ const Products = () => {
     <div>
       <div className="border-b border-white/5 bg-gradient-to-b from-black to-[#050505] py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
-          <div className="eyebrow mb-3">Shop · Browse</div>
-          <h1 className="display-xl">All <span className="neon-pink-text">Drops</span></h1>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.4em",textTransform:"uppercase",color:"rgba(255,215,0,0.7)",marginBottom:10,display:"flex",alignItems:"center",gap:10}}>
+            <span style={{width:20,height:1,background:"#ffd700",display:"inline-block"}} /> Shop · Browse
+          </div>
+          <h1 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(40px,6vw,72px)",letterSpacing:"0.02em",lineHeight:1}}>All <span style={{color:"#ff007f",textShadow:"0 0 30px rgba(255,0,127,0.4)"}}>Drops</span></h1>
           <p className="text-white/60 mt-4 max-w-xl">
             {loading ? '...' : `${products.length} premium bottle${products.length !== 1 ? 's' : ''} — wine, whiskey, beer, gin, all here lah.`}
           </p>
@@ -235,19 +237,19 @@ const Products = () => {
                 )}
                 {selected && (
                   <div className="flex items-center justify-between px-3 py-2 bg-[#ff007f20] border border-[#ff007f30] rounded-xl text-sm">
-                    <span className="text-[#ff007f]">📦 {selected}</span>
+                    <span className="text-[#ff007f] flex items-center gap-2"><FaBoxOpen size={11}/> {selected}</span>
                     <button onClick={() => setCat('')}><FaTimes size={10} className="text-white/40 hover:text-[#ff007f]" /></button>
                   </div>
                 )}
                 {priceRange > 0 && (
                   <div className="flex items-center justify-between px-3 py-2 bg-[#ffd70020] border border-[#ffd70030] rounded-xl text-sm">
-                    <span className="text-[#ffd700]">💰 {PRICE_RANGES[priceRange].label}</span>
+                    <span className="text-[#ffd700] flex items-center gap-2"><FaTag size={11}/> {PRICE_RANGES[priceRange].label}</span>
                     <button onClick={() => setPriceRange(0)}><FaTimes size={10} className="text-white/40 hover:text-[#ff007f]" /></button>
                   </div>
                 )}
                 {sort && (
                   <div className="flex items-center justify-between px-3 py-2 bg-[#00f0ff20] border border-[#00f0ff30] rounded-xl text-sm">
-                    <span className="text-[#00f0ff]">↕ {SORT_OPTIONS.find(o => o.value === sort)?.label}</span>
+                    <span className="text-[#00f0ff] flex items-center gap-2"><FaSortAmountDown size={11}/> {SORT_OPTIONS.find(o => o.value === sort)?.label}</span>
                     <button onClick={() => setSort('')}><FaTimes size={10} className="text-white/40 hover:text-[#ff007f]" /></button>
                   </div>
                 )}
@@ -266,7 +268,7 @@ const Products = () => {
           </div>
         ) : products.length === 0 ? (
           <div className="text-center py-20 surface">
-            <div className="text-5xl mb-4">🍾</div>
+            <FaWineGlass size={48} className="text-white/20 mx-auto mb-4" style={{display:"block"}} />
             <div className="display-md mb-3 text-white/70">No drops found lah</div>
             <p className="text-white/50 mb-6">Try a different search or remove some filters boss.</p>
             <button onClick={clearAll} className="btn-pink">Clear filters</button>

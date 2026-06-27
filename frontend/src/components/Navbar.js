@@ -4,13 +4,13 @@ import { useAuth, useCart } from '../context';
 import {
   FaSearch, FaShoppingBag, FaUser, FaBars, FaTimes,
   FaSignOutAlt, FaChevronDown, FaTachometerAlt, FaUsers,
-  FaHome, FaKey, FaWhatsapp, FaBoxOpen, FaBolt,
+  FaHome, FaKey, FaWhatsapp, FaBoxOpen, FaBolt, FaBox,
 } from 'react-icons/fa';
 
 const CATEGORIES = [
-  ['Whiskey','🥃'],['Vodka','🫧'],['Gin','🌿'],['Rum','🍹'],
-  ['Champagne','🍾'],['Wine','🍷'],['Tequila','🥂'],['Cognac','✨'],
-  ['Brandy','🍫'],['Liqueur','🧊'],['Beer','🍺'],['Sake','🌸'],
+  ['Whiskey','W'],['Vodka','V'],['Gin','G'],['Rum','R'],
+  ['Champagne','Ch'],['Wine','Wi'],['Tequila','T'],['Cognac','Co'],
+  ['Brandy','Br'],['Liqueur','L'],['Beer','Be'],['Sake','Sa'],
 ];
 
 const Navbar = () => {
@@ -149,7 +149,7 @@ const Navbar = () => {
                     {CATEGORIES.map(([c, emoji]) => (
                       <Link key={c} to={`/products?category=${encodeURIComponent(c)}`}
                         className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs text-white/60 hover:bg-white/[0.06] hover:text-white transition-all">
-                        <span>{emoji}</span>{c}
+                        <span style={{fontSize:10,fontWeight:900,color:'rgba(255,0,127,0.5)',width:16,textAlign:'center'}}>{emoji}</span>{c}
                       </Link>
                     ))}
                   </div>
@@ -256,7 +256,7 @@ const Navbar = () => {
               <DrawerLabel label="Shop" />
               <DrawerItem to="/products" icon={<FaBoxOpen size={14}/>} label="All Products" />
               <DrawerItem to="/products?promo=1" icon={<FaBolt size={14}/>} label="Promotions" accent="#ff007f" />
-              <DrawerItem to="/bulk-order" icon="📦" label="Bulk & Event Orders" />
+              <DrawerItem to="/bulk-order" icon={<FaBox size={14}/>} label="Bulk & Event Orders" />
 
               {/* Categories */}
               <DrawerLabel label="Categories" />
@@ -265,7 +265,7 @@ const Navbar = () => {
                   <Link key={c} to={`/products?category=${encodeURIComponent(c)}`}
                     className="py-2.5 rounded-xl text-xs text-center text-white/55 hover:text-white transition-all"
                     style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div className="text-lg mb-1">{emoji}</div>
+                    <div style={{fontSize:11,fontWeight:900,color:'#ff007f',marginBottom:4}}>{emoji}</div>
                     {c}
                   </Link>
                 ))}

@@ -16,7 +16,7 @@ const Cart = () => {
 
   if (cart.length === 0) return (
     <div style={{ maxWidth: 480, margin: '0 auto', padding: '100px 24px', textAlign: 'center' }}>
-      <div style={{ fontSize: 64, marginBottom: 24, opacity: 0.2 }}>🛒</div>
+      <FaShoppingBag size={56} style={{ color: 'rgba(255,255,255,0.1)', display:'block', margin:'0 auto 24px' }} />
       <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 52, letterSpacing: '0.02em', marginBottom: 12 }}>Cart Kosong Lah Boss</h1>
       <p style={{ color: 'rgba(255,255,255,0.45)', marginBottom: 36, lineHeight: 1.7 }}>Browse our premium drops & add a few bottles to start.</p>
       <Link to="/products" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: 'linear-gradient(135deg,#ff007f,#c8005a)', color: '#fff', padding: '16px 32px', borderRadius: 50, fontWeight: 800, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', boxShadow: '0 0 28px rgba(255,0,127,0.35)' }}>

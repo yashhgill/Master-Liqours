@@ -416,7 +416,7 @@ const StaffDashboard = () => {
       <div className="eyebrow mb-3">{isAdmin ? 'Admin Console' : 'Staff Console'}</div>
       <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
         <div>
-          <h1 className="display-xl mb-1">Hi <span className="neon-cyan-text">{user?.name}</span> 👋</h1>
+          <h1 className="display-xl mb-1">Hi <span className="neon-cyan-text">{user?.name}</span></h1>
           <p className="text-white/60">Manage orders, stock & personal sales here boss.</p>
         </div>
         <button onClick={() => setShowPersonal(true)} className="btn-lime flex items-center gap-2">
@@ -499,7 +499,7 @@ const StaffDashboard = () => {
                           </div>
                         )}
 
-                        {o.customer_name && <div className="text-xs text-white/60 mt-1">👤 {o.customer_name} · {o.customer_whatsapp}</div>}
+                        {o.customer_name && <div className="text-xs text-white/60 mt-1">{o.customer_name} · {o.customer_whatsapp}</div>}
                         {o.customer_whatsapp && (
                           <a href={`https://wa.me/${o.customer_whatsapp.replace(/\D/g,'')}?text=${encodeURIComponent(
                               `Hi ${o.customer_name || ''}! Re your order #${o.order_id.slice(0,8).toUpperCase()}:\n` +
@@ -517,7 +517,7 @@ const StaffDashboard = () => {
                           style={{ background: `${meta.color}20`, color: meta.color }}>{meta.label}</span>
                       </div>
                     </div>
-                    {o.shipping_address && <div className="text-xs text-white/30 mb-3 truncate">📍 {o.shipping_address}</div>}
+                    {o.shipping_address && <div className="text-xs text-white/30 mb-3 truncate">{o.shipping_address}</div>}
                     {!isFinal && (
                       <div className="flex flex-wrap gap-2 pt-3 border-t border-white/5">
                         {next && (

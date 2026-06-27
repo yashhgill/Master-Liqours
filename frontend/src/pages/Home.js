@@ -4,6 +4,7 @@ import axios from 'axios';
 import {
   FaArrowRight, FaBolt, FaWhatsapp, FaTrophy,
   FaUserShield, FaGem, FaCheck, FaChevronLeft, FaChevronRight,
+  FaShieldAlt, FaMedal, FaGem as FaDiamond,
 } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 import ReviewSection from '../components/ReviewSection';
@@ -21,7 +22,7 @@ const DEFAULT_HERO = [
     sub: 'Top quality drops, harga terbaik. Order now, settle via WhatsApp — same-day delivery across KL & Klang Valley lah.',
     cta_text: 'Shop Now Lah',
     cta_link: '/products',
-    bottle: '🥃',
+    bottle: 'whiskey',
   },
   {
     eyebrow: 'Flash Drop · Limited Stock',
@@ -31,7 +32,7 @@ const DEFAULT_HERO = [
     sub: 'Limited stock boss. Once habis, habis lah. Flash drops updated daily — check now before it\'s gone.',
     cta_text: 'See Flash Sales',
     cta_link: '/products',
-    bottle: '🍾',
+    bottle: 'champagne',
   },
   {
     eyebrow: 'New Arrivals · Just Landed',
@@ -41,23 +42,23 @@ const DEFAULT_HERO = [
     sub: 'Bubbles for every occasion — birthdays, weddings, corporate events. Free delivery above RM1,250.',
     cta_text: 'Explore Drops',
     cta_link: '/products?category=Champagne',
-    bottle: '🥂',
+    bottle: 'cheers',
   },
 ];
 
 const CATEGORIES = [
-  { name: 'Whiskey', emoji: '🥃' },
-  { name: 'Vodka', emoji: '🫧' },
-  { name: 'Gin', emoji: '🌿' },
-  { name: 'Rum', emoji: '🍹' },
-  { name: 'Champagne', emoji: '🍾' },
-  { name: 'Wine', emoji: '🍷' },
-  { name: 'Tequila', emoji: '🥂' },
-  { name: 'Cognac', emoji: '✨' },
-  { name: 'Brandy', emoji: '🍫' },
-  { name: 'Liqueur', emoji: '🧊' },
-  { name: 'Beer', emoji: '🍺' },
-  { name: 'Sake', emoji: '🌸' },
+  { name: 'Whiskey', abbr: 'WH' },
+  { name: 'Vodka', abbr: 'VK' },
+  { name: 'Gin', abbr: 'GN' },
+  { name: 'Rum', abbr: 'RM' },
+  { name: 'Champagne', abbr: 'CH' },
+  { name: 'Wine', abbr: 'WN' },
+  { name: 'Tequila', abbr: 'TQ' },
+  { name: 'Cognac', abbr: 'CG' },
+  { name: 'Brandy', abbr: 'BR' },
+  { name: 'Liqueur', abbr: 'LQ' },
+  { name: 'Beer', abbr: 'BR' },
+  { name: 'Sake', abbr: 'SK' },
 ];
 
 // Reusable horizontal slider
@@ -269,7 +270,7 @@ const Home = () => {
         sub: b.subtitle || 'Top quality drops.',
         cta_text: b.cta_text || 'Shop Now Lah',
         cta_link: b.cta_link || '/products',
-        bottle: '🥃',
+        bottle: 'whiskey',
       }));
       setSlides(mapped);
     }
@@ -320,7 +321,7 @@ const Home = () => {
         {/* Floating bottle — transitions on slide change */}
         <div key={slide} className="absolute right-[8%] top-1/2 -translate-y-1/2 select-none pointer-events-none"
           style={{ fontSize: 'clamp(140px, 20vw, 260px)', animation: 'bottleFloat 6s ease-in-out infinite', filter: 'drop-shadow(0 0 60px rgba(255,0,127,0.25)) drop-shadow(0 0 120px rgba(255,0,127,0.08))', opacity: 0.85, transition: 'opacity 0.5s' }}>
-          {hero.bottle || '🥃'}
+          <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:'0.4em',letterSpacing:'0.05em',color:'rgba(255,255,255,0.15)',display:'block',textAlign:'center',lineHeight:1,userSelect:'none'}}>{hero.bottle?.toUpperCase()||'WHISKEY'}</span>
         </div>
 
         {/* Content */}
@@ -431,7 +432,7 @@ const Home = () => {
         <div style={{ display: 'flex', width: 'max-content', animation: 'marquee 18s linear infinite', gap: 0 }}>
           {[...Array(2)].map((_, rep) => (
             <React.Fragment key={rep}>
-              {['⚡ Flash Sales Live', '500+ Premium Bottles', '🔥 Up to 50% Off Today', 'Same-Day KL & Klang Valley Delivery', '100% Authentic Guaranteed', '🥃 Premium Spirits'].map((t, i) => (
+              {['Flash Sales Live', '500+ Premium Bottles', 'Up to 50% Off Today', 'Same-Day KL & Klang Valley Delivery', '100% Authentic Guaranteed', 'Premium Spirits'].map((t, i) => (
                 <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 16, padding: '0 40px', color: '#030303', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                   {t} <span style={{ color: 'rgba(0,0,0,0.3)' }}>·</span>
                 </span>
@@ -463,7 +464,7 @@ const Home = () => {
             {CATEGORIES.map((cat) => (
               <Link key={cat.name} to={`/products?category=${encodeURIComponent(cat.name)}`}
                 className="group flex flex-col items-center gap-2 p-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.05] transition-all duration-300 hover:-translate-y-2">
-                <span className="text-3xl group-hover:scale-125 group-hover:-translate-y-1 transition-transform duration-300">{cat.emoji}</span>
+                <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:18, letterSpacing:'0.05em', color:'rgba(255,0,127,0.6)', display:'block', marginBottom:4, transition:'all 0.3s' }} className="group-hover:text-[#ff007f] group-hover:scale-110">{cat.abbr}</span>
                 <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }} className="group-hover:text-white transition-colors text-center">{cat.name}</span>
               </Link>
             ))}
@@ -529,14 +530,14 @@ const Home = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
-              { icon: '🛡️', tier: 'Tier 1', name: 'Regular', col: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.08)', perks: ['Earn 1pt per RM10 spent', 'Newsletter promos', 'WhatsApp support'], check: '#39ff14' },
-              { icon: '🏆', tier: 'Tier 2 · 5,000 pts', name: 'Gold', col: '#ffd700', border: 'rgba(255,215,0,0.2)', perks: ['All Regular perks', 'RM50 off every shipping', 'Early flash sale access'], check: '#ffd700', glow: 'rgba(255,215,0,0.15)' },
-              { icon: '💎', tier: 'Tier 3 · 10,000 pts', name: 'Platinum', col: '#00f0ff', border: 'rgba(0,240,255,0.2)', perks: ['All Gold perks', '3% off every order', 'Dedicated staff line'], check: '#00f0ff', glow: 'rgba(0,240,255,0.12)' },
+              { icon: 'regular', tier: 'Tier 1', name: 'Regular', col: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.08)', perks: ['Earn 1pt per RM10 spent', 'Newsletter promos', 'WhatsApp support'], check: '#39ff14' },
+              { icon: 'gold', tier: 'Tier 2 · 5,000 pts', name: 'Gold', col: '#ffd700', border: 'rgba(255,215,0,0.2)', perks: ['All Regular perks', 'RM50 off every shipping', 'Early flash sale access'], check: '#ffd700', glow: 'rgba(255,215,0,0.15)' },
+              { icon: 'platinum', tier: 'Tier 3 · 10,000 pts', name: 'Platinum', col: '#00f0ff', border: 'rgba(0,240,255,0.2)', perks: ['All Gold perks', '3% off every order', 'Dedicated staff line'], check: '#00f0ff', glow: 'rgba(0,240,255,0.12)' },
             ].map((t, i) => (
               <div key={i} className="rounded-[28px] p-10 relative overflow-hidden hover:-translate-y-2 transition-transform duration-300"
                 style={{ border: `1px solid ${t.border}`, background: 'rgba(255,255,255,0.02)', boxShadow: t.glow ? `0 0 60px ${t.glow}` : 'none' }}>
                 {t.glow && <div style={{ position: 'absolute', top: -80, right: -80, width: 200, height: 200, borderRadius: '50%', background: t.glow, filter: 'blur(60px)', pointerEvents: 'none' }} />}
-                <div style={{ fontSize: 44, marginBottom: 24 }}>{t.icon}</div>
+                <div style={{ marginBottom: 24 }}><span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:32,color:t.col,letterSpacing:'0.1em',opacity:0.6}}>{t.icon.toUpperCase()}</span></div>
                 <div style={{ fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 8 }}>{t.tier}</div>
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 44, color: t.col, textShadow: t.glow ? `0 0 30px ${t.glow}` : 'none', marginBottom: 28 }}>{t.name}</div>
                 {t.perks.map((p, j) => (
@@ -558,10 +559,10 @@ const Home = () => {
             <h2 className="sec-title">Order → <span style={{ color: '#ff007f', textShadow: '0 0 30px rgba(255,0,127,0.4)' }}>WhatsApp</span> → Done.</h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[['🔍', '01', 'Browse', 'Pick from 500+ premium bottles.'], ['🛒', '02', 'Checkout', 'Add to cart, enter your address.'], ['💬', '03', 'WhatsApp', 'Staff contacts you directly.'], ['✅', '04', 'Settle', 'Pay via QR. Same-day delivery.']].map(([emoji, n, title, desc]) => (
+            {[['01', 'Browse', 'Pick from 500+ premium bottles.'], ['02', 'Checkout', 'Add to cart, enter your address.'], ['03', 'WhatsApp', 'Staff contacts you directly.'], ['04', 'Settle', 'Pay via QR. Same-day delivery KL.']].map(([n, title, desc]) => (
               <div key={n} className="p-8 rounded-[24px] border border-white/[0.06] hover:border-[#ff007f]/30 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 64, color: 'rgba(255,255,255,0.04)', lineHeight: 1, marginBottom: 16 }}>{n}</div>
-                <div style={{ fontSize: 28, marginBottom: 12 }}>{emoji}</div>
+
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, marginBottom: 8, letterSpacing: '0.02em' }}>{title}</div>
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 1.7 }}>{desc}</div>
               </div>

@@ -195,7 +195,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
         {/* Preorder note with boss contact */}
         {cardState === 'preorder' && (
           <div className="mt-3 bg-[#ffd70010] rounded-lg px-3 py-2 border border-[#ffd700]/20 space-y-1">
-            <div className="text-[10px] text-[#ffd700]/80">🕐 Wait first lah — check with boss before ordering.</div>
+            <div className="text-[10px] text-[#ffd700]/80 flex items-center gap-1"><FaHourglassHalf size={9}/> Wait first lah — check with boss before ordering.</div>
             <div className="flex items-center gap-1.5">
               <FaWhatsapp size={10} className="text-[#25d366]" />
               <span className="text-[10px] text-white/60">Boss: </span>

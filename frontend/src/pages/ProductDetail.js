@@ -121,12 +121,14 @@ const ProductDetail = () => {
 
           {/* Details */}
           <div>
-            <div className="text-xs uppercase tracking-[0.25em] text-[#ffd700] mb-3">{product.category}</div>
-            <h1 className="display-xl mb-5">{product.name}</h1>
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.4em",textTransform:"uppercase",color:"rgba(255,215,0,0.7)",marginBottom:10,display:"flex",alignItems:"center",gap:10}}>
+              <span style={{width:16,height:1,background:"#ffd700",display:"inline-block"}} /> {product.category}
+            </div>
+            <h1 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(36px,5vw,64px)",letterSpacing:"0.02em",lineHeight:1,marginBottom:20}}>{product.name}</h1>
 
             {isPreorder ? (
               <div className="mb-6 p-4 bg-[#ffd70015] border border-[#ffd700]/30 rounded-2xl">
-                <div className="font-bold text-[#ffd700] mb-1">🕐 Pre-order Item — Check Boss First</div>
+                <div className="font-bold text-[#ffd700] mb-1">Pre-order Item — Check Boss First</div>
                 <p className="text-white/60 text-sm mb-3">This product needs to be confirmed before ordering. Price may vary.</p>
                 <a href={`https://wa.me/${BOSS_WA.replace(/\D/g,'')}?text=${encodeURIComponent(`Hi! I'm interested in pre-ordering ${product.name}. Is it available?`)}`}
                   target="_blank" rel="noopener noreferrer" className="btn-whatsapp inline-flex">
@@ -198,7 +200,7 @@ const ProductDetail = () => {
           <img src={product.image_url || 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=1200'}
             alt={product.name} className="max-w-full max-h-full object-contain rounded-2xl"
             onError={e => e.target.src='https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=1200'} />
-          <button className="absolute top-6 right-6 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all text-xl">✕</button>
+          <button className="absolute top-6 right-6 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all"><FaTimes size={16} /></button>
         </div>
       )}
     </div>

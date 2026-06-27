@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FaArrowLeft, FaWhatsapp, FaCheckCircle, FaClock, FaTimesCircle, FaBox, FaUser, FaMapMarkerAlt, FaPhone, FaTruck, FaBoxOpen } from 'react-icons/fa';
+import { FaArrowLeft, FaWhatsapp, FaCheckCircle, FaClock, FaTimesCircle, FaBox, FaUser, FaMapMarkerAlt, FaPhone, FaTruck, FaBoxOpen, FaStar } from 'react-icons/fa';
 import { useAuth } from '../context';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -80,8 +80,12 @@ const OrderDetail = () => {
 
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <div>
-          <div className="eyebrow mb-2">Order Detail</div>
-          <h1 className="display-xl">#<span className="neon-pink-text">{order.order_id.slice(0,8).toUpperCase()}</span></h1>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.4em",textTransform:"uppercase",color:"rgba(255,215,0,0.7)",marginBottom:10,display:"flex",alignItems:"center",gap:10}}>
+            <span style={{width:20,height:1,background:"#ffd700",display:"inline-block"}} /> Order Detail
+          </div>
+          <h1 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(36px,5vw,64px)",letterSpacing:"0.02em",lineHeight:1}}>
+            #<span style={{color:"#ff007f",textShadow:"0 0 30px rgba(255,0,127,0.4)"}}>{order.order_id.slice(0,8).toUpperCase()}</span>
+          </h1>
           <div className="text-white/50 text-sm mt-2">Placed {new Date(order.created_at).toLocaleString()}</div>
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border"
@@ -183,7 +187,7 @@ const OrderDetail = () => {
             <div className="flex gap-2 mb-4">
               {[1,2,3,4,5].map(s => (
                 <button key={s} onClick={() => setReview(r => ({...r, rating: s}))}
-                  className={`text-3xl transition-all hover:scale-110 ${s <= review.rating ? 'text-[#ffd700]' : 'text-white/20'}`}>★</button>
+                  className={`transition-all hover:scale-110 ${s <= review.rating ? 'text-[#ffd700]' : 'text-white/20'}`}><FaStar size={24}/></button>
               ))}
             </div>
             <textarea rows={3} className="input-dark resize-none mb-4"
@@ -198,7 +202,7 @@ const OrderDetail = () => {
         )}
         {reviewSent && (
           <div className="surface p-6 text-center">
-            <div className="text-4xl mb-3">🌟</div>
+            <FaStar size={40} className="text-[#ffd700] mx-auto mb-3" style={{display:"block"}} />
             <div className="display-md text-[#ffd700]">Thanks for the review boss!</div>
           </div>
         )}

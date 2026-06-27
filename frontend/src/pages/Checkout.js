@@ -60,7 +60,7 @@ const Checkout = () => {
       const res = await axios.post(API + '/orders/validate-promo', { code: promoCode.trim() }, { withCredentials: true });
       setPromoValid(true);
       setPromoDiscount(res.data.discount_amount || 0);
-      setPromoMsg('✅ Code applied — RM' + (res.data.discount_amount || 0).toFixed(2) + ' off!');
+      setPromoMsg('Code applied — RM' + (res.data.discount_amount || 0).toFixed(2) + ' off!');
     } catch (e) {
       setPromoValid(false);
       setPromoDiscount(0);
@@ -152,8 +152,12 @@ const Checkout = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12">
-      <div className="eyebrow mb-3">Step 2 of 2</div>
-      <h1 className="display-xl mb-10"><span className="neon-pink-text">Checkout</span> · Settle</h1>
+      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.4em",textTransform:"uppercase",color:"rgba(255,215,0,0.7)",marginBottom:10,display:"flex",alignItems:"center",gap:10}}>
+        <span style={{width:20,height:1,background:"#ffd700",display:"inline-block"}} /> Step 2 of 2
+      </div>
+      <h1 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(40px,6vw,72px)",letterSpacing:"0.02em",lineHeight:1,marginBottom:40}}>
+        <span style={{color:"#ff007f",textShadow:"0 0 30px rgba(255,0,127,0.4)"}}>Checkout</span> · Settle
+      </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
         <div className="surface p-8 space-y-5">

@@ -1056,7 +1056,7 @@ const SuperAdminDashboard = () => {
       {/* === STAFF MODE (redirect) === */}
       {tab === 'staff-mode' && (
         <div className="surface p-10 text-center space-y-4">
-          <div className="text-4xl mb-3">🏪</div>
+          
           <h2 className="display-md">Your Sales Dashboard</h2>
           <p className="text-white/50">Log personal sales, manage your stock, transfer orders.</p>
           <a href="/staff" className="btn-pink inline-flex items-center gap-2 mx-auto">Go to Staff Dashboard</a>
@@ -1178,7 +1178,7 @@ const SuperAdminDashboard = () => {
                       </div>
                     )}
                   </div>
-                  <p className="text-xs text-white/50 mt-3">📲 Share these via WhatsApp/email. The password won't be shown again — only resetable.</p>
+                  <p className="text-xs text-white/50 mt-3">Share these via WhatsApp/email. The password won't be shown again — only resetable.</p>
                 </div>
                 <button onClick={() => setStaffSecret(null)} className="text-white/50 hover:text-white shrink-0" data-testid="staff-dismiss-creds">×</button>
               </div>
@@ -1236,7 +1236,7 @@ const SuperAdminDashboard = () => {
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-[10px] uppercase tracking-wider bg-[#ffd700]/15 text-[#ffd700] px-2 py-0.5 rounded-full font-bold">{s.referral_code}</span>
                       {s.warehouse_name && (
-                        <span className="text-[10px] uppercase tracking-wider bg-[#00f0ff]/15 text-[#00f0ff] px-2 py-0.5 rounded-full font-bold">📦 {s.warehouse_name}</span>
+                        <span className="text-[10px] uppercase tracking-wider bg-[#00f0ff]/15 text-[#00f0ff] px-2 py-0.5 rounded-full font-bold">{s.warehouse_name}</span>
                       )}
                       {s.whatsapp_number && (
                         <a href={`https://wa.me/${s.whatsapp_number.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" className="text-[#39ff14] hover:scale-110 transition-transform"><FaWhatsapp size={12} /></a>
