@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart, useAuth } from '../context';
-import { useEffect } from 'react';
 import { FaTrash, FaPlus, FaMinus, FaArrowRight, FaShoppingBag } from 'react-icons/fa';
 
 const Cart = () => {
