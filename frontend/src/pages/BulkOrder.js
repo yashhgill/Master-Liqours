@@ -57,7 +57,7 @@ const BulkOrder = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16">
+<div className="max-w-3xl mx-auto px-4 sm:px-6 py-16" style={{minHeight:"100vh"}}>
       <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.4em",textTransform:"uppercase",color:"rgba(255,215,0,0.7)",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
         <span style={{width:20,height:1,background:"#ffd700",display:"inline-block"}} /> Bulk & Event Orders
       </div>

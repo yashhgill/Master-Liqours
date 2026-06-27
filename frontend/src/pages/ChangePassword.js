@@ -74,9 +74,9 @@ const ChangePassword = () => {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-16">
-      <div className="eyebrow mb-2">Account Settings</div>
-      <h1 className="display-xl mb-2">Change <span className="neon-pink-text">Password</span></h1>
-      <p className="text-white/40 text-sm mb-8">Keep your account secure boss.</p>
+      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.4em",textTransform:"uppercase",color:"rgba(255,215,0,0.7)",marginBottom:10,display:"flex",alignItems:"center",gap:10}}><span style={{width:20,height:1,background:"#ffd700",display:"inline-block"}} /> Account Settings</div>
+      <h1 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(36px,5vw,60px)",letterSpacing:"0.02em",lineHeight:1,marginBottom:8}}>Change <span style={{color:"#ff007f",textShadow:"0 0 30px rgba(255,0,127,0.4)"}}>Password</span></h1>
+      <p style={{color:"rgba(255,255,255,0.4)",fontSize:14,marginBottom:32}}>Keep your account secure boss.</p>
 
       {isGoogleOnly ? (
         <div className="surface p-8 text-center">

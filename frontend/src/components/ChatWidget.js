@@ -1,21 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { FaComments, FaTimes, FaPaperPlane } from 'react-icons/fa';
-import { useAuth } from '../context';
+import { FaComments, FaTimes, FaPaperPlane, FaRobot, FaUser } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const ChatWidget = () => {
-  const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([
+    { role: 'assistant', content: 'Hi boss! Ask me anything about our drinks — prices, recommendations, what\'s in stock lah.' }
+  ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, open]);
 
   const send = async () => {
     if (!input.trim() || loading) return;
     const userMsg = { role: 'user', content: input };
-    setMessages((m) => [...m, userMsg]);
+    setMessages(m => [...m, userMsg]);
     setInput('');
     setLoading(true);
     try {
@@ -23,61 +28,77 @@ const ChatWidget = () => {
         message: input,
         conversation_history: messages.slice(-10),
       }, { withCredentials: true });
-      setMessages((m) => [...m, { role: 'assistant', content: res.data.response }]);
-    } catch (e) {
-      setMessages((m) => [...m, { role: 'assistant', content: 'Sorry boss, AI cannot respond now. Try WhatsApp our staff lah!' }]);
+      setMessages(m => [...m, { role: 'assistant', content: res.data.response }]);
+    } catch {
+      setMessages(m => [...m, { role: 'assistant', content: 'Sorry boss, AI cannot respond now. Try WhatsApp our staff lah!' }]);
     } finally { setLoading(false); }
   };
 
-  if (loading) return null;
+  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
 
   return (
     <>
+      {/* Toggle button */}
       {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-[155px] sm:right-[200px] z-40 w-14 h-14 rounded-full bg-gradient-to-br from-[#ff007f] to-[#e60073] text-white shadow-[0_8px_24px_-8px_rgba(255,0,127,0.65)] hover:scale-110 transition-all flex items-center justify-center"
-          data-testid="chat-open-btn"
-        >
+        <button onClick={() => setOpen(true)} data-testid="chat-open-btn"
+          style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 40, width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#ff007f,#c8005a)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 30px rgba(255,0,127,0.5)', transition: 'all 0.3s' }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
           <FaComments size={20} />
         </button>
       )}
+
+      {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-6 right-6 w-[360px] max-w-[calc(100vw-3rem)] h-[520px] surface flex flex-col z-50 overflow-hidden shadow-2xl">
-          <div className="bg-gradient-to-r from-[#ff007f] to-[#e60073] p-4 flex justify-between items-center">
-            <div>
-              <div className="font-display text-xl uppercase leading-none">AI Assistant</div>
-              <div className="text-xs text-white/80 mt-1">Ask about products, orders lah</div>
-            </div>
-            <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center"><FaTimes size={14} /></button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.length === 0 && (
-              <div className="text-center text-white/50 mt-12">
-                <div className="text-lg mb-2">Hi {user.name}!</div>
-                <div className="text-xs">Ask me about products, orders, or tier benefits.</div>
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 50, width: 340, maxHeight: 520, display: 'flex', flexDirection: 'column', borderRadius: 24, overflow: 'hidden', background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 24px 60px rgba(0,0,0,0.7)', animation: 'slideUp 0.3s ease' }}>
+
+          {/* Header */}
+          <div style={{ background: 'linear-gradient(135deg,#ff007f,#c8005a)', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <FaRobot size={16} />
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.05em' }}>AI ASSISTANT</div>
+                <div style={{ fontSize: 10, opacity: 0.8 }}>Ask about products, orders lah</div>
               </div>
-            )}
+            </div>
+            <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer' }} data-testid="chat-close-btn">
+              <FaTimes size={15} />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0, maxHeight: 360 }}>
             {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${
-                  m.role === 'user' ? 'bg-[#ff007f] text-white rounded-br-sm' : 'bg-[#0a0a0a] border border-white/10 text-white/90 rounded-bl-sm'
-                }`}>{m.content}</div>
+              <div key={i} style={{ display: 'flex', gap: 8, flexDirection: m.role === 'user' ? 'row-reverse' : 'row', alignItems: 'flex-start' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: m.role === 'user' ? 'linear-gradient(135deg,#ff007f,#c8005a)' : 'rgba(255,255,255,0.08)' }}>
+                  {m.role === 'user' ? <FaUser size={11} /> : <FaRobot size={11} style={{ color: '#ff007f' }} />}
+                </div>
+                <div style={{ maxWidth: '80%', padding: '10px 14px', borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', background: m.role === 'user' ? 'linear-gradient(135deg,#ff007f,#c8005a)' : 'rgba(255,255,255,0.07)', fontSize: 13, lineHeight: 1.55, color: '#fff' }}>
+                  {m.content}
+                </div>
               </div>
             ))}
-            {loading && <div className="text-white/40 text-xs">Typing...</div>}
+            {loading && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FaRobot size={11} style={{ color: '#ff007f' }} /></div>
+                <div style={{ padding: '10px 14px', borderRadius: '18px 18px 18px 4px', background: 'rgba(255,255,255,0.07)', display: 'flex', gap: 4, alignItems: 'center' }}>
+                  {[0, 0.2, 0.4].map((d, i) => <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,0.4)', animation: `pulse 1s ${d}s ease-in-out infinite` }} />)}
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
           </div>
-          <div className="p-3 border-t border-white/10 flex gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
-              placeholder="Ask lah..."
-              className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-full px-4 py-2.5 text-sm outline-none focus:border-[#ff007f]"
-              data-testid="chat-input"
-            />
-            <button onClick={send} disabled={loading || !input.trim()} className="w-10 h-10 rounded-full bg-[#ff007f] hover:bg-[#e60073] disabled:opacity-40 flex items-center justify-center" data-testid="chat-send-btn">
-              <FaPaperPlane size={14} />
+
+          {/* Input */}
+          <div style={{ padding: '12px 14px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', gap: 8 }}>
+            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
+              placeholder="Ask lah..." data-testid="chat-input"
+              style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 50, padding: '9px 16px', color: '#fff', fontSize: 13, outline: 'none' }}
+              onFocus={e => e.target.style.borderColor = 'rgba(255,0,127,0.5)'}
+              onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'} />
+            <button onClick={send} disabled={loading || !input.trim()} data-testid="chat-send-btn"
+              style={{ width: 38, height: 38, borderRadius: '50%', background: input.trim() ? 'linear-gradient(135deg,#ff007f,#c8005a)' : 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', cursor: input.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', flexShrink: 0 }}>
+              <FaPaperPlane size={13} />
             </button>
           </div>
         </div>

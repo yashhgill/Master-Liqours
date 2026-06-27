@@ -78,7 +78,7 @@ const UserDashboard = () => {
       )}
 
       <div className="surface p-6">
-        <h2 className="display-md mb-6">Recent Orders</h2>
+<h2 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:36,letterSpacing:"0.02em",marginBottom:20}}>Recent Orders</h2>
         {orders.length === 0 ? (
           <div className="text-center py-12 text-white/40">No orders yet boss. Start shopping lah!</div>
         ) : (

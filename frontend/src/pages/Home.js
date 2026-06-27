@@ -304,13 +304,12 @@ const Home = () => {
           touchStartX.current = null;
         }}
       >
-        {/* Orbs */}
-        <div className="absolute pointer-events-none" style={{ width: 700, height: 700, top: -200, left: -150, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,0,127,0.2) 0%, transparent 65%)', filter: 'blur(120px)', animation: 'orbA 14s ease-in-out infinite alternate' }} />
-        <div className="absolute pointer-events-none" style={{ width: 600, height: 600, bottom: -150, right: -100, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,240,255,0.14) 0%, transparent 65%)', filter: 'blur(120px)', animation: 'orbB 18s ease-in-out infinite alternate' }} />
-        <div className="absolute pointer-events-none" style={{ width: 400, height: 400, top: '40%', left: '40%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,215,0,0.07) 0%, transparent 65%)', filter: 'blur(100px)', animation: 'orbA 22s ease-in-out infinite alternate' }} />
+        {/* Orbs — hidden on mobile for performance */}
+        <div className="hidden sm:block absolute pointer-events-none" style={{ width: 600, height: 600, top: -150, left: -100, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,0,127,0.18) 0%, transparent 65%)', filter: 'blur(100px)', animation: 'orbA 14s ease-in-out infinite alternate' }} />
+        <div className="hidden sm:block absolute pointer-events-none" style={{ width: 500, height: 500, bottom: -100, right: -80, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,240,255,0.12) 0%, transparent 65%)', filter: 'blur(100px)', animation: 'orbB 18s ease-in-out infinite alternate' }} />
 
-        {/* Rotating ring */}
-        <div className="absolute pointer-events-none" style={{ width: 800, height: 800, top: '50%', left: '50%', transform: 'translate(-50%,-50%)', borderRadius: '50%', border: '1px solid rgba(255,0,127,0.06)', animation: 'ringRotate 50s linear infinite' }}>
+        {/* Rotating ring — desktop only */}
+        <div className="hidden md:block absolute pointer-events-none" style={{ width: 800, height: 800, top: '50%', left: '50%', transform: 'translate(-50%,-50%)', borderRadius: '50%', border: '1px solid rgba(255,0,127,0.06)', animation: 'ringRotate 50s linear infinite' }}>
           <div style={{ position: 'absolute', inset: 60, borderRadius: '50%', border: '1px solid rgba(0,240,255,0.04)' }} />
           <div style={{ position: 'absolute', inset: 130, borderRadius: '50%', border: '1px solid rgba(255,215,0,0.04)' }} />
         </div>
@@ -318,8 +317,8 @@ const Home = () => {
         {/* Grid texture */}
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px)', backgroundSize: '64px 64px' }} />
 
-        {/* Floating bottle — transitions on slide change */}
-        <div key={slide} className="absolute right-[8%] top-1/2 -translate-y-1/2 select-none pointer-events-none"
+        {/* Floating bottle — desktop only for perf */}
+        <div key={slide} className="hidden lg:block absolute right-[8%] top-1/2 -translate-y-1/2 select-none pointer-events-none"
           style={{ fontSize: 'clamp(140px, 20vw, 260px)', animation: 'bottleFloat 6s ease-in-out infinite', filter: 'drop-shadow(0 0 60px rgba(255,0,127,0.25)) drop-shadow(0 0 120px rgba(255,0,127,0.08))', opacity: 0.85, transition: 'opacity 0.5s' }}>
           <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:'0.4em',letterSpacing:'0.05em',color:'rgba(255,255,255,0.15)',display:'block',textAlign:'center',lineHeight:1,userSelect:'none'}}>{hero.bottle?.toUpperCase()||'WHISKEY'}</span>
         </div>
