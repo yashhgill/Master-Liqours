@@ -162,15 +162,6 @@ const Navbar = () => {
             <div className="flex-1" />
 
             {/* Right links — role based */}
-            {!user && (
-              <>
-                <Link to="/login" className="text-white/60 hover:text-white transition-colors">Sign In</Link>
-                <Link to="/register" className="px-4 py-1.5 rounded-full font-bold text-white transition-all"
-                  style={{ background: 'linear-gradient(135deg,#ff007f,#c8005a)', boxShadow: '0 0 16px rgba(255,0,127,0.3)' }}>
-                  Register Free
-                </Link>
-              </>
-            )}
             {user && !isStaffOrAdmin && (
               <>
                 <Link to="/dashboard" className="text-[#ffd700] hover:text-white transition-colors">My Dashboard</Link>

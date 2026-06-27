@@ -58,8 +58,12 @@ const BulkOrder = () => {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16">
-      <div className="eyebrow mb-3 flex items-center gap-2"><FaWineGlass /> Bulk &amp; Event Orders</div>
-      <h1 className="display-xl mb-3">Planning a party, wedding or corporate event?</h1>
+      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.4em",textTransform:"uppercase",color:"rgba(255,215,0,0.7)",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+        <span style={{width:20,height:1,background:"#ffd700",display:"inline-block"}} /> Bulk & Event Orders
+      </div>
+      <h1 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(40px,6vw,70px)",letterSpacing:"0.02em",lineHeight:0.95,marginBottom:16}}>
+        Planning a party,<br/>wedding or <span style={{color:"#ff007f",textShadow:"0 0 30px rgba(255,0,127,0.4)"}}>event?</span>
+      </h1>
       <p className="text-white/60 mb-10">
         Tell us what you need by the carton and we'll send you bulk pricing — usually cheaper per bottle than
         buying individually. Fill this in and our team will follow up on WhatsApp or email.

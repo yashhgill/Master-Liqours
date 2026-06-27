@@ -21,9 +21,13 @@ const UserDashboard = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-12">
-      <div className="eyebrow mb-3">My Account</div>
-      <h1 className="display-xl mb-2">Hi <span className="neon-pink-text">{user?.name}</span></h1>
-      <p className="text-white/60 mb-10">Welcome back boss. Here's your shopping recap.</p>
+      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.4em",textTransform:"uppercase",color:"rgba(255,215,0,0.7)",marginBottom:10,display:"flex",alignItems:"center",gap:10}}>
+        <span style={{width:20,height:1,background:"#ffd700",display:"inline-block"}} /> My Account
+      </div>
+      <h1 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(40px,6vw,64px)",letterSpacing:"0.02em",lineHeight:1,marginBottom:8}}>
+        Hi <span style={{color:"#ff007f",textShadow:"0 0 30px rgba(255,0,127,0.4)"}}>{user?.name}</span>
+      </h1>
+      <p style={{color:"rgba(255,255,255,0.45)",marginBottom:40}}>Welcome back boss. Here's your shopping recap.</p>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         <div className="surface p-6">

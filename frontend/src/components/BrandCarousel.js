@@ -1,112 +1,105 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+// These are the hardcoded fallback brands — same ones the admin can add via the Brands tab.
+// Once the admin adds brands in /admin → Brands, those replace these automatically.
 const FALLBACK_BRANDS = [
-  { name: 'Johnnie Walker', short_name: 'Walker', color_hex: '#d4af37', subtitle: 'Striding Man' },
-  { name: 'Chivas Regal',   short_name: 'Chivas', color_hex: '#1f4a8c', subtitle: 'Since 1801' },
+  'Hennessy','Johnnie Walker','Chivas','Glenfiddich','Jack Daniels',
+  'Absolut','Grey Goose','Bacardi','Jameson','Moët & Chandon',
+  'Glenlivet','Hendricks','Bombay Sapphire','Tanqueray','Patron',
+  'Remy Martin','Martell','Courvoisier','Smirnoff','Captain Morgan',
 ];
 
-const BrandCard = ({ brand }) => {
-  const display = brand.short_name || brand.name;
-  const color = brand.color_hex || '#1a1a1a';
-  const slug = (brand.short_name || brand.name).toLowerCase().replace(/[^a-z0-9]/g, '-');
-  const searchTerm = brand.search_term || brand.name;
-
-  return (
-    <Link
-      to={`/products?search=${encodeURIComponent(searchTerm)}`}
-      className="group shrink-0 snap-start w-[220px] aspect-[4/5] rounded-3xl overflow-hidden relative transition-all hover:scale-[1.02]"
-      data-testid={`brand-card-${slug}`}
-    >
-      <div
-        className="absolute inset-0"
-        style={{ background: `linear-gradient(135deg, ${color} 0%, ${color}cc 60%, ${color}88 100%)` }}
-      />
-      <div
-        className="absolute inset-0 opacity-25 mix-blend-overlay"
-        style={{
-          backgroundImage: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4) 0%, transparent 40%), radial-gradient(circle at 80% 80%, rgba(0,0,0,0.5) 0%, transparent 40%)',
-        }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-
-      {brand.logo_url && (
-        <div className="absolute inset-0 flex items-center justify-center p-8">
-          <div className="absolute inset-6 rounded-2xl bg-white/90 shadow-lg" />
-          <img
-            src={brand.logo_url}
-            alt={brand.name}
-            className="relative w-full h-full object-contain p-4"
-            onError={(e) => { e.target.style.display = 'none'; e.target.previousSibling.style.display = 'none'; }}
-          />
-        </div>
-      )}
-
-      <div className="relative h-full flex flex-col justify-between p-6">
-        <div className="flex justify-between items-start">
-          <div className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/80">{brand.subtitle || ''}</div>
-          <div className="text-white/60 text-xs">★</div>
-        </div>
-        <div>
-          {!brand.logo_url && (
-            <div className="font-display text-4xl leading-[0.85] uppercase text-white" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.4)' }}>
-              {display}
-            </div>
-          )}
-          <div className={`mt-3 text-[10px] uppercase tracking-[0.25em] font-bold flex items-center gap-1.5 ${brand.logo_url ? 'text-white' : 'text-white/70'}`}>
-            Shop now <FaArrowRight size={9} />
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-};
-
 const BrandCarousel = () => {
-  const ref = useRef(null);
-  const [brands, setBrands] = useState(FALLBACK_BRANDS);
+  const [brands, setBrands] = useState([]);
 
   useEffect(() => {
-    axios.get(`${API}/brands`).then((r) => {
-      if (Array.isArray(r.data) && r.data.length > 0) setBrands(r.data);
-    }).catch(() => {});
+    axios.get(`${API}/brands`).then(r => {
+      const names = (r.data || []).map(b => b.short_name || b.name).filter(Boolean);
+      setBrands(names.length >= 6 ? names : FALLBACK_BRANDS);
+    }).catch(() => setBrands(FALLBACK_BRANDS));
   }, []);
 
-  const scroll = (dir) => ref.current?.scrollBy({ left: dir * 480, behavior: 'smooth' });
-
-  if (brands.length === 0) return null;
+  // Duplicate for seamless loop
+  const doubled = [...brands, ...brands];
 
   return (
-    <section className="py-20 bg-gradient-to-b from-[#050505] via-[#0a0a0a] to-[#050505]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
-        <div className="flex items-end justify-between mb-10 gap-6">
+    <section style={{ padding: '80px 0', background: '#030303', position: 'relative', overflow: 'hidden' }}>
+      {/* Top/bottom fade edges */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+      {/* Left/right fade */}
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 120, background: 'linear-gradient(90deg, #030303, transparent)', zIndex: 2, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 120, background: 'linear-gradient(-90deg, #030303, transparent)', zIndex: 2, pointerEvents: 'none' }} />
+
+      {/* Header */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 mb-10">
+        <div className="flex items-end justify-between">
           <div>
-            <div className="eyebrow mb-3">Top Shelf</div>
-            <h2 className="display-xl">Shop By <span className="neon-cyan-text">Brand</span></h2>
-            <p className="text-white/60 mt-3 max-w-xl text-sm">100% authentic premium brands — all the heavyweights in one shop boss.</p>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.4em', textTransform: 'uppercase', color: 'rgba(255,215,0,0.7)', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <span style={{ width: 24, height: 1, background: '#ffd700', display: 'inline-block' }} /> Top Shelf
+            </div>
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(36px,5vw,58px)', letterSpacing: '0.02em', lineHeight: 1 }}>
+              Shop by <span style={{ color: '#00f0ff', textShadow: '0 0 30px rgba(0,240,255,0.4)' }}>Brand</span>
+            </h2>
           </div>
-          <div className="hidden md:flex items-center gap-2">
-            <button onClick={() => scroll(-1)} className="w-11 h-11 rounded-full border border-white/15 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center transition-all" aria-label="Scroll left"><FaArrowLeft size={12} /></button>
-            <button onClick={() => scroll(1)} className="w-11 h-11 rounded-full border border-white/15 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center transition-all" aria-label="Scroll right"><FaArrowRight size={12} /></button>
-          </div>
-        </div>
-
-        <div ref={ref} className="flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory" style={{ scrollbarWidth: 'none' }} data-testid="brand-carousel">
-          {brands.map((b) => <BrandCard key={b.brand_id || b.name} brand={b} />)}
-        </div>
-
-        <div className="mt-8 flex items-center justify-center gap-6 text-xs uppercase tracking-[0.25em] text-white/40 flex-wrap">
-          <span>✓ 100% Authentic</span>
-          <span className="text-white/15">·</span>
-          <span>✓ Direct from Distributors</span>
-          <span className="text-white/15">·</span>
-          <span>✓ Sealed & Verified</span>
+          <Link to="/products" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}
+            className="hover:text-[#ff007f] transition-colors hidden sm:flex">
+            All Products →
+          </Link>
         </div>
       </div>
+
+      {/* Row 1 — left to right */}
+      <div style={{ overflow: 'hidden', marginBottom: 16 }}>
+        <div style={{ display: 'flex', width: 'max-content', animation: 'brandScroll1 40s linear infinite', gap: 0 }}>
+          {doubled.map((name, i) => (
+            <Link key={i} to={`/products?search=${encodeURIComponent(name)}`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 20, padding: '0 32px', textDecoration: 'none', flexShrink: 0 }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(24px, 3vw, 36px)', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.12)', transition: 'color 0.3s', whiteSpace: 'nowrap' }}
+                onMouseEnter={e => e.target.style.color = '#fff'}
+                onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.12)'}>
+                {name}
+              </span>
+              <span style={{ color: 'rgba(255,0,127,0.3)', fontSize: 8 }}>✦</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Row 2 — right to left, offset */}
+      <div style={{ overflow: 'hidden' }}>
+        <div style={{ display: 'flex', width: 'max-content', animation: 'brandScroll2 50s linear infinite', gap: 0 }}>
+          {[...doubled].reverse().map((name, i) => (
+            <Link key={i} to={`/products?search=${encodeURIComponent(name)}`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 20, padding: '0 32px', textDecoration: 'none', flexShrink: 0 }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(18px, 2.5vw, 28px)', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.06)', transition: 'color 0.3s', whiteSpace: 'nowrap' }}
+                onMouseEnter={e => e.target.style.color = 'rgba(255,255,255,0.5)'}
+                onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.06)'}>
+                {name}
+              </span>
+              <span style={{ color: 'rgba(0,240,255,0.2)', fontSize: 6 }}>✦</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Trust bar */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 mt-10 flex items-center justify-center gap-8 flex-wrap">
+        {['100% Authentic', 'Direct from Distributors', 'Sealed & Verified'].map(t => (
+          <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)' }}>
+            <span style={{ color: '#39ff14', fontSize: 10 }}>✓</span> {t}
+          </div>
+        ))}
+      </div>
+
+      <style>{`
+        @keyframes brandScroll1 { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+        @keyframes brandScroll2 { from{transform:translateX(-50%)} to{transform:translateX(0)} }
+      `}</style>
     </section>
   );
 };
