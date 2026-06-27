@@ -26,7 +26,7 @@ const Footer = () => {
       {/* Top CTA strip */}
       <div className="bg-gradient-to-r from-[#ff007f] via-[#e60073] to-[#ff007f] py-5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-wrap items-center justify-between gap-4">
-          <div className="display-md text-white">Settle Order? WhatsApp Us Lah.</div>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,letterSpacing:"0.02em"}}>Settle Order? WhatsApp Us Lah.</div>
           <a
             href="https://wa.me/60126884925?text=Hi%20Masterliqours"
             target="_blank"
@@ -58,7 +58,7 @@ const Footer = () => {
             </div>
           </div>
           <p className="text-white/60 leading-relaxed mb-6">
-            Top quality drinks dengan harga best. Premium liquor delivery, terus ke pintu anda — straight up.
+            Top quality drops, best prices. Your drinks, your doorstep — settle already.
           </p>
           <div className="flex items-center gap-2">
             {[
