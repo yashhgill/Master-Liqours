@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { FaShoppingBag, FaArrowLeft, FaMinus, FaPlus, FaCheckCircle, FaWhatsapp, FaHeart, FaRegHeart, FaShare, FaSearch } from 'react-icons/fa';
-import { useCart } from '../context';
+import { useCart, useAuth } from '../context';
 import ProductCard from '../components/ProductCard';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -23,6 +23,8 @@ const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const { user } = useAuth();
+  const isStaffOrAdmin = user && ['staff', 'super_admin', 'master_admin'].includes(user.role);
   const [product, setProduct] = useState(null);
   const [related, setRelated] = useState([]);
   const [qty, setQty] = useState(1);
@@ -159,9 +161,15 @@ const ProductDetail = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <button onClick={handleAdd} className="btn-pink flex-1 min-w-[200px]">
-                    <FaShoppingBag size={16} /> Add to Cart Boss
-                  </button>
+                  {!isStaffOrAdmin ? (
+                    <button onClick={handleAdd} className="btn-pink flex-1 min-w-[200px]">
+                      <FaShoppingBag size={16} /> Add to Cart Boss
+                    </button>
+                  ) : (
+                    <Link to={user.role === 'staff' ? '/staff' : '/admin'} className="btn-pink flex-1 min-w-[200px] text-center">
+                      Go to Dashboard
+                    </Link>
+                  )}
                   <a href={`https://wa.me/${BOSS_WA.replace(/\D/g,'')}?text=${encodeURIComponent('Hi! I want to enquire about ' + product.name)}`}
                     target="_blank" rel="noopener noreferrer" className="btn-ghost">
                     <FaWhatsapp size={16} /> Ask Staff

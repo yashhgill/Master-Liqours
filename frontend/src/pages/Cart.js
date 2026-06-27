@@ -1,10 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useCart } from '../context';
+import { useCart, useAuth } from '../context';
+import { useEffect } from 'react';
 import { FaTrash, FaPlus, FaMinus, FaArrowRight, FaShoppingBag } from 'react-icons/fa';
 
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, clearCart, total } = useCart();
+  const { user } = useAuth();
+
+  // Staff and admins don't shop — redirect to their dashboard
+  useEffect(() => {
+    if (user && ['staff', 'super_admin', 'master_admin'].includes(user.role)) {
+      navigate(user.role === 'staff' ? '/staff' : '/admin');
+    }
+  }, [user, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
   const navigate = useNavigate();
 
   if (cart.length === 0) {
