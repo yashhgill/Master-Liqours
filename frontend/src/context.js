@@ -98,6 +98,8 @@ export const CartProvider = ({ children }) => {
   }, [cart]);
 
   const addToCart = (product, quantity = 1) => {
+    // Track add-to-cart signal for ranking algorithm — fire and forget
+    axios.post(`${API}/products/track?product_id=${product.product_id}&event_type=add_to_cart`).catch(() => {});
     setCart(prev => {
       const existing = prev.find(item => item.product_id === product.product_id);
       if (existing) {

@@ -5,6 +5,11 @@ import { FaSearch, FaSlidersH, FaTh, FaList, FaHeart, FaRegHeart, FaTimes } from
 import ProductCard from '../components/ProductCard';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+const trackClick = (productId, fromSearch) => {
+  const event = fromSearch ? 'search_click' : 'view';
+  axios.post(`${API}/products/track?product_id=${productId}&event_type=${event}`).catch(() => {});
+};
 const ALL_CATS = ['Whiskey', 'Vodka', 'Gin', 'Rum', 'Cognac', 'Brandy', 'Tequila', 'Liqueur', 'Wine', 'Champagne', 'Beer', 'Sake'];
 const PRICE_RANGES = [
   { label: 'All Prices', min: 0, max: Infinity },

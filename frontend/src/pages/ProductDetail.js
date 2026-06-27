@@ -39,6 +39,8 @@ const ProductDetail = () => {
       const res = await axios.get(`${API}/products/${id}`);
       setProduct(res.data);
       trackRecent(id);
+      // Track view — fire and forget, don't await
+      axios.post(`${API}/products/track?product_id=${id}&event_type=view`).catch(() => {});
       // Load related products from same category
       const allRes = await axios.get(`${API}/products`, { params: { category: res.data.category } });
       const allData = allRes.data?.products || allRes.data || [];

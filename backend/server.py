@@ -132,22 +132,127 @@ async def logout(response: Response, session_token: Optional[str] = Cookie(None)
     return {"message": "Logout berjaya"}
 
 async def _products_with_stock(db, category=None, search=None, sort=None):
+    from datetime import datetime, timedelta
+
     query = select(Product).where(Product.is_active == True)
     if category:
         query = query.where(Product.category == category)
     if search:
         query = query.where(Product.name.ilike(f"%{search}%"))
-    result = await db.execute(query.order_by(Product.created_at.desc()))
+
+    result = await db.execute(query)
     products = result.scalars().all()
-    stock_r = await db.execute(select(SupplierProduct.product_id, func.sum(SupplierProduct.quantity).label("total")).group_by(SupplierProduct.product_id))
+
+    # Stock per product (from supplier_products)
+    stock_r = await db.execute(
+        select(SupplierProduct.product_id, func.sum(SupplierProduct.quantity).label("total"))
+        .group_by(SupplierProduct.product_id)
+    )
     stock_map = {row.product_id: int(row.total) for row in stock_r.all()}
-    sales_r = await db.execute(select(OrderItem.product_id, func.sum(OrderItem.quantity).label("sold")).group_by(OrderItem.product_id))
+
+    # Also check staff stocks table for backward compatibility
+    try:
+        from models import Stock
+        staff_stock_r = await db.execute(
+            select(Stock.product_id, func.sum(Stock.quantity).label("total"))
+            .group_by(Stock.product_id)
+        )
+        for row in staff_stock_r.all():
+            existing = stock_map.get(row.product_id, 0)
+            stock_map[row.product_id] = max(existing, int(row.total))
+    except Exception:
+        pass
+
+    # Sales in last 90 days (recent sales weighted more)
+    now = datetime.utcnow()
+    cutoff_30 = now - timedelta(days=30)
+    cutoff_90 = now - timedelta(days=90)
+
+    sales_r = await db.execute(
+        select(OrderItem.product_id, func.sum(OrderItem.quantity).label("sold"))
+        .group_by(OrderItem.product_id)
+    )
     sales_map = {row.product_id: int(row.sold) for row in sales_r.all()}
+
+    recent_sales_r = await db.execute(
+        select(OrderItem.product_id, func.sum(OrderItem.quantity).label("sold"))
+        .join(Order, OrderItem.order_id == Order.order_id)
+        .where(Order.created_at >= cutoff_30)
+        .group_by(OrderItem.product_id)
+    )
+    recent_sales_map = {row.product_id: int(row.sold) for row in recent_sales_r.all()}
+
+    # Product events (views, search clicks, add-to-cart) in last 30 days
+    events_map = {}
+    try:
+        from models import ProductEvent
+        events_r = await db.execute(
+            select(ProductEvent.product_id, func.count(ProductEvent.event_id).label("hits"))
+            .where(ProductEvent.created_at >= cutoff_30)
+            .group_by(ProductEvent.product_id)
+        )
+        events_map = {row.product_id: int(row.hits) for row in events_r.all()}
+    except Exception:
+        pass
+
     out = []
     for p in products:
-        out.append({"product_id": p.product_id, "name": p.name, "price": p.price, "description": p.description, "category": p.category, "image_url": p.image_url, "is_active": p.is_active, "is_preorder": p.is_preorder, "original_price": p.original_price, "staff_id": p.staff_id, "created_at": p.created_at, "available_stock": stock_map.get(p.product_id, -1), "sales_count": sales_map.get(p.product_id, 0)})
+        total_sales = sales_map.get(p.product_id, 0)
+        recent_sales = recent_sales_map.get(p.product_id, 0)
+        event_hits = events_map.get(p.product_id, 0)
+        avail = stock_map.get(p.product_id, -1)
+
+        # ── Relevance Score ──────────────────────────────────────────
+        # Components (all weighted):
+        # 1. Total sales (lifetime signal of popularity)
+        # 2. Recent sales last 30d (recency boost × 3)
+        # 3. Event interactions last 30d (search/view/click × 1)
+        # 4. Out of stock gets buried (score × 0)
+        # 5. Flash sale active → small boost (customers like deals)
+        score = (total_sales * 1.0) + (recent_sales * 3.0) + (event_hits * 1.0)
+        if avail == 0:
+            score = -1  # OOS always goes to bottom
+        if p.original_price and p.original_price > p.price:
+            score += 5  # Active discount boost
+
+        out.append({
+            "product_id": p.product_id,
+            "name": p.name,
+            "price": p.price,
+            "description": p.description,
+            "category": p.category,
+            "image_url": p.image_url,
+            "is_active": p.is_active,
+            "is_preorder": p.is_preorder,
+            "original_price": p.original_price,
+            "staff_id": p.staff_id,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+            "available_stock": avail,
+            "sales_count": total_sales,
+            "_score": score,
+        })
+
+    # Default sort: by relevance score (descending), with new arrivals as tiebreaker
     if sort == "trending":
-        out.sort(key=lambda x: x["sales_count"], reverse=True)
+        out.sort(key=lambda x: x["_score"], reverse=True)
+    elif sort == "price_asc":
+        out.sort(key=lambda x: x["price"])
+    elif sort == "price_desc":
+        out.sort(key=lambda x: x["price"], reverse=True)
+    elif sort == "name_asc":
+        out.sort(key=lambda x: x["name"])
+    elif sort == "name_desc":
+        out.sort(key=lambda x: x["name"], reverse=True)
+    elif sort == "newest":
+        out.sort(key=lambda x: x["created_at"] or "", reverse=True)
+    else:
+        # Default: relevance — bestsellers first, OOS last
+        out.sort(key=lambda x: (x["_score"], x["created_at"] or ""), reverse=True)
+
+    # Remove internal score from response
+    for item in out:
+        item.pop("_score", None)
+
     return out
 
 @api_router.get("/products")
@@ -158,6 +263,29 @@ async def get_products(category: Optional[str] = None, search: Optional[str] = N
 async def get_trending_products(limit: int = 12, db: AsyncSession = Depends(get_db)):
     products = await _products_with_stock(db, sort="trending")
     return [p for p in products if p["available_stock"] != 0][:limit]
+
+
+@api_router.post("/products/track")
+async def track_product_event(
+    product_id: str,
+    event_type: str = "view",
+    db: AsyncSession = Depends(get_db),
+):
+    """Fire-and-forget endpoint — frontend calls this on view/search_click/add_to_cart.
+    Never blocks the user; errors are silently swallowed."""
+    try:
+        from models import ProductEvent
+        if event_type not in ("view", "search_click", "add_to_cart"):
+            return {"ok": False}
+        event = ProductEvent(
+            product_id=product_id,
+            event_type=event_type,
+        )
+        db.add(event)
+        await db.commit()
+    except Exception:
+        pass
+    return {"ok": True}
 
 @api_router.get("/products/{product_id}")
 async def get_product(product_id: str, db: AsyncSession = Depends(get_db)):

@@ -294,6 +294,20 @@ class Brand(Base):
 
 
 
+
+
+class ProductEvent(Base):
+    """Lightweight event log for product interactions.
+    event_type: 'view' | 'search_click' | 'add_to_cart'
+    Used by the ranking algorithm to surface popular products.
+    """
+    __tablename__ = 'product_events'
+
+    event_id = Column(String(36), primary_key=True, default=generate_uuid)
+    product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)
+    event_type = Column(String(20), nullable=False, index=True)  # view / search_click / add_to_cart
+    created_at = Column(DateTime, default=utcnow, index=True)
+
 class MysteryDrop(Base):
     """Admin-controlled mystery drops stored in DB (survives Render restarts)."""
     __tablename__ = 'mystery_drops'
