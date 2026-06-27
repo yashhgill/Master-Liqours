@@ -74,7 +74,7 @@ const Register = () => {
             <GlowInput label="Email" type="email" name="email" value={form.email} onChange={change} required placeholder="your@email.com" data-testid="reg-email-input" />
             <GlowInput label="Password" type="password" name="password" value={form.password} onChange={change} required minLength={6} placeholder="Min 6 characters" data-testid="reg-password-input" />
             <GlowInput label="Phone (Optional)" type="tel" name="phone" value={form.phone} onChange={change} placeholder="+60 12 345 6789" />
-            <GlowInput label="Referral Code (Optional)" name="referral_code" value={form.referral_code} onChange={change} placeholder="SAM001, LOGEN002..."
+            <GlowInput label="Referral Code (Optional)" name="referral_code" value={form.referral_code} onChange={change} placeholder="Enter your referral code"
               hint="Got a staff referral? Enter here for direct WhatsApp service lah." data-testid="reg-referral-input" />
 
             <button type="submit" disabled={loading} data-testid="register-submit-btn"

@@ -18,7 +18,7 @@ const DEFAULT_HERO = [
     title: 'SPEND &',
     title2: 'THE NIGHT.',
     accent: 'NIGHT.',
-    sub: 'Top quality drops, harga terbaik. Order now, settle via WhatsApp — same-day delivery across KL & Melaka lah.',
+    sub: 'Top quality drops, harga terbaik. Order now, settle via WhatsApp — same-day delivery across KL & Klang Valley lah.',
     cta_text: 'Shop Now Lah',
     cta_link: '/products',
     bottle: '🥃',
@@ -431,7 +431,7 @@ const Home = () => {
         <div style={{ display: 'flex', width: 'max-content', animation: 'marquee 18s linear infinite', gap: 0 }}>
           {[...Array(2)].map((_, rep) => (
             <React.Fragment key={rep}>
-              {['⚡ Flash Sales Live', '500+ Premium Bottles', '🔥 Up to 50% Off Today', 'Same-Day KL & Melaka Delivery', '100% Authentic Guaranteed', '🥃 Premium Spirits'].map((t, i) => (
+              {['⚡ Flash Sales Live', '500+ Premium Bottles', '🔥 Up to 50% Off Today', 'Same-Day KL & Klang Valley Delivery', '100% Authentic Guaranteed', '🥃 Premium Spirits'].map((t, i) => (
                 <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 16, padding: '0 40px', color: '#030303', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                   {t} <span style={{ color: 'rgba(0,0,0,0.3)' }}>·</span>
                 </span>

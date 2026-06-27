@@ -124,7 +124,7 @@ const PersonalOrderModal = ({ products, onClose, onSaved }) => {
         <p className="text-white/50 text-sm">Record a sale received outside the app (WhatsApp, walk-in, etc).</p>
 
         <div className="space-y-3">
-          {[['name','Customer Name','e.g. Ahmad'],['whatsapp','WhatsApp Number','e.g. 0123456789'],['notes','Notes (optional)','e.g. Paid cash, pickup at Melaka']].map(([key, label, ph]) => (
+          {[['name','Customer Name','e.g. Ahmad'],['whatsapp','WhatsApp Number','e.g. 0123456789'],['notes','Notes (optional)','e.g. Paid cash, pickup at Puchong']].map(([key, label, ph]) => (
             <div key={key}>
               <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-1">{label}{key !== 'notes' && <span className="text-[#ff007f]"> *</span>}</label>
               <input className="input-dark" placeholder={ph} value={customer[key]} onChange={e => setCustomer({ ...customer, [key]: e.target.value })} />
