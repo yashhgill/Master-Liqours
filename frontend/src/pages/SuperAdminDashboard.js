@@ -471,7 +471,6 @@ const SuperAdminDashboard = () => {
       discount_price: '', discount_days: 0, discount_hours: 0, discount_minutes: 0,
     });
     setShowProduct(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const delProduct = async (id) => {
     if (!window.confirm('Delete product? This cannot be undone lah.')) return;
@@ -1344,7 +1343,7 @@ const AdminAIChat = ({ onClose }) => {
   const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
   React.useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [msgs]);
 
   const send = async () => {

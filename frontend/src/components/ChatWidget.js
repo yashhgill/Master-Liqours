@@ -14,7 +14,7 @@ const ChatWidget = () => {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages, open]);
 
   const send = async () => {

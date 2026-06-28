@@ -679,7 +679,7 @@ const StaffAIChat = () => {
   const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
   React.useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [msgs]);
 
   const send = async () => {

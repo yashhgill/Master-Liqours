@@ -262,16 +262,21 @@ const Home = () => {
     ]);
 
     if (bannersRes?.data?.length > 0) {
-      const mapped = bannersRes.data.map(b => ({
-        eyebrow: 'KL & Klang Valley · Premium Drops',
-        title: (b.title || 'PREMIUM LIQUOR').split(' ').slice(0, 2).join(' ').toUpperCase(),
-        title2: (b.title || '').split(' ').slice(2).join(' ').toUpperCase() || 'DELIVERED.',
-        accent: (b.title || '').split(' ').slice(-1)[0].toUpperCase() + '.',
-        sub: b.subtitle || 'Top quality drops.',
-        cta_text: b.cta_text || 'Shop Now Lah',
-        cta_link: b.cta_link || '/products',
-        bottle: 'whiskey',
-      }));
+      const mapped = bannersRes.data.map(b => {
+        const words = (b.title || 'PREMIUM DROPS').toUpperCase().split(' ');
+        const mid = Math.max(1, Math.ceil(words.length / 2));
+        return {
+          eyebrow: 'KL & Klang Valley · Premium Drops',
+          title: words.slice(0, mid).join(' '),
+          title2: words.slice(mid).join(' ') || 'DELIVERED.',
+          accent: words[words.length - 1] + '.',
+          sub: b.subtitle || 'Top quality drops, harga terbaik.',
+          cta_text: b.cta_text || 'Shop Now Lah',
+          cta_link: b.cta_link || '/products',
+          bg_image: b.background_image || '',
+          bottle: 'whiskey',
+        };
+      });
       setSlides(mapped);
     }
 
@@ -293,7 +298,7 @@ const Home = () => {
       <section
         ref={heroRef}
         className="relative min-h-screen flex items-center overflow-hidden"
-        style={{ background: '#030303', cursor: 'grab' }}
+        style={{ background: hero.bg_image ? `linear-gradient(rgba(3,3,3,0.65), rgba(3,3,3,0.92)), url(${hero.bg_image}) center/cover no-repeat` : '#030303', cursor: 'grab' }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         onMouseDown={(e) => { touchStartX.current = e.clientX; touchStartY.current = e.clientY; }}
