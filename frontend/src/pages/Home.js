@@ -298,7 +298,7 @@ const Home = () => {
       <section
         ref={heroRef}
         className="relative min-h-screen flex items-center overflow-hidden"
-        style={{ background: hero.bg_image ? `linear-gradient(rgba(3,3,3,0.55) 0%, rgba(3,3,3,0.75) 50%, rgba(3,3,3,0.95) 100%), url(${hero.bg_image}) center/cover no-repeat` : '#030303', cursor: 'grab' }}
+        style={{ background: hero.bg_image ? `linear-gradient(160deg, rgba(3,3,3,0.82) 0%, rgba(3,3,3,0.6) 40%, rgba(3,3,3,0.5) 60%, rgba(3,3,3,0.85) 100%), url(${hero.bg_image}) center/cover no-repeat` : '#030303', cursor: 'grab' }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         onMouseDown={(e) => { touchStartX.current = e.clientX; touchStartY.current = e.clientY; }}
@@ -309,50 +309,46 @@ const Home = () => {
           touchStartX.current = null;
         }}
       >
-        {/* Orbs — hidden on mobile for performance */}
-        <div className="hidden sm:block absolute pointer-events-none" style={{ width: 600, height: 600, top: -150, left: -100, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,0,127,0.18) 0%, transparent 65%)', filter: 'blur(100px)', animation: 'orbA 14s ease-in-out infinite alternate' }} />
-        <div className="hidden sm:block absolute pointer-events-none" style={{ width: 500, height: 500, bottom: -100, right: -80, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,240,255,0.12) 0%, transparent 65%)', filter: 'blur(100px)', animation: 'orbB 18s ease-in-out infinite alternate' }} />
-
-        {/* Rotating ring — desktop only */}
-        <div className="hidden md:block absolute pointer-events-none" style={{ width: 800, height: 800, top: '50%', left: '50%', transform: 'translate(-50%,-50%)', borderRadius: '50%', border: '1px solid rgba(255,0,127,0.06)', animation: 'ringRotate 50s linear infinite' }}>
-          <div style={{ position: 'absolute', inset: 60, borderRadius: '50%', border: '1px solid rgba(0,240,255,0.04)' }} />
-          <div style={{ position: 'absolute', inset: 130, borderRadius: '50%', border: '1px solid rgba(255,215,0,0.04)' }} />
-        </div>
-
-        {/* Grid texture */}
-        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px)', backgroundSize: '64px 64px' }} />
-
-        {/* Floating bottle — desktop only for perf */}
-        <div key={slide} className="hidden lg:block absolute right-[8%] top-1/2 -translate-y-1/2 select-none pointer-events-none"
-          style={{ fontSize: 'clamp(140px, 20vw, 260px)', animation: 'bottleFloat 6s ease-in-out infinite', filter: 'drop-shadow(0 0 60px rgba(255,0,127,0.25)) drop-shadow(0 0 120px rgba(255,0,127,0.08))', opacity: 0.85, transition: 'opacity 0.5s' }}>
-          <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:'0.4em',letterSpacing:'0.05em',color:'rgba(255,255,255,0.15)',display:'block',textAlign:'center',lineHeight:1,userSelect:'none'}}>{hero.bottle?.toUpperCase()||'WHISKEY'}</span>
-        </div>
+        {/* Orbs + ring + grid — only shown when NO background image (clean dark hero) */}
+        {!hero.bg_image && (<>
+          <div className="hidden sm:block absolute pointer-events-none" style={{ width: 600, height: 600, top: -150, left: -100, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,0,127,0.18) 0%, transparent 65%)', filter: 'blur(100px)', animation: 'orbA 14s ease-in-out infinite alternate' }} />
+          <div className="hidden sm:block absolute pointer-events-none" style={{ width: 500, height: 500, bottom: -100, right: -80, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,240,255,0.12) 0%, transparent 65%)', filter: 'blur(100px)', animation: 'orbB 18s ease-in-out infinite alternate' }} />
+          <div className="hidden md:block absolute pointer-events-none" style={{ width: 800, height: 800, top: '50%', left: '50%', transform: 'translate(-50%,-50%)', borderRadius: '50%', border: '1px solid rgba(255,0,127,0.06)', animation: 'ringRotate 50s linear infinite' }}>
+            <div style={{ position: 'absolute', inset: 60, borderRadius: '50%', border: '1px solid rgba(0,240,255,0.04)' }} />
+            <div style={{ position: 'absolute', inset: 130, borderRadius: '50%', border: '1px solid rgba(255,215,0,0.04)' }} />
+          </div>
+          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px)', backgroundSize: '64px 64px' }} />
+          <div key={`bottle-${slide}`} className="hidden lg:block absolute right-[8%] top-1/2 -translate-y-1/2 select-none pointer-events-none"
+            style={{ fontSize: 'clamp(140px, 20vw, 260px)', animation: 'bottleFloat 6s ease-in-out infinite', filter: 'drop-shadow(0 0 60px rgba(255,0,127,0.25))', opacity: 0.6 }}>
+            <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize: '0.4em', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.1)', display: 'block', textAlign: 'center', lineHeight: 1, userSelect: 'none' }}>ML</span>
+          </div>
+        </>)}
 
         {/* Content */}
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 w-full py-24">
           <div className="max-w-[700px]">
 
             {/* Eyebrow */}
-            <div key={`ey-${slide}`} className="flex items-center gap-3 mb-7" style={{ animation: 'fadeUp 0.6s ease both' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ffd700', boxShadow: '0 0 10px #ffd700', animation: 'tagPulse 2s infinite', display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.35em', textTransform: 'uppercase', color: 'rgba(255,215,0,0.8)' }}>{hero.eyebrow}</span>
+            <div className="flex items-center gap-3 mb-6" style={{ marginBottom: 20 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ffd700', boxShadow: '0 0 8px #ffd700', animation: 'tagPulse 2s infinite', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.4em', textTransform: 'uppercase', color: 'rgba(255,215,0,0.75)', background: 'none' }}>{hero.eyebrow}</span>
             </div>
 
             {/* Headline */}
-            <h1 key={`h-${slide}`} style={{ fontFamily: "'Bebas Neue', 'Inter', sans-serif", fontSize: 'clamp(64px, 10vw, 140px)', lineHeight: 0.92, letterSpacing: '0.02em', marginBottom: 28, animation: 'fadeUp 0.7s 0.1s ease both' }}>
-              <span style={{ display: 'block' }}>{hero.title}</span>
-              <span style={{ display: 'block', color: '#ff007f', textShadow: '0 0 60px rgba(255,0,127,0.5), 0 0 120px rgba(255,0,127,0.15)' }}>
+            <h1 style={{ fontFamily: "'Bebas Neue', 'Inter', sans-serif", fontSize: 'clamp(56px, 9vw, 130px)', lineHeight: 0.92, letterSpacing: '0.02em', marginBottom: 28, background: 'none', padding: 0, margin: '0 0 28px 0' }}>
+              <span style={{ display: 'block', color: '#fff', background: 'none' }}>{hero.title}</span>
+              <span style={{ display: 'block', color: '#ff007f', background: 'none', textShadow: hero.bg_image ? '0 0 40px rgba(255,0,127,0.8)' : '0 0 60px rgba(255,0,127,0.5)' }}>
                 {hero.title2}
               </span>
             </h1>
 
             {/* Sub */}
-            <p key={`s-${slide}`} style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', lineHeight: 1.8, maxWidth: 460, marginBottom: 44, animation: 'fadeUp 0.7s 0.2s ease both' }}>
+            <p style={{ fontSize: 16, color: hero.bg_image ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.55)', lineHeight: 1.7, maxWidth: 480, marginBottom: 40, textShadow: hero.bg_image ? '0 1px 8px rgba(0,0,0,0.8)' : 'none' }}>
               {hero.sub}
             </p>
 
             {/* Buttons */}
-            <div key={`b-${slide}`} className="flex flex-wrap gap-4" style={{ animation: 'fadeUp 0.7s 0.3s ease both' }}>
+            <div className="flex flex-wrap gap-4">
               <Link to={hero.cta_link || '/products'} className="btn-fire">
                 {hero.cta_text || 'Shop Now Lah'} <FaArrowRight size={13} />
               </Link>
