@@ -326,7 +326,7 @@ const Home = () => {
         </>)}
 
         {/* Content */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 w-full py-24">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 w-full py-16 md:py-24">
           <div className="max-w-[700px]">
 
             {(!hero.bg_image || hero.has_custom_text) && (<>
@@ -574,7 +574,7 @@ const Home = () => {
       {/* ═══ CTA ═══ */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
-          <div className="relative rounded-[40px] overflow-hidden px-12 lg:px-20 py-20" style={{ background: 'linear-gradient(135deg, #1a0010 0%, #0d0020 50%, #001018 100%)', border: '1px solid rgba(255,0,127,0.12)' }}>
+          <div className="relative rounded-[40px] overflow-hidden px-6 sm:px-12 lg:px-20 py-14 md:py-20" style={{ background: 'linear-gradient(135deg, #1a0010 0%, #0d0020 50%, #001018 100%)', border: '1px solid rgba(255,0,127,0.12)' }}>
             {/* Giant ghost text */}
             <div className="absolute right-0 top-1/2 -translate-y-1/2 select-none pointer-events-none" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(100px,16vw,220px)', color: 'transparent', WebkitTextStroke: '1px rgba(255,0,127,0.07)', lineHeight: 1, userSelect: 'none' }}>ML</div>
             {/* Orbs */}
