@@ -36,7 +36,7 @@ const blankFlash = { product_id: '', discount_percentage: 10, start_time: '', en
 const blankStaff = { name: '', email: '', whatsapp_number: '', referral_code: '', warehouse_name: '' };
 
 // ── Supplier Tab ─────────────────────────────────────────────────────────────
-const SupplierTab = ({ API }) => {
+const SupplierTab = ({ API, active }) => {
   const [suppliers, setSuppliers] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,7 @@ const SupplierTab = ({ API }) => {
 
   const [loadError, setLoadError] = useState('');
 
-  useEffect(() => { loadAll(); }, []); // eslint-disable-line
+  useEffect(() => { if (active) loadAll(); }, [active]); // eslint-disable-line
 
   const loadAll = async () => {
     setLoading(true);
@@ -1117,7 +1117,7 @@ const SuperAdminDashboard = () => {
 
       {/* === SUPPLIERS (Master Admin only) === */}
       {tab === 'suppliers' && (
-        <SupplierTab API={API} />
+        <SupplierTab API={API} active={tab === 'suppliers'} />
       )}
 
       {/* === STAFF MODE (redirect) === */}

@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../context';
 import { subscribeStaffToPush } from '../lib/pwa';
 import {
-  FaCheck, FaSpinner, FaTruck, FaBoxOpen, FaTimes, FaPlus,
+  FaCheck, FaSpinner, FaTruck, FaBoxOpen, FaTimes, FaPlus, FaRobot, FaPaperPlane,
   FaMinus, FaEdit, FaRandom, FaWhatsapp, FaBox, FaEnvelope
 } from 'react-icons/fa';
 
@@ -719,7 +719,7 @@ const StaffAIChat = () => {
           </div>
         </div>
         <button onClick={() => setCollapsed(true)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.7)',cursor:'pointer'}}>
-          <FaX size={13} />
+          <FaTimes size={13} />
         </button>
       </div>
 

@@ -298,7 +298,7 @@ const Home = () => {
       <section
         ref={heroRef}
         className="relative min-h-screen flex items-center overflow-hidden"
-        style={{ background: hero.bg_image ? `linear-gradient(rgba(3,3,3,0.65), rgba(3,3,3,0.92)), url(${hero.bg_image}) center/cover no-repeat` : '#030303', cursor: 'grab' }}
+        style={{ background: hero.bg_image ? `linear-gradient(rgba(3,3,3,0.55) 0%, rgba(3,3,3,0.75) 50%, rgba(3,3,3,0.95) 100%), url(${hero.bg_image}) center/cover no-repeat` : '#030303', cursor: 'grab' }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         onMouseDown={(e) => { touchStartX.current = e.clientX; touchStartY.current = e.clientY; }}
@@ -339,13 +339,10 @@ const Home = () => {
             </div>
 
             {/* Headline */}
-            <h1 key={`h-${slide}`} style={{ fontFamily: "'Bebas Neue', 'Inter', sans-serif", fontSize: 'clamp(72px, 12vw, 150px)', lineHeight: 0.9, letterSpacing: '0.02em', marginBottom: 28, animation: 'fadeUp 0.7s 0.1s ease both' }}>
-              {hero.title}<br />
-              <span style={{ WebkitTextStroke: '2px rgba(255,255,255,0.12)', color: 'transparent', display: 'block' }}>
-                {(hero.title2 || '').replace(hero.accent, '').trim()}{' '}
-                <span style={{ color: '#ff007f', WebkitTextStroke: 0, textShadow: '0 0 60px rgba(255,0,127,0.6), 0 0 120px rgba(255,0,127,0.2)' }}>
-                  {hero.accent}
-                </span>
+            <h1 key={`h-${slide}`} style={{ fontFamily: "'Bebas Neue', 'Inter', sans-serif", fontSize: 'clamp(64px, 10vw, 140px)', lineHeight: 0.92, letterSpacing: '0.02em', marginBottom: 28, animation: 'fadeUp 0.7s 0.1s ease both' }}>
+              <span style={{ display: 'block' }}>{hero.title}</span>
+              <span style={{ display: 'block', color: '#ff007f', textShadow: '0 0 60px rgba(255,0,127,0.5), 0 0 120px rgba(255,0,127,0.15)' }}>
+                {hero.title2}
               </span>
             </h1>
 

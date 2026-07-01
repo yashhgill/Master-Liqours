@@ -155,13 +155,14 @@ const Navbar = () => {
                     Categories <FaChevronDown size={8} className={`transition-transform duration-200 ${catOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {catOpen && (
-                    <div className="absolute left-0 top-full pt-3 z-50">
-                      <div className="rounded-2xl p-3 grid grid-cols-3 gap-1 w-56 shadow-2xl"
-                        style={{ background: '#111', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)' }}>
-                        {CATEGORIES.map(([c, emoji]) => (
-                          <Link key={c} to={`/products?category=${encodeURIComponent(c)}`}
-                            className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs text-white/60 hover:bg-white/[0.06] hover:text-white transition-all">
-                            <span style={{fontSize:10,fontWeight:900,color:'rgba(255,0,127,0.5)',width:16,textAlign:'center'}}>{emoji}</span>{c}
+                    <div className="absolute left-0 top-full pt-2 z-50">
+                      <div style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '12px', backdropFilter: 'blur(20px)', boxShadow: '0 24px 48px rgba(0,0,0,0.6)', width: 320, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                        {CATEGORIES.map(([cat]) => (
+                          <Link key={cat} to={`/products?category=${encodeURIComponent(cat)}`}
+                            style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderRadius: 12, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.6)', textDecoration: 'none', transition: 'all 0.15s', whiteSpace: 'nowrap' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,0,127,0.1)'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}>
+                            {cat}
                           </Link>
                         ))}
                       </div>
@@ -260,13 +261,11 @@ const Navbar = () => {
 
               {/* Categories */}
               <DrawerLabel label="Categories" />
-              <div className="grid grid-cols-3 gap-1.5">
-                {CATEGORIES.map(([c, emoji]) => (
-                  <Link key={c} to={`/products?category=${encodeURIComponent(c)}`}
-                    className="py-2.5 rounded-xl text-xs text-center text-white/55 hover:text-white transition-all"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div style={{fontSize:11,fontWeight:900,color:'#ff007f',marginBottom:4}}>{emoji}</div>
-                    {c}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                {CATEGORIES.map(([cat]) => (
+                  <Link key={cat} to={`/products?category=${encodeURIComponent(cat)}`}
+                    style={{ padding: '10px 14px', borderRadius: 14, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.6)', textDecoration: 'none', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    {cat}
                   </Link>
                 ))}
               </div>

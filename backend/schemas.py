@@ -109,3 +109,4 @@ class NewsletterSubscribe(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=1000)
     conversation_history: Optional[List[dict]] = []
+    context: Optional[str] = 'customer'  # customer | staff_dashboard | admin_dashboard
