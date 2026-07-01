@@ -383,6 +383,21 @@ async def startup():
         logger.exception("Startup table/seed failed: %s", e)
     logger.info("All routes loaded - suppliers + AI RBAC active")
 
+@app.post("/api/maintenance/import-catalog")
+async def maintenance_import_catalog(request: Request):
+    key = request.headers.get("X-Maintenance-Key", "")
+    expected = os.environ.get("MAINTENANCE_KEY", "")
+    if not expected or key != expected:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        from import_real_catalog import run_import
+        csv_path = os.path.join(os.path.dirname(__file__), "data", "Masterliqours_Pricing_List.csv")
+        result = await run_import(csv_path)
+        return {"status": "ok", "result": result}
+    except Exception as e:
+        logger.exception("Maintenance import failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
