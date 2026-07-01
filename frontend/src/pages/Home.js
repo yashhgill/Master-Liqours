@@ -274,6 +274,7 @@ const Home = () => {
           cta_text: b.cta_text || 'Shop Now Lah',
           cta_link: b.cta_link || '/products',
           bg_image: b.background_image || '',
+          has_custom_text: !!(b.title && b.title.trim()),
           bottle: 'whiskey',
         };
       });
@@ -298,7 +299,7 @@ const Home = () => {
       <section
         ref={heroRef}
         className="relative min-h-screen flex items-center overflow-hidden"
-        style={{ background: hero.bg_image ? `linear-gradient(160deg, rgba(3,3,3,0.82) 0%, rgba(3,3,3,0.6) 40%, rgba(3,3,3,0.5) 60%, rgba(3,3,3,0.85) 100%), url(${hero.bg_image}) center/cover no-repeat` : '#030303', cursor: 'grab' }}
+        style={{ background: hero.bg_image ? `linear-gradient(160deg, rgba(3,3,3,0.35) 0%, rgba(3,3,3,0.1) 35%, rgba(3,3,3,0.08) 60%, rgba(3,3,3,0.4) 100%), url(${hero.bg_image}) center/cover no-repeat` : '#030303', cursor: 'grab' }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         onMouseDown={(e) => { touchStartX.current = e.clientX; touchStartY.current = e.clientY; }}
@@ -328,7 +329,8 @@ const Home = () => {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 w-full py-24">
           <div className="max-w-[700px]">
 
-            {/* Eyebrow */}
+            {(!hero.bg_image || hero.has_custom_text) && (<>
+      {/* Eyebrow */}
             <div className="flex items-center gap-3 mb-6" style={{ marginBottom: 20 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ffd700', boxShadow: '0 0 8px #ffd700', animation: 'tagPulse 2s infinite', display: 'inline-block', flexShrink: 0 }} />
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.4em', textTransform: 'uppercase', color: 'rgba(255,215,0,0.75)', background: 'none' }}>{hero.eyebrow}</span>
@@ -347,7 +349,8 @@ const Home = () => {
               {hero.sub}
             </p>
 
-            {/* Buttons */}
+            </>)}
+      {/* Buttons — always shown */}
             <div className="flex flex-wrap gap-4">
               <Link to={hero.cta_link || '/products'} className="btn-fire">
                 {hero.cta_text || 'Shop Now Lah'} <FaArrowRight size={13} />
