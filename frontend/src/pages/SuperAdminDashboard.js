@@ -35,291 +35,253 @@ const blankBrand = { name: '', short_name: '', subtitle: '', logo_url: '', color
 const blankFlash = { product_id: '', discount_percentage: 10, start_time: '', end_time: '' };
 const blankStaff = { name: '', email: '', whatsapp_number: '', referral_code: '', warehouse_name: '' };
 
-// ── Supplier Tab ─────────────────────────────────────────────────────────────
+// ── Supplier Tab ────────────────────────────────────────────────────
 const SupplierTab = ({ API, active }) => {
   const [suppliers, setSuppliers] = useState([]);
-  const [allProducts, setAllProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ name: '', contact: '', notes: '' });
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [expanded, setExpanded] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [expanded, setExpanded] = useState(null); // which supplier is open
-  const [spForm, setSpForm] = useState({ product_id: '', cost_price: '', selling_price: '', quantity: '' });
-  const [addingProduct, setAddingProduct] = useState(null); // supplier_id
-  const [savingSp, setSavingSp] = useState(false);
-  const [spSearch, setSpSearch] = useState('');
-  const [spDropdown, setSpDropdown] = useState(false);
+  const [form, setForm] = useState({ name: '', contact: '', notes: '' });
+  const [saving, setSaving] = useState(false);
+  const [addingProduct, setAddingProduct] = useState(null);
+  const [allProducts, setAllProducts] = useState([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [productForm, setProductForm] = useState({ product_id: '', cost_price: '', selling_price: '', stock_qty: 0 });
 
-  const [loadError, setLoadError] = useState('');
+  const selectedSupplier = suppliers.find(s => s.supplier_id === expanded) || null;
 
-  useEffect(() => { if (active) loadAll(); }, [active]); // eslint-disable-line
-
-  const loadAll = async () => {
-    setLoading(true);
-    setLoadError('');
+  const load = async () => {
+    setLoading(true); setLoadError('');
     try {
-      const [sr, pr] = await Promise.all([
-        axios.get(`${API}/admin/suppliers`, { withCredentials: true }),
-        axios.get(`${API}/products`, { withCredentials: true }),
-      ]);
+      const sr = await axios.get(`${API}/admin/suppliers`, { withCredentials: true });
       setSuppliers(sr.data || []);
-      setAllProducts(pr.data?.products || pr.data || []);
     } catch (e) {
-      setLoadError(e.response?.data?.detail || e.message || 'Cannot load suppliers — check connection');
+      setLoadError(e.response?.data?.detail || e.message || 'Cannot load suppliers');
     } finally { setLoading(false); }
   };
+
+  const loadProducts = async () => {
+    if (allProducts.length > 0) return;
+    try {
+      const r = await axios.get(`${API}/products`);
+      setAllProducts(r.data || []);
+    } catch(e) {}
+  };
+
+  useEffect(() => { if (active) load(); }, [active]);
 
   const save = async () => {
     if (!form.name.trim()) { alert('Supplier name required'); return; }
     setSaving(true);
     try {
-      if (editId) {
-        await axios.put(`${API}/admin/suppliers/${editId}`, form, { withCredentials: true });
-      } else {
-        await axios.post(`${API}/admin/suppliers`, form, { withCredentials: true });
-      }
-      setForm({ name: '', contact: '', notes: '' });
-      setShowForm(false); setEditId(null);
-      loadAll();
-    } catch (e) {
-      setLoadError(e.response?.data?.detail || e.message || 'Save failed');
-    } finally { setSaving(false); }
+      if (editId) await axios.put(`${API}/admin/suppliers/${editId}`, form, { withCredentials: true });
+      else await axios.post(`${API}/admin/suppliers`, form, { withCredentials: true });
+      setShowForm(false); setEditId(null); setForm({ name: '', contact: '', notes: '' });
+      await load();
+    } catch (e) { alert(e.response?.data?.detail || 'Save failed'); }
+    finally { setSaving(false); }
   };
 
   const del = async (id) => {
     if (!window.confirm('Delete this supplier?')) return;
     try {
       await axios.delete(`${API}/admin/suppliers/${id}`, { withCredentials: true });
-      setSuppliers(s => s.filter(x => x.supplier_id !== id));
       if (expanded === id) setExpanded(null);
-    } catch (e) { setLoadError(e.response?.data?.detail || 'Delete failed'); }
+      await load();
+    } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
   };
 
   const addProduct = async (supplierId) => {
-    if (!spForm.product_id) { alert('Select a product lah'); return; }
-    setSavingSp(true);
+    if (!productForm.product_id) { alert('Select a product first'); return; }
+    if (!productForm.cost_price || !productForm.selling_price) { alert('Enter cost and selling price'); return; }
+    setSaving(true);
     try {
       await axios.post(`${API}/admin/suppliers/${supplierId}/products`, {
-        product_id: spForm.product_id,
-        cost_price: parseFloat(spForm.cost_price) || 0,
-        selling_price: parseFloat(spForm.selling_price) || 0,
-        quantity: parseInt(spForm.quantity) || 0,
+        product_id: productForm.product_id,
+        cost_price: parseFloat(productForm.cost_price),
+        selling_price: parseFloat(productForm.selling_price),
+        stock_qty: parseInt(productForm.stock_qty) || 0,
       }, { withCredentials: true });
       setAddingProduct(null);
-      setSpForm({ product_id: '', cost_price: '', selling_price: '', quantity: '' });
-      setSpSearch('');
-      loadAll();
-    } catch (e) { setLoadError(e.response?.data?.detail || 'Failed to add product'); }
-    finally { setSavingSp(false); }
+      setProductForm({ product_id: '', cost_price: '', selling_price: '', stock_qty: 0 });
+      setProductSearch('');
+      await load();
+    } catch (e) { alert(e.response?.data?.detail || 'Failed to add product'); }
+    finally { setSaving(false); }
   };
 
   const delProduct = async (supplierId, spId) => {
     if (!window.confirm('Remove this product from supplier?')) return;
     try {
       await axios.delete(`${API}/admin/suppliers/${supplierId}/products/${spId}`, { withCredentials: true });
-      loadAll();
-    } catch (e) { setLoadError(e.response?.data?.detail || 'Delete failed'); }
+      await load();
+    } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
   };
 
-  const filteredProducts = spSearch.trim()
-    ? allProducts.filter(p => p.name.toLowerCase().includes(spSearch.toLowerCase()))
-    : allProducts;
+  const filteredProducts = allProducts.filter(p =>
+    p.name?.toLowerCase().includes(productSearch.toLowerCase()) &&
+    !selectedSupplier?.products?.find(sp => sp.product_id === p.product_id)
+  );
 
-  const pickProduct = (p) => {
-    const cost = p.original_price ? p.price / 1.35 : p.price;
-    setSpForm(f => ({
-      ...f,
-      product_id: p.product_id,
-      cost_price: cost.toFixed(2),
-      selling_price: p.price.toFixed(2),
-    }));
-    setSpSearch(p.name);
-    setSpDropdown(false);
-  };
+  if (loading) return <div className="text-center py-20 text-white/40">Loading suppliers...</div>;
 
-  const selectedSupplier = suppliers.find(s => s.supplier_id === expanded);
+  if (loadError) return (
+    <div className="flex flex-col items-center py-20 gap-4 text-center">
+      <div className="text-[#ff007f] font-bold text-lg">{loadError}</div>
+      <div className="text-white/40 text-sm max-w-xs">
+        The backend may be waking up from sleep. This usually takes 10–30 seconds.
+      </div>
+      <button onClick={load} className="btn-lime px-8">Retry</button>
+    </div>
+  );
 
   return (
-    <div>
-      {loadError && (
-        <div style={{background:'rgba(255,0,127,0.08)',border:'1px solid rgba(255,0,127,0.3)',borderRadius:14,padding:'12px 18px',color:'#ff007f',fontSize:13,marginBottom:16,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <span>{loadError}</span>
-          <button onClick={() => { setLoadError(''); loadAll(); }} style={{fontSize:11,color:'#ff007f',background:'none',border:'none',cursor:'pointer',fontWeight:700}}>Retry</button>
-        </div>
-      )}
-
-      <div style={{display:'flex',gap:0,minHeight:500}}>
-
-        {/* LEFT SIDEBAR — Supplier list */}
-        <div style={{width:260,flexShrink:0,borderRight:'1px solid rgba(255,255,255,0.07)',paddingRight:0}}>
-          <div style={{padding:'16px 16px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-            <div>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:'0.02em'}}>Suppliers</div>
-              <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>Boss-only · {suppliers.length} total</div>
-            </div>
-            <button onClick={() => { setShowForm(true); setEditId(null); setForm({ name:'',contact:'',notes:'' }); setExpanded(null); }}
-              style={{width:32,height:32,borderRadius:'50%',background:'#ff007f',border:'none',color:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 12px rgba(255,0,127,0.4)'}}>
-              <FaPlus size={12} />
-            </button>
+    <div className="flex flex-col lg:flex-row gap-4" style={{minHeight:'60vh'}}>
+      {/* LEFT: supplier list */}
+      <div className="lg:w-64 xl:w-72 shrink-0">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:'0.05em'}}>Suppliers</div>
+            <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>Boss-only · {suppliers.length} total</div>
           </div>
-
-          {loading ? (
-            <div style={{padding:'20px 16px',color:'rgba(255,255,255,0.3)',fontSize:13}}>Loading...</div>
-          ) : suppliers.length === 0 ? (
-            <div style={{padding:'20px 16px',color:'rgba(255,255,255,0.25)',fontSize:13,textAlign:'center'}}>No suppliers yet</div>
-          ) : (
-            <div style={{overflowY:'auto',maxHeight:560}}>
-              {suppliers.map(s => (
-                <button key={s.supplier_id} onClick={() => { setExpanded(s.supplier_id); setShowForm(false); setAddingProduct(null); }}
-                  style={{width:'100%',textAlign:'left',padding:'12px 16px',background:expanded===s.supplier_id?'rgba(255,0,127,0.08)':'transparent',borderLeft:expanded===s.supplier_id?'2px solid #ff007f':'2px solid transparent',border:'none',cursor:'pointer',transition:'all 0.2s',display:'block'}}>
-                  <div style={{fontWeight:700,fontSize:14,color:expanded===s.supplier_id?'#fff':'rgba(255,255,255,0.7)'}}>{s.name}</div>
-                  {s.contact && <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>{s.contact}</div>}
-                  <div style={{fontSize:10,color:'rgba(255,0,127,0.5)',marginTop:2}}>{(s.products||[]).length} product{(s.products||[]).length!==1?'s':''}</div>
-                </button>
-              ))}
-            </div>
-          )}
+          <button onClick={() => { setShowForm(true); setEditId(null); setExpanded(null); setForm({name:'',contact:'',notes:''}); }}
+            style={{width:36,height:36,borderRadius:'50%',background:'#ff007f',display:'flex',alignItems:'center',justifyContent:'center',border:'none',cursor:'pointer',color:'#fff',flexShrink:0}}>
+            <FaPlus size={13} />
+          </button>
         </div>
+        {suppliers.length === 0 ? (
+          <div style={{padding:'20px 16px',color:'rgba(255,255,255,0.25)',fontSize:13,textAlign:'center'}}>No suppliers yet</div>
+        ) : suppliers.map(s => (
+          <button key={s.supplier_id}
+            onClick={() => { setExpanded(expanded === s.supplier_id ? null : s.supplier_id); setShowForm(false); setAddingProduct(null); }}
+            style={{width:'100%',textAlign:'left',padding:'12px 16px',background:expanded===s.supplier_id?'rgba(255,0,127,0.12)':'rgba(255,255,255,0.03)',border:`1px solid ${expanded===s.supplier_id?'rgba(255,0,127,0.4)':'rgba(255,255,255,0.06)'}`,borderRadius:12,marginBottom:6,cursor:'pointer',transition:'all 0.2s'}}>
+            <div style={{fontWeight:700,fontSize:14,color:expanded===s.supplier_id?'#fff':'rgba(255,255,255,0.8)'}}>{s.name}</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>{s.products?.length||0} products · RM{(s.products?.reduce((sum,p)=>sum+(p.selling_price*p.stock_qty),0)||0).toFixed(0)} stock value</div>
+          </button>
+        ))}
+      </div>
 
-        {/* RIGHT PANEL — Selected supplier detail or Add form */}
-        <div style={{flex:1,padding:'16px 24px',minWidth:0}}>
-
-          {/* Add/Edit supplier form */}
-          {showForm ? (
-            <div>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,marginBottom:16}}>{editId?'Edit Supplier':'New Supplier'}</div>
-              <div style={{display:'flex',flexDirection:'column',gap:10}}>
-                <input className="input-dark" placeholder="Supplier name *" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} />
-                <input className="input-dark" placeholder="Contact (phone / email)" value={form.contact} onChange={e => setForm(f => ({...f, contact: e.target.value}))} />
-                <textarea className="input-dark resize-none" rows={3} placeholder="Notes (optional)" value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} />
-                <div style={{display:'flex',gap:10}}>
-                  <button onClick={save} disabled={saving} className="btn-pink disabled:opacity-50">{saving?'Saving...':'Save Supplier'}</button>
-                  <button onClick={() => { setShowForm(false); setEditId(null); }} className="btn-ghost text-sm">Cancel</button>
-                </div>
+      {/* RIGHT: detail panel */}
+      <div className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-2xl p-5">
+        {showForm ? (
+          <div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,marginBottom:16}}>{editId?'Edit Supplier':'New Supplier'}</div>
+            <div className="grid gap-3 mb-4">
+              <input className="input-dark" placeholder="Supplier name *" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} />
+              <input className="input-dark" placeholder="Contact (phone / email)" value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})} />
+              <textarea className="input-dark" rows={2} placeholder="Notes (optional)" value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={save} disabled={saving} className="btn-pink disabled:opacity-50">{saving?'Saving...':(editId?'Update':'Add Supplier')}</button>
+              <button onClick={()=>{setShowForm(false);setEditId(null);}} className="btn-ghost">Cancel</button>
+            </div>
+          </div>
+        ) : !selectedSupplier ? (
+          <div className="flex flex-col items-center justify-center py-20 text-white/30" style={{minHeight:300}}>
+            <FaTruck size={48} style={{marginBottom:16,opacity:0.2}} />
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,marginBottom:8}}>Select a Supplier</div>
+            <div style={{fontSize:13}}>Click a supplier on the left to view their products</div>
+          </div>
+        ) : (
+          <div>
+            {/* Supplier header */}
+            <div className="flex items-start justify-between gap-3 mb-5 flex-wrap">
+              <div>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,letterSpacing:'0.05em'}}>{selectedSupplier.name}</div>
+                {selectedSupplier.contact && <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginTop:2}}>{selectedSupplier.contact}</div>}
+                {selectedSupplier.notes && <div style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginTop:4}}>{selectedSupplier.notes}</div>}
+              </div>
+              <div className="flex gap-2 flex-wrap shrink-0">
+                <button onClick={()=>{setEditId(selectedSupplier.supplier_id);setForm({name:selectedSupplier.name,contact:selectedSupplier.contact||'',notes:selectedSupplier.notes||''});setShowForm(true);}} className="btn-ghost text-xs px-3 py-2 flex items-center gap-1"><FaPen size={11}/> Edit</button>
+                <button onClick={()=>del(selectedSupplier.supplier_id)} className="btn-ghost text-xs px-3 py-2 flex items-center gap-1" style={{borderColor:'rgba(255,0,127,0.4)',color:'#ff007f'}}><FaTrash size={11}/> Delete</button>
+                <button onClick={()=>{if(addingProduct===selectedSupplier.supplier_id){setAddingProduct(null);}else{setAddingProduct(selectedSupplier.supplier_id);loadProducts();}}} className="btn-pink text-xs px-4 py-2 flex items-center gap-2"><FaPlus size={11}/>{addingProduct===selectedSupplier.supplier_id?'Cancel':'Add Product'}</button>
               </div>
             </div>
 
-          ) : !selectedSupplier ? (
-            <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:'rgba(255,255,255,0.2)',textAlign:'center',paddingTop:60}}>
-              <FaTruck size={32} style={{marginBottom:16,opacity:0.3}} />
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,marginBottom:8}}>Select a Supplier</div>
-              <div style={{fontSize:13}}>Click a supplier on the left to view their products</div>
-            </div>
-
-          ) : (
-            <div>
-              {/* Supplier header */}
-              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:20,gap:12}}>
-                <div>
-                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,letterSpacing:'0.02em'}}>{selectedSupplier.name}</div>
-                  {selectedSupplier.contact && <div style={{fontSize:13,color:'rgba(255,255,255,0.5)',marginTop:2}}>{selectedSupplier.contact}</div>}
-                  {selectedSupplier.notes && <div style={{fontSize:12,color:'rgba(255,255,255,0.3)',marginTop:4}}>{selectedSupplier.notes}</div>}
-                </div>
-                <div style={{display:'flex',gap:8,flexShrink:0}}>
-                  <button onClick={() => { setEditId(selectedSupplier.supplier_id); setForm({ name:selectedSupplier.name, contact:selectedSupplier.contact||'', notes:selectedSupplier.notes||'' }); setShowForm(true); }}
-                    style={{padding:'7px 14px',borderRadius:50,fontSize:11,fontWeight:700,background:'rgba(0,240,255,0.08)',border:'1px solid rgba(0,240,255,0.25)',color:'#00f0ff',cursor:'pointer'}}>
-                    Edit
-                  </button>
-                  <button onClick={() => del(selectedSupplier.supplier_id)}
-                    style={{padding:'7px 14px',borderRadius:50,fontSize:11,fontWeight:700,background:'rgba(255,0,127,0.08)',border:'1px solid rgba(255,0,127,0.25)',color:'#ff007f',cursor:'pointer'}}>
-                    Delete
-                  </button>
+            {/* Add product form */}
+            {addingProduct === selectedSupplier.supplier_id && (
+              <div className="bg-black/40 border border-[#ff007f]/30 rounded-xl p-4 mb-5">
+                <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.3em',textTransform:'uppercase',color:'#ff007f',marginBottom:12}}>Link Product from Catalog</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <div className="sm:col-span-2">
+                    <input className="input-dark mb-2" placeholder={`Search from ${allProducts.length} products in catalog...`} value={productSearch} onChange={e=>setProductSearch(e.target.value)} />
+                    <select className="input-dark" value={productForm.product_id} onChange={e=>setProductForm({...productForm,product_id:e.target.value})}>
+                      <option value="">— select product —</option>
+                      {filteredProducts.slice(0,200).map(p=>(
+                        <option key={p.product_id} value={p.product_id}>{p.name} ({p.category}) — RM{parseFloat(p.price||0).toFixed(2)}</option>
+                      ))}
+                    </select>
+                    {productSearch && filteredProducts.length===0 && <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:4}}>No matching products for "{productSearch}"</div>}
+                    {!productSearch && allProducts.length===0 && <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:4}}>Loading product catalog...</div>}
+                  </div>
+                  <div>
+                    <label style={{fontSize:10,textTransform:'uppercase',letterSpacing:'0.2em',color:'rgba(255,255,255,0.4)',display:'block',marginBottom:4}}>Cost Price (RM)</label>
+                    <input type="number" min="0" step="0.01" className="input-dark" placeholder="0.00" value={productForm.cost_price} onChange={e=>setProductForm({...productForm,cost_price:e.target.value})} />
+                  </div>
+                  <div>
+                    <label style={{fontSize:10,textTransform:'uppercase',letterSpacing:'0.2em',color:'rgba(255,255,255,0.4)',display:'block',marginBottom:4}}>Selling Price (RM)</label>
+                    <input type="number" min="0" step="0.01" className="input-dark" placeholder="0.00" value={productForm.selling_price} onChange={e=>setProductForm({...productForm,selling_price:e.target.value})} />
+                  </div>
+                  <div>
+                    <label style={{fontSize:10,textTransform:'uppercase',letterSpacing:'0.2em',color:'rgba(255,255,255,0.4)',display:'block',marginBottom:4}}>Stock Qty</label>
+                    <input type="number" min="0" className="input-dark" placeholder="0" value={productForm.stock_qty} onChange={e=>setProductForm({...productForm,stock_qty:e.target.value})} />
+                  </div>
+                  <div className="flex items-end">
+                    <button onClick={()=>addProduct(selectedSupplier.supplier_id)} disabled={saving} className="btn-lime disabled:opacity-50 w-full">{saving?'Adding...':'Add to Supplier'}</button>
+                  </div>
                 </div>
               </div>
+            )}
 
-              {/* Add product form */}
-              <div style={{marginBottom:20}}>
-                <button onClick={() => addingProduct===selectedSupplier.supplier_id ? setAddingProduct(null) : (setAddingProduct(selectedSupplier.supplier_id), setSpForm({product_id:'',cost_price:'',selling_price:'',quantity:''}), setSpSearch(''))}
-                  style={{display:'flex',alignItems:'center',gap:8,padding:'9px 18px',borderRadius:50,background:addingProduct?'rgba(255,0,127,0.08)':'linear-gradient(135deg,#ff007f,#c8005a)',border:addingProduct?'1px solid rgba(255,0,127,0.3)':'none',color:'#fff',fontSize:12,fontWeight:800,letterSpacing:'0.08em',textTransform:'uppercase',cursor:'pointer'}}>
-                  <FaPlus size={11} /> {addingProduct===selectedSupplier.supplier_id?'Cancel':'Add Product'}
-                </button>
+            {/* Products table */}
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.3em',textTransform:'uppercase',color:'rgba(255,255,255,0.4)',marginBottom:12}}>Products from this supplier ({selectedSupplier.products?.length||0})</div>
+            {(!selectedSupplier.products || selectedSupplier.products.length === 0) ? (
+              <div style={{textAlign:'center',padding:'40px 20px',color:'rgba(255,255,255,0.25)',border:'1px dashed rgba(255,255,255,0.1)',borderRadius:12,fontSize:13}}>
+                No products linked yet. Click "Add Product" to link from your {allProducts.length||'product'} catalog.
               </div>
-
-              {addingProduct === selectedSupplier.supplier_id && (
-                <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:20,padding:20,marginBottom:20}}>
-                  <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.3em',textTransform:'uppercase',color:'rgba(255,255,255,0.3)',marginBottom:12}}>Add Product to {selectedSupplier.name}</div>
-                  <div style={{position:'relative',marginBottom:12}}>
-                    <input type="text" className="input-dark" placeholder="Search product..." value={spSearch}
-                      onChange={e => { setSpSearch(e.target.value); setSpDropdown(true); if(spForm.product_id) setSpForm(f=>({...f,product_id:''})); }}
-                      onFocus={() => setSpDropdown(true)} onBlur={() => setTimeout(()=>setSpDropdown(false),150)} />
-                    {spDropdown && filteredProducts.length > 0 && (
-                      <div style={{position:'absolute',zIndex:20,marginTop:4,width:'100%',maxHeight:200,overflowY:'auto',background:'#161616',border:'1px solid rgba(255,255,255,0.15)',borderRadius:14,boxShadow:'0 12px 32px rgba(0,0,0,0.5)'}}>
-                        {filteredProducts.slice(0,20).map(p => (
-                          <button key={p.product_id} type="button" onMouseDown={() => pickProduct(p)}
-                            style={{width:'100%',textAlign:'left',padding:'10px 16px',fontSize:13,background:'transparent',border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',color:'#fff'}}
-                            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,0,127,0.1)'}
-                            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                            <span>{p.name}</span>
-                            <span style={{color:'rgba(255,255,255,0.4)',fontSize:11}}>RM{p.price}</span>
+            ) : (
+              <div className="overflow-x-auto -mx-1">
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+                  <thead>
+                    <tr style={{borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
+                      {['Product','Cat','Cost','Sell','Margin','Qty',''].map(h=>(
+                        <th key={h} style={{textAlign:h===''||h==='Cost'||h==='Sell'||h==='Margin'||h==='Qty'?'right':'left',padding:'8px 8px 8px 0',fontSize:10,textTransform:'uppercase',letterSpacing:'0.15em',color:'rgba(255,255,255,0.3)',fontWeight:700,whiteSpace:'nowrap'}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedSupplier.products.map(sp=>(
+                      <tr key={sp.sp_id} style={{borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                        <td style={{padding:'10px 8px 10px 0',fontWeight:600,maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sp.product_name}</td>
+                        <td style={{padding:'10px 8px 10px 0',fontSize:11,color:'rgba(255,255,255,0.4)',whiteSpace:'nowrap'}}>{sp.category}</td>
+                        <td style={{padding:'10px 8px 10px 0',textAlign:'right',color:'rgba(255,255,255,0.6)',whiteSpace:'nowrap'}}>RM{(sp.cost_price||0).toFixed(2)}</td>
+                        <td style={{padding:'10px 8px 10px 0',textAlign:'right',whiteSpace:'nowrap'}}>RM{(sp.selling_price||0).toFixed(2)}</td>
+                        <td style={{padding:'10px 8px 10px 0',textAlign:'right'}}>
+                          <span style={{fontSize:11,fontWeight:700,color:(sp.margin_pct||0)>20?'#39ff14':(sp.margin_pct||0)>0?'#ffd700':'#ff007f'}}>
+                            {(sp.margin_pct||0).toFixed(1)}%
+                          </span>
+                        </td>
+                        <td style={{padding:'10px 8px 10px 0',textAlign:'right',color:'rgba(255,255,255,0.6)'}}>{sp.stock_qty}</td>
+                        <td style={{padding:'10px 0',textAlign:'right'}}>
+                          <button onClick={()=>delProduct(selectedSupplier.supplier_id,sp.sp_id)} style={{color:'rgba(255,255,255,0.25)',background:'none',border:'none',cursor:'pointer',padding:4}} onMouseEnter={e=>e.currentTarget.style.color='#ff007f'} onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.25)'}>
+                            <FaTrash size={10}/>
                           </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:10}}>
-                    <div>
-                      <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:'0.2em',marginBottom:6}}>Cost (RM)</div>
-                      <input type="number" step="0.01" className="input-dark" placeholder="0.00" value={spForm.cost_price} onChange={e=>setSpForm(f=>({...f,cost_price:e.target.value}))} />
-                    </div>
-                    <div>
-                      <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:'0.2em',marginBottom:6}}>Sell (RM)</div>
-                      <input type="number" step="0.01" className="input-dark" placeholder="0.00" value={spForm.selling_price} onChange={e=>setSpForm(f=>({...f,selling_price:e.target.value}))} />
-                    </div>
-                    <div>
-                      <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',textTransform:'uppercase',letterSpacing:'0.2em',marginBottom:6}}>Qty</div>
-                      <input type="number" className="input-dark" placeholder="0" value={spForm.quantity} onChange={e=>setSpForm(f=>({...f,quantity:e.target.value}))} />
-                    </div>
-                  </div>
-                  {spForm.cost_price && spForm.selling_price && parseFloat(spForm.cost_price) > 0 && (
-                    <div style={{fontSize:12,color:'#39ff14',marginBottom:10}}>
-                      Margin: {(((parseFloat(spForm.selling_price)-parseFloat(spForm.cost_price))/parseFloat(spForm.cost_price))*100).toFixed(1)}% · Profit/unit: RM{(parseFloat(spForm.selling_price)-parseFloat(spForm.cost_price)).toFixed(2)}
-                    </div>
-                  )}
-                  <div style={{display:'flex',gap:10}}>
-                    <button onClick={() => addProduct(selectedSupplier.supplier_id)} disabled={savingSp||!spForm.product_id} className="btn-pink disabled:opacity-50">{savingSp?'Adding...':'Add Product'}</button>
-                    <button onClick={() => setAddingProduct(null)} className="btn-ghost text-sm">Cancel</button>
-                  </div>
-                </div>
-              )}
-
-              {/* Products table */}
-              {(!selectedSupplier.products||selectedSupplier.products.length===0) ? (
-                <div style={{textAlign:'center',padding:'40px 24px',color:'rgba(255,255,255,0.2)',fontSize:14,border:'1px solid rgba(255,255,255,0.06)',borderRadius:16}}>
-                  No products linked to this supplier yet.
-                </div>
-              ) : (
-                <div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 80px 80px 60px 40px',gap:8,padding:'0 8px 8px',fontSize:10,color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:'0.2em'}}>
-                    <span>Product</span><span style={{textAlign:'right'}}>Cost</span><span style={{textAlign:'right'}}>Sell</span><span style={{textAlign:'right'}}>Qty</span><span></span>
-                  </div>
-                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
-                    {selectedSupplier.products.map(sp => (
-                      <div key={sp.sp_id||sp.id} style={{display:'grid',gridTemplateColumns:'1fr 80px 80px 60px 40px',gap:8,alignItems:'center',background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:14,padding:'10px 12px'}}>
-                        <div>
-                          <div style={{fontSize:14,fontWeight:600}}>{sp.product_name}</div>
-                          <div style={{fontSize:10,color:'#39ff14'}}>Margin: {sp.margin_pct}%</div>
-                        </div>
-                        <div style={{textAlign:'right',fontSize:13,color:'rgba(255,255,255,0.5)'}}>RM{sp.cost_price}</div>
-                        <div style={{textAlign:'right',fontSize:13,color:'#ff007f',fontWeight:700}}>RM{sp.selling_price}</div>
-                        <div style={{textAlign:'right',fontFamily:"'Bebas Neue',sans-serif",fontSize:20}}>{sp.quantity}</div>
-                        <button onClick={() => delProduct(selectedSupplier.supplier_id, sp.sp_id||sp.id)}
-                          style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.2)',transition:'color 0.2s'}}
-                          onMouseEnter={e=>e.currentTarget.style.color='#ff007f'}
-                          onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.2)'}>
-                          <FaTrash size={12} />
-                        </button>
-                      </div>
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
+};
+
 };
 
 const SuperAdminDashboard = () => {
