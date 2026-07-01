@@ -349,8 +349,7 @@ const Home = () => {
               {hero.sub}
             </p>
 
-            </>)}
-      {/* Buttons — always shown */}
+            {/* Buttons */}
             <div className="flex flex-wrap gap-4">
               <Link to={hero.cta_link || '/products'} className="btn-fire">
                 {hero.cta_text || 'Shop Now Lah'} <FaArrowRight size={13} />
@@ -359,6 +358,7 @@ const Home = () => {
                 <FaWhatsapp size={15} /> Chat With Us
               </a>
             </div>
+            </>)}
           </div>
         </div>
 
