@@ -351,6 +351,24 @@ api_router.include_router(ai_staff_router)
 async def api_health_check():
     return {"status": "healthy", "service": "masterliqours-api"}
 
+# ── Explicit CORS preflight handler (fixes 405 on OPTIONS) ──────────────────
+@app.options("/{full_path:path}", include_in_schema=False)
+async def cors_preflight(full_path: str, request: Request):
+    origin = request.headers.get("origin", "")
+    if not origin:
+        return Response(status_code=200)
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, X-Requested-With, X-Maintenance-Key",
+            "Access-Control-Max-Age": "86400",
+            "Vary": "Origin",
+        },
+    )
+
 app.include_router(api_router)
 
 from fastapi.staticfiles import StaticFiles
