@@ -381,6 +381,23 @@ async def startup():
                 logger.info(f"Seeded {n} default brands")
     except Exception as e:
         logger.exception("Startup table/seed failed: %s", e)
+    # One-time category fix: re-import if products still have old category
+    try:
+        from sqlalchemy import text as sa_text
+        import os as _os_startup
+        async with AsyncSessionLocal() as _db_fix:
+            _res = await _db_fix.execute(sa_text(
+                "SELECT COUNT(*) FROM products WHERE is_active=true AND category='Premium Spirits & Liquors'"
+            ))
+            _bad = _res.scalar() or 0
+            if _bad > 0:
+                logger.info(f"Found {_bad} products with wrong category - running re-import...")
+                from import_real_catalog import run_import
+                _csv = _os_startup.path.join(_os_startup.path.dirname(__file__), "data", "Masterliqours_Pricing_List.csv")
+                _r2 = await run_import(_csv)
+                logger.info(f"Category re-import done: {_r2}")
+    except Exception as e:
+        logger.exception("Category fix startup failed: %s", e)
     logger.info("All routes loaded - suppliers + AI RBAC active")
 
 @app.post("/api/maintenance/import-catalog")
