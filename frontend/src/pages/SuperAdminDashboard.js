@@ -636,17 +636,17 @@ const SuperAdminDashboard = () => {
       </div>
 
       {/* Main layout: sidebar nav + content + AI */}
-      <div style={{display:'flex',gap:0,minHeight:'70vh',background:'rgba(255,255,255,0.01)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:24,overflow:'hidden',marginBottom:40}}>
+      <div className="flex flex-col lg:flex-row" style={{gap:0,minHeight:'70vh',background:'rgba(255,255,255,0.01)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:24,overflow:'hidden',marginBottom:40}}>
 
         {/* LEFT NAV — Tab list */}
-        <div style={{width:200,flexShrink:0,borderRight:'1px solid rgba(255,255,255,0.07)',padding:'12px 0',display:'flex',flexDirection:'column',gap:2}}>
+        <div className="w-full lg:w-[200px] overflow-x-auto lg:overflow-visible flex-shrink-0 flex flex-row lg:flex-col gap-1 lg:gap-0" style={{flexShrink:0,borderRight:'1px solid rgba(255,255,255,0.07)',padding:'12px 0',gap:2}}>
           {TABS.map(t => {
             const Icon = t.icon;
             return (
               <button key={t.id} onClick={() => setTab(t.id)}
                 style={{display:'flex',alignItems:'center',gap:10,padding:'11px 16px',background:tab===t.id?'rgba(255,0,127,0.1)':'transparent',borderLeft:tab===t.id?'2px solid #ff007f':'2px solid transparent',border:'none',cursor:'pointer',textAlign:'left',transition:'all 0.2s',width:'100%'}}>
                 <Icon size={13} style={{color:tab===t.id?'#ff007f':'rgba(255,255,255,0.35)',flexShrink:0}} />
-                <span style={{fontSize:12,fontWeight:700,letterSpacing:'0.05em',color:tab===t.id?'#fff':'rgba(255,255,255,0.5)',textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.label}</span>
+                <span style={{fontSize:11,fontWeight:700,letterSpacing:'0.05em',color:tab===t.id?'#fff':'rgba(255,255,255,0.5)',textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.label}</span>
               </button>
             );
           })}
