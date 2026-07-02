@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from database import get_db
 from models import (
-    User, Product, Order, Staff, FlashSale, DiscountCode,
+    User, Product, Order, OrderItem, Staff, FlashSale, DiscountCode,
     UserRole, HeroBanner, MysteryDrop
 )
 from schemas import ProductCreate, ProductResponse
@@ -551,12 +551,67 @@ async def get_analytics(
     )
     active_sales = result.scalar()
 
+    # Revenue today vs yesterday
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday_start = today_start - timedelta(days=1)
+
+    result = await db.execute(
+        select(func.sum(Order.total), func.count(Order.order_id))
+        .where(Order.created_at >= today_start)
+    )
+    today_sales, today_orders = result.first()
+
+    result = await db.execute(
+        select(func.sum(Order.total), func.count(Order.order_id))
+        .where(Order.created_at >= yesterday_start, Order.created_at < today_start)
+    )
+    yesterday_sales, yesterday_orders = result.first()
+
+    # Last 7 days daily revenue for chart
+    daily_revenue = []
+    for i in range(6, -1, -1):
+        day_start = today_start - timedelta(days=i)
+        day_end = day_start + timedelta(days=1)
+        result = await db.execute(
+            select(func.sum(Order.total)).where(
+                Order.created_at >= day_start,
+                Order.created_at < day_end,
+                Order.status != "cancelled"
+            )
+        )
+        rev = result.scalar() or 0
+        daily_revenue.append({
+            "date": day_start.strftime("%d %b"),
+            "revenue": round(float(rev), 2)
+        })
+
+    # Top 5 best-selling products
+    result = await db.execute(
+        select(OrderItem.product_id, func.sum(OrderItem.quantity).label("sold"))
+        .group_by(OrderItem.product_id)
+        .order_by(func.sum(OrderItem.quantity).desc())
+        .limit(5)
+    )
+    top_rows = result.all()
+    top_products = []
+    for row in top_rows:
+        pr = await db.execute(select(Product).where(Product.product_id == row.product_id))
+        prod = pr.scalar_one_or_none()
+        if prod:
+            top_products.append({"name": prod.name, "sold": int(row.sold), "price": float(prod.price)})
+
     return {
         "total_sales": total_sales or 0,
         "total_orders": total_orders or 0,
         "pending_orders": pending_orders or 0,
         "active_flash_sales": active_sales or 0,
-        "staff_sales": staff_sales
+        "staff_sales": staff_sales,
+        "today_sales": float(today_sales or 0),
+        "today_orders": int(today_orders or 0),
+        "yesterday_sales": float(yesterday_sales or 0),
+        "yesterday_orders": int(yesterday_orders or 0),
+        "daily_revenue": daily_revenue,
+        "top_products": top_products,
     }
 
 @router.get("/all-orders")

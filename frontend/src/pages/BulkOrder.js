@@ -48,10 +48,25 @@ const BulkOrder = () => {
 
   if (done) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-24 text-center">
-        <FaCheckCircle className="text-[#39ff14] text-5xl mx-auto mb-6" />
-        <h1 className="display-lg mb-3">Enquiry sent!</h1>
-        <p className="text-white/60">We'll WhatsApp or email you shortly with carton/bulk pricing for your event.</p>
+      <div style={{minHeight:'80vh',display:'flex',alignItems:'center',justifyContent:'center',padding:'60px 24px',textAlign:'center'}}>
+        <div style={{maxWidth:480}}>
+          <div style={{width:64,height:64,borderRadius:'50%',background:'rgba(57,255,20,0.12)',border:'1px solid rgba(57,255,20,0.3)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 24px'}}>
+            <FaCheckCircle size={28} style={{color:'#39ff14'}} />
+          </div>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:52,letterSpacing:'0.02em',marginBottom:12}}>Request Sent!</div>
+          <p style={{color:'rgba(255,255,255,0.55)',lineHeight:1.7,marginBottom:32}}>
+            We'll WhatsApp or email you shortly with carton/bulk pricing for your event. Our team usually responds within 2 hours boss.
+          </p>
+          <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>
+            <button onClick={() => { setDone(false); setForm({ name:'',company:'',email:'',whatsapp:'',event_date:'',estimated_cartons:'',items_wanted:'',message:'' }); }}
+              style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.7)',padding:'12px 24px',borderRadius:50,fontSize:13,fontWeight:700,cursor:'pointer'}}>
+              Send Another Request
+            </button>
+            <a href="/" style={{display:'inline-flex',alignItems:'center',gap:8,background:'linear-gradient(135deg,#ff007f,#c8005a)',color:'#fff',padding:'12px 24px',borderRadius:50,fontSize:13,fontWeight:700,textDecoration:'none',boxShadow:'0 0 20px rgba(255,0,127,0.35)'}}>
+              Back to Shop
+            </a>
+          </div>
+        </div>
       </div>
     );
   }

@@ -18,6 +18,8 @@ const GlowInput = ({ label, hint, ...props }) => (
 
 const Register = () => {
   const [form, setForm] = useState({ email: '', password: '', name: '', phone: '', referral_code: '' });
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmError, setConfirmError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
@@ -25,6 +27,15 @@ const Register = () => {
 
   const submit = async (e) => {
     e.preventDefault();
+    setConfirmError('');
+    if (form.password !== confirmPassword) {
+      setConfirmError("Passwords don't match lah boss");
+      return;
+    }
+    if (form.password.length < 6) {
+      setConfirmError('Password must be at least 6 characters');
+      return;
+    }
     setError(''); setLoading(true);
     try {
       await register(form);

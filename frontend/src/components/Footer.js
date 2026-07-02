@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { FaFacebookF, FaInstagram, FaWhatsapp, FaEnvelope, FaTelegram, FaArrowRight, FaHeart } from 'react-icons/fa';
+import { FaFacebookF, FaInstagram, FaWhatsapp, FaEnvelope, FaArrowRight, FaHeart } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -60,12 +60,11 @@ const Footer = () => {
             {/* Socials */}
             <div style={{ display: 'flex', gap: 8 }}>
               {[
-                { Icon: FaFacebookF, href: 'https://www.facebook.com' },
-                { Icon: FaInstagram, href: 'https://www.instagram.com' },
-                { Icon: FaWhatsapp, href: 'https://wa.me/60126884925' },
-                { Icon: FaEnvelope, href: 'mailto:hello@masterliqours.my' },
-                { Icon: FaTelegram, href: 'https://t.me/masterliqours' },
-              ].map(({ Icon, href }, i) => (
+                { Icon: FaWhatsapp, href: 'https://wa.me/60126884925', label: 'WhatsApp' },
+                { Icon: FaEnvelope, href: 'mailto:hello@masterliqours.my', label: 'Email' },
+                { Icon: FaInstagram, href: 'https://www.instagram.com/masterliqours', label: 'Instagram' },
+                { Icon: FaFacebookF, href: 'https://www.facebook.com/masterliqours', label: 'Facebook' },
+              ].map(({ Icon, href, label }, i) => (
                 <a key={i} href={href} target="_blank" rel="noopener noreferrer"
                   style={{ width: 38, height: 38, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', transition: 'all 0.2s' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = '#ff007f'; e.currentTarget.style.color = '#ff007f'; }}

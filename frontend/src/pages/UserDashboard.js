@@ -11,11 +11,12 @@ const tierName = (t) => TIER_DISPLAY[t?.toLowerCase()] || t || 'Regular';
 const UserDashboard = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const wishlistCount = (() => { try { return JSON.parse(localStorage.getItem('ml_wishlist')||'[]').length; } catch { return 0; } })();
 
   useEffect(() => {
     axios.get(`${API}/orders/my-orders`, { withCredentials: true })
-      .then((r) => setOrders(r.data)).catch(() => {});
+      .then((r) => setOrders(r.data)).catch(() => {}).finally(() => setOrdersLoading(false));
   }, []);
 
   const nextTier = user?.tier === 'platinum' ? null : user?.tier === 'gold' ? { name: 'Platinum', goal: 10000 } : user?.tier === 'silver' ? { name: 'Gold', goal: 5000 } : { name: 'Gold', goal: 5000 };
@@ -81,8 +82,12 @@ const UserDashboard = () => {
 
       <div className="surface p-6">
 <h2 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:36,letterSpacing:"0.02em",marginBottom:20}}>Recent Orders</h2>
-        {orders.length === 0 ? (
-          <div className="text-center py-12 text-white/40">No orders yet boss. Start shopping lah!</div>
+        {ordersLoading ? (
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {[1,2,3].map(i => <div key={i} style={{height:72,borderRadius:16,background:'rgba(255,255,255,0.04)',animation:'pulse 1.5s ease-in-out infinite'}} />)}
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="text-center py-12 text-white/40">No orders yet boss. <Link to="/products" className="text-[#ff007f] hover:underline">Start shopping lah!</Link></div>
         ) : (
           <div className="space-y-3">
             {orders.slice(0, 8).map((o) => (
@@ -110,6 +115,13 @@ const UserDashboard = () => {
                 </div>
               </Link>
             ))}
+          </div>
+        )}
+        {orders.length > 8 && (
+          <div style={{textAlign:'center',marginTop:16}}>
+            <Link to="/orders" style={{fontSize:13,color:'rgba(255,255,255,0.4)',textDecoration:'none',fontWeight:600,letterSpacing:'0.1em',textTransform:'uppercase'}}>
+              View all {orders.length} orders →
+            </Link>
           </div>
         )}
       </div>

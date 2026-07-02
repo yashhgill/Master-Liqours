@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FaArrowLeft, FaWhatsapp, FaCheckCircle, FaClock, FaTimesCircle, FaBox, FaUser, FaMapMarkerAlt, FaPhone, FaTruck, FaBoxOpen, FaStar } from 'react-icons/fa';
-import { useAuth } from '../context';
+import { useAuth, useCart } from '../context';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -27,6 +27,7 @@ const OrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addToCart } = useCart();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -64,6 +65,21 @@ const OrderDetail = () => {
   );
 
   const meta = statusMeta[order.status] || statusMeta.pending;
+
+  const handleReorder = () => {
+    (order.items || []).forEach(item => {
+      if (item.product_id) {
+        addToCart({
+          product_id: item.product_id,
+          name: item.product_name || 'Item',
+          price: item.price,
+          category: item.category || '',
+          image_url: item.image_url || '',
+        }, item.quantity);
+      }
+    });
+    navigate('/cart');
+  };
   const currentStep = STATUS_STEPS.findIndex(s => s.key === order.status);
   const isCancelled = order.status === 'cancelled';
   const phone = (order.staff_whatsapp || '60126884925').replace(/\D/g, '');
@@ -77,6 +93,13 @@ const OrderDetail = () => {
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-white/60 hover:text-[#ff007f] mb-8 transition-colors">
         <FaArrowLeft size={14} /> Back
       </button>
+
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-xs text-white/30 mb-6">
+        <Link to="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
+        <span>/</span>
+        <span className="text-white/60">Order #{order.order_id.slice(0,8).toUpperCase()}</span>
+      </div>
 
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <div>

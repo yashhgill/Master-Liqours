@@ -163,6 +163,14 @@ const Products = () => {
     setUrlParams(p);
   };
 
+  // Sync search to URL as user types (debounced via useEffect above)
+  const handleSearchChange = (val) => {
+    setSearch(val);
+    const p = new URLSearchParams(urlParams);
+    if (val.trim()) p.set('search', val.trim()); else p.delete('search');
+    setUrlParams(p, { replace: true });
+  };
+
   const toggleWishlist = (e, id) => {
     e.preventDefault(); e.stopPropagation();
     const cur = getWishlist();
@@ -274,7 +282,7 @@ const Products = () => {
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <div className="relative flex-1">
             <FaSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-white/40" size={14} />
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            <input type="text" value={search} onChange={e => handleSearchChange(e.target.value)}
               placeholder="Search bottles boss..." className="input-dark pl-12"
               data-testid="products-search-input" />
             {search && (
@@ -420,7 +428,7 @@ const Products = () => {
       </div>
 
       {/* Load More */}
-      {!loading && allProducts.length < totalProducts && (
+      {!loading && !loadingMore && allProducts.length < totalProducts && (
         <div style={{ textAlign: 'center', marginTop: 32, paddingBottom: 32 }}>
           <button
             onClick={loadMore}
