@@ -53,7 +53,8 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
     e.preventDefault();
     e.stopPropagation();
     if (isOutOfStock || isPreorder) return;
-    addToCart(product);
+    // Pass effective price so flash sale discount is preserved in cart
+    addToCart(product, 1, price);
   };
 
   const handlePreorder = (e) => {
@@ -100,6 +101,13 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
         <div className="absolute top-4 left-4 z-10">
           <div className="bg-black/90 text-white/80 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest border border-white/30">
             Unavailable
+          </div>
+        </div>
+      )}
+      {cardState === 'available' && stockLevel > 0 && stockLevel <= 5 && (
+        <div className="absolute top-4 left-4 z-10">
+          <div className="bg-[#ffd70015] border border-[#ffd700]/60 text-[#ffd700] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
+            Only {stockLevel} left
           </div>
         </div>
       )}

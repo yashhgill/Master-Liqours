@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../context';
 import { FaComments, FaTimes, FaPaperPlane, FaRobot, FaUser } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const ChatWidget = () => {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: 'assistant', content: 'Hi boss! Ask me anything about our drinks — prices, recommendations, what\'s in stock lah.' }
@@ -16,6 +18,9 @@ const ChatWidget = () => {
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages, open]);
+
+  // Staff and admins have their own AI sidebar — return after ALL hooks
+  if (user && ['staff', 'super_admin', 'master_admin'].includes(user.role)) return null;
 
   const send = async () => {
     if (!input.trim() || loading) return;

@@ -282,8 +282,6 @@ const SupplierTab = ({ API, active }) => {
   );
 };
 
-};
-
 const SuperAdminDashboard = () => {
   const { user } = useAuth();
   const [tab, setTab] = useState('overview');

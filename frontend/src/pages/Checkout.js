@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth, useCart } from '../context';
 import { FaWhatsapp, FaCheckCircle, FaArrowRight, FaTrophy } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const TIER_DISPLAY = { bronze: 'Regular', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' };
+const tierName = (t) => TIER_DISPLAY[t?.toLowerCase()] || t || 'Regular';
 
 // Defined at module scope (NOT inside Checkout) so it keeps a stable identity
 // across re-renders. Declaring it inside the component re-created it on every

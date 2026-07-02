@@ -65,6 +65,8 @@ export const AuthProvider = ({ children }) => {
     } catch {}
     applyToken(null);
     setUser(null);
+    // Clear cart on logout so roles don't share cart data
+    localStorage.removeItem('cart');
   };
 
   // Used by the Google OAuth callback: persist token + user in one shot.
@@ -97,19 +99,21 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem('cart', JSON.stringify(cart));
   }, [cart]);
 
-  const addToCart = (product, quantity = 1) => {
+  const addToCart = (product, quantity = 1, flashSalePrice = null) => {
     // Track add-to-cart signal for ranking algorithm — fire and forget
     axios.post(`${API}/products/track?product_id=${product.product_id}&event_type=add_to_cart`).catch(() => {});
+    // Use flash sale price if provided, otherwise use product base price
+    const effectivePrice = flashSalePrice ?? product.price;
     setCart(prev => {
       const existing = prev.find(item => item.product_id === product.product_id);
       if (existing) {
         return prev.map(item =>
           item.product_id === product.product_id
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: item.quantity + quantity, price: effectivePrice }
             : item
         );
       }
-      return [...prev, { ...product, quantity }];
+      return [...prev, { ...product, price: effectivePrice, quantity }];
     });
   };
 

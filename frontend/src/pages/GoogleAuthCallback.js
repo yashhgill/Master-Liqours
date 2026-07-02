@@ -17,7 +17,7 @@ const GoogleAuthCallback = () => {
         const params = new URLSearchParams(window.location.search);
         const code = params.get('code');
         const stateParam = params.get('state') || '';
-        const savedState = sessionStorage.getItem('g_oauth_state');
+        const savedState = localStorage.getItem('g_oauth_state');
         const errParam = params.get('error');
 
         if (errParam) throw new Error(errParam);
@@ -31,9 +31,9 @@ const GoogleAuthCallback = () => {
           { withCredentials: true },
         );
 
-        sessionStorage.removeItem('g_oauth_state');
-        const returnTo = sessionStorage.getItem('g_oauth_return_to') || '/';
-        sessionStorage.removeItem('g_oauth_return_to');
+        localStorage.removeItem('g_oauth_state');
+        const returnTo = localStorage.getItem('g_oauth_return_to') || '/';
+        localStorage.removeItem('g_oauth_return_to');
 
         if (res.data?.user) setUserDirect(res.data.user, res.data.session_token);
         // Redirect staff/admin to their dashboard

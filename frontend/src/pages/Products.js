@@ -108,60 +108,53 @@ const Products = () => {
       .catch(() => {});
   }, []);
 
-  // Initial product load
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await axios.get(`${API}/products`, { params: { page: 1, limit: PAGE_SIZE } });
-        const data = res.data?.products || res.data || [];
-        const total = res.data?.total ?? data.length;
+  // ── Server-side fetch: fires whenever search/category/sort/page changes ──
+  const fetchProducts = async (opts = {}) => {
+    const isNewQuery = opts.reset !== false;
+    if (isNewQuery) setLoading(true); else setLoadingMore(true);
+    try {
+      const params = { page: isNewQuery ? 1 : page + 1, limit: PAGE_SIZE };
+      if (selected) params.category = selected;
+      if (search.trim()) params.search = search.trim();
+      // Price filter — done client-side on the returned page (server has no price range endpoint)
+      const res = await axios.get(`${API}/products`, { params });
+      const data = res.data?.products || res.data || [];
+      const total = res.data?.total ?? data.length;
+      if (isNewQuery) {
         setAllProducts(data);
-        setTotalProducts(total);
         setPage(1);
-        setProducts(applyFilters(data, search, selected, priceRange, sort));
+        // Recent products only on first full load
         const recentIds = getRecent();
         if (recentIds.length) {
           const recent = recentIds.map(id => data.find(p => p.product_id === id)).filter(Boolean);
           setRecentProducts(recent.slice(0, 5));
         }
-      } catch {}
-      finally { setLoading(false); }
-    })();
-  }, []); // eslint-disable-line
-
-  const loadMore = async () => {
-    if (loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const nextPage = page + 1;
-      const res = await axios.get(`${API}/products`, { params: { page: nextPage, limit: PAGE_SIZE } });
-      const newData = res.data?.products || res.data || [];
-      const combined = [...allProducts, ...newData];
-      setAllProducts(combined);
-      setPage(nextPage);
-      setProducts(applyFilters(combined, search, selected, priceRange, sort));
+      } else {
+        setAllProducts(prev => [...prev, ...data]);
+        setPage(p => p + 1);
+      }
+      setTotalProducts(total);
     } catch {}
-    finally { setLoadingMore(false); }
+    finally { setLoading(false); setLoadingMore(false); }
   };
 
-  useEffect(() => {
-    setProducts(applyFilters(allProducts, search, selected, priceRange, sort));
-  }, [selected, priceRange, sort, allProducts]); // eslint-disable-line
+  // Initial load and whenever category changes
+  useEffect(() => { fetchProducts({ reset: true }); }, [selected]); // eslint-disable-line
 
+  // Debounced search — server-side
   useEffect(() => {
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setProducts(applyFilters(allProducts, search, selected, priceRange, sort));
-    }, 300);
+    debounceRef.current = setTimeout(() => fetchProducts({ reset: true }), 350);
     return () => clearTimeout(debounceRef.current);
   }, [search]); // eslint-disable-line
 
-  // Sync sort from URL param
+  // Load more
+  const loadMore = () => fetchProducts({ reset: false });
+
+  // Client-side price + sort on already-fetched page
   useEffect(() => {
-    const urlSort = urlParams.get('sort');
-    if (urlSort && urlSort !== sort) setSort(urlSort);
-  }, []); // eslint-disable-line
+    setProducts(applyFilters(allProducts, '', '', priceRange, sort));
+  }, [priceRange, sort, allProducts]); // eslint-disable-line
 
   const setCat = (c) => {
     setSelected(c);

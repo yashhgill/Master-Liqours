@@ -5,6 +5,8 @@ import { useAuth } from '../context';
 import { FaTrophy, FaBox, FaChartLine, FaGem, FaHeart } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const TIER_DISPLAY = { bronze: 'Regular', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' };
+const tierName = (t) => TIER_DISPLAY[t?.toLowerCase()] || t || 'Regular';
 
 const UserDashboard = () => {
   const { user } = useAuth();
@@ -16,7 +18,7 @@ const UserDashboard = () => {
       .then((r) => setOrders(r.data)).catch(() => {});
   }, []);
 
-  const nextTier = user?.tier === 'platinum' ? null : user?.tier === 'gold' ? { name: 'Platinum', goal: 10000 } : { name: 'Gold', goal: 5000 };
+  const nextTier = user?.tier === 'platinum' ? null : user?.tier === 'gold' ? { name: 'Platinum', goal: 10000 } : user?.tier === 'silver' ? { name: 'Gold', goal: 5000 } : { name: 'Gold', goal: 5000 };
   const progress = nextTier ? Math.min(100, ((user.points || 0) / nextTier.goal) * 100) : 100;
 
   return (
@@ -35,7 +37,7 @@ const UserDashboard = () => {
             <div className="eyebrow !mb-0">Tier</div>
             <FaTrophy className="text-[#ffd700]" />
           </div>
-          <div className="display-lg uppercase">{user?.tier}</div>
+          <div className="display-lg uppercase">{tierName(user?.tier)}</div>
         </div>
         <div className="surface p-6">
           <div className="flex items-center justify-between mb-3">

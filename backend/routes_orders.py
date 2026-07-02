@@ -11,7 +11,7 @@ from sqlalchemy import and_
 from schemas import CheckoutRequest, OrderResponse, CartItem
 from auth_utils import get_current_user
 from sms_utils import send_sms, status_message
-from email_utils import send_low_stock_alert, LOW_STOCK_THRESHOLD
+from email_utils import send_low_stock_alert, LOW_STOCK_THRESHOLD, send_status_notification
 from routes_push import notify_staff_or_admins
 from datetime import datetime
 
@@ -506,7 +506,31 @@ async def update_order_status(
         staff_obj = s.scalar_one_or_none()
         if staff_obj:
             staff_name = staff_obj.name
+    staff_email_addr = None
+    staff_whatsapp = None
+    if order.staff_id:
+        s2 = await db.execute(select(Staff).where(Staff.staff_id == order.staff_id))
+        staff_obj2 = s2.scalar_one_or_none()
+        if staff_obj2:
+            staff_email_addr = staff_obj2.email
+            staff_whatsapp = staff_obj2.whatsapp_number
+
     if customer and customer.phone:
         send_sms(customer.phone, status_message(new_status, order.order_id, staff_name))
+
+    # Auto email notification to customer on every status change
+    try:
+        if customer and customer.email:
+            send_status_notification(
+                to_email=customer.email,
+                customer_name=order.customer_name or customer.full_name or customer.email,
+                order_id=order.order_id,
+                status=new_status_enum.value,
+                staff_name=staff_name,
+                staff_email=staff_email_addr,
+                staff_whatsapp=staff_whatsapp,
+            )
+    except Exception:
+        pass  # Non-fatal — order status was already saved
 
     return {"message": "Status updated", "status": new_status, "order_id": order_id}
