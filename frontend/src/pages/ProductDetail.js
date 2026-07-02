@@ -47,7 +47,7 @@ const ProductDetail = () => {
       const allRes = await axios.get(`${API}/products`, { params: { category: res.data.category } });
       const allData = allRes.data?.products || allRes.data || [];
       setRelated(allData.filter(p => p.product_id !== id).slice(0, 4));
-    } catch (e) { console.error(e); }
+    } catch { }
     finally { setLoading(false); }
   };
 

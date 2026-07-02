@@ -243,16 +243,33 @@ async def get_active_flash_sales(db: AsyncSession = Depends(get_db)):
         )
         prod = prod_result.scalar_one_or_none()
         if prod:
+            # Compute discounted price from discount_percentage
+            pct = float(s.discount_percentage or 0)
+            original = float(prod.original_price or prod.price)
+            computed_sale = round(original * (1 - pct / 100), 2)
             out.append({
-                "flash_sale_id": str(s.flash_sale_id),
+                "flash_sale_id": str(s.sale_id),
                 "product_id": str(s.product_id),
+                "product": {
+                    "product_id": str(prod.product_id),
+                    "name": prod.name,
+                    "category": prod.category or "",
+                    "price": float(prod.price),
+                    "original_price": original,
+                    "image_url": prod.image_url or "",
+                    "description": prod.description or "",
+                    "is_active": prod.is_active,
+                    "is_preorder": prod.is_preorder,
+                    "available_stock": -1,
+                },
                 "product_name": prod.name,
-                "original_price": float(prod.price),
-                "sale_price": float(s.sale_price),
-                "discount_percentage": s.discount_percentage,
+                "original_price": original,
+                "sale_price": computed_sale,
+                "discounted_price": computed_sale,
+                "discount_percentage": pct,
                 "end_time": s.end_time.isoformat(),
-                "quantity_available": s.quantity_available,
-                "quantity_sold": s.quantity_sold,
+                "quantity_available": getattr(s, "quantity_available", None),
+                "quantity_sold": getattr(s, "quantity_sold", 0),
             })
     return out
 

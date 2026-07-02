@@ -34,8 +34,8 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
   const derivedDiscountPct = product.original_price && product.original_price > product.price
     ? Math.round((1 - product.price / product.original_price) * 100)
     : 0;
-  const price = flashSale ? flashSale.discounted_price : product.price;
-  const originalPrice = flashSale ? product.price : product.original_price;
+  const price = flashSale ? (flashSale.discounted_price ?? flashSale.sale_price ?? product.price) : product.price;
+  const originalPrice = flashSale ? (flashSale.original_price ?? product.price) : product.original_price;
   const discountPct = flashSale ? flashSale.discount_percentage : derivedDiscountPct;
   const hasDiscount = discountPct > 0;
 

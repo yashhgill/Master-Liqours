@@ -129,12 +129,16 @@ async def _sync_flash_sale_from_discount(product: Product, data: ProductCreate, 
         # No discount set — deactivate any existing flash sale, restore original price
         if existing_sale:
             existing_sale.is_active = False
-        if product.original_price:
+        if product.original_price and product.original_price > product.price:
+            # Restore the original pre-discount price
+            product.price = product.original_price
             product.original_price = None
         return
 
     # Calculate discount percentage from prices
-    discount_pct = round((1 - (data.discount_price / product.price)) * 100, 2)
+    # Use original_price if already set (so repeated edits don't compound discounts)
+    base_price = product.original_price if product.original_price and product.original_price > data.discount_price else product.price
+    discount_pct = round((1 - (data.discount_price / base_price)) * 100, 2)
     if discount_pct <= 0 or discount_pct >= 100:
         return
 
@@ -148,8 +152,9 @@ async def _sync_flash_sale_from_discount(product: Product, data: ProductCreate, 
     start_time = datetime.utcnow()
     end_time = start_time + timedelta(seconds=total_seconds)
 
-    # Set original_price so frontend can show strikethrough
-    product.original_price = product.price
+    # Store original price for strikethrough display, update product.price to discounted
+    product.original_price = base_price
+    product.price = data.discount_price  # product.price IS the current selling price
 
     if existing_sale:
         existing_sale.discount_percentage = discount_pct
