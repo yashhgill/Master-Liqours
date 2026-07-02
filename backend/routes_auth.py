@@ -1,6 +1,5 @@
 """
-Password reset + change password routes.
-Works for both customers and staff.
+Auth routes: /me, forgot-password, reset-password, change-password.
 """
 import secrets
 import hashlib
@@ -13,6 +12,7 @@ from typing import Optional
 
 from database import get_db
 from models import User
+from schemas import UserResponse
 from auth_utils import get_current_user, hash_password, verify_password, invalidate_other_sessions
 import resend
 import os
@@ -23,14 +23,18 @@ resend.api_key = os.environ.get("RESEND_API_KEY", "")
 SENDER = os.environ.get("SENDER_EMAIL", "noreply@masterliqours.my")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://masterliqours.my")
 
-
 def _make_token() -> str:
     return secrets.token_urlsafe(32)
-
 
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
+# ── Current user ─────────────────────────────────────────────────────────────
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: User = Depends(get_current_user)):
+    """Return the currently authenticated user. Called by context.js checkAuth()."""
+    return UserResponse.model_validate(current_user, from_attributes=True)
 
 # ── Forgot Password ──────────────────────────────────────────────────────────
 
@@ -57,19 +61,18 @@ async def forgot_password(data: ForgotPasswordRequest, db: AsyncSession = Depend
                 "to": data.email,
                 "subject": "Reset your Masterliqours password",
                 "html": f"""
-                <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#0a0a0a;color:#fff;border-radius:16px;">
-                    <h2 style="color:#ff007f;font-size:28px;margin-bottom:8px;">Reset Password</h2>
-                    <p style="color:#999;margin-bottom:24px;">Click the button below to reset your password. This link expires in 1 hour.</p>
-                    <a href="{reset_url}" style="display:inline-block;background:#ff007f;color:#fff;padding:14px 28px;border-radius:50px;text-decoration:none;font-weight:bold;font-size:16px;">Reset Password</a>
-                    <p style="color:#555;margin-top:24px;font-size:12px;">If you didn't request this, ignore this email.</p>
-                </div>
-                """
+<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#0a0a0a;color:#fff;border-radius:16px;">
+  <h2 style="color:#ff007f;font-size:28px;margin-bottom:8px;">Reset Password</h2>
+  <p style="color:#999;margin-bottom:24px;">Click the button below to reset your password. This link expires in 1 hour.</p>
+  <a href="{reset_url}" style="display:inline-block;background:#ff007f;color:#fff;padding:14px 28px;border-radius:50px;text-decoration:none;font-weight:bold;font-size:16px;">Reset Password</a>
+  <p style="color:#555;margin-top:24px;font-size:12px;">If you didn't request this, ignore this email.</p>
+</div>
+"""
             })
         except Exception:
             pass  # Don't leak errors
 
     return {"message": "If that email exists, a reset link has been sent."}
-
 
 # ── Reset Password (from email link) ────────────────────────────────────────
 
@@ -98,16 +101,12 @@ async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(
     user.password_hash = hash_password(data.new_password)
     user.password_reset_token = None
     user.password_reset_expires = None
-    # Account was just reset, almost always because the old password was
-    # compromised or forgotten — wipe every other active session so a stolen
-    # session token doesn't stay valid for up to 7 more days after this.
     user.failed_login_attempts = 0
     user.locked_until = None
     await db.commit()
     await invalidate_other_sessions(db, user.user_id)
 
     return {"message": "Password reset successful — you can now log in"}
-
 
 # ── Change Password (logged in) ──────────────────────────────────────────────
 
@@ -136,9 +135,6 @@ async def change_password(
 
     user.password_hash = hash_password(data.new_password)
     await db.commit()
-    # Keep the session the user is currently using (so they're not immediately
-    # logged out of the tab they just changed their password from), but kill
-    # every other active session for this account.
     await invalidate_other_sessions(db, user.user_id, keep_token=session_token)
 
     return {"message": "Password changed successfully"}

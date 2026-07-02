@@ -143,17 +143,17 @@ async def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse.model_validate(current_user, from_attributes=True)
 
 # FIX: noload("*") prevents async lazy-load hang on Product relationships
+# Backward compat: omitting `page` returns a plain array (existing callers like admin dashboard)
+# Passing `page` returns paginated object { products, total, page, limit, pages }
 @api_router.get("/products")
 async def get_products(
     category: Optional[str] = None,
     search: Optional[str] = None,
-    page: int = 1,
+    page: Optional[int] = None,
     limit: int = 60,
     db: AsyncSession = Depends(get_db)
 ):
-    limit = min(max(1, limit), 200)  # clamp between 1 and 200
-    page = max(1, page)
-    offset = (page - 1) * limit
+    limit = min(max(1, limit), 200)
 
     base_query = select(Product).options(noload("*")).where(Product.is_active == True)
     if category:
@@ -161,10 +161,17 @@ async def get_products(
     if search:
         base_query = base_query.where(Product.name.ilike(f"%{search}%"))
 
-    # Total count for pagination
+    # No page param → return plain array (backward compat for admin dashboard etc.)
+    if page is None:
+        result = await db.execute(base_query.order_by(Product.created_at.desc()))
+        products = result.scalars().all()
+        return [ProductResponse.model_validate(p, from_attributes=True) for p in products]
+
+    # page param present → return paginated envelope
+    page = max(1, page)
+    offset = (page - 1) * limit
     count_result = await db.execute(select(func.count()).select_from(base_query.subquery()))
     total = count_result.scalar() or 0
-
     result = await db.execute(base_query.order_by(Product.created_at.desc()).offset(offset).limit(limit))
     products = result.scalars().all()
     return {
@@ -172,7 +179,7 @@ async def get_products(
         "total": total,
         "page": page,
         "limit": limit,
-        "pages": -(-total // limit),  # ceiling division
+        "pages": -(-total // limit),
     }
 
 @api_router.get("/products/{product_id}", response_model=ProductResponse)
