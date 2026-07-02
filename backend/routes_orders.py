@@ -27,7 +27,6 @@ def _clean_dict(obj):
     return {k: v for k, v in obj.__dict__.items() if not k.startswith('_')}
 
 async def _enrich_with_staff(order, db):
-    # Look up product names for all items in this order
     item_dicts = [_clean_dict(item) for item in order.order_items]
     product_ids = [i["product_id"] for i in item_dicts if i.get("product_id")]
     product_names = {}
@@ -53,10 +52,6 @@ async def _enrich_with_staff(order, db):
     return payload
 
 async def _apply_promo_code(code_str: Optional[str], subtotal: float, db: AsyncSession):
-    """Re-validate a promo code server-side and return (discount_amount, code_row).
-    Locks the code row so concurrent checkouts can't both squeeze past max_uses.
-    Raises HTTPException on any invalid/expired/exhausted code — checkout should
-    not silently ignore a bad code, since the customer was shown a discount."""
     code_str = (code_str or "").upper().strip()
     if not code_str:
         return 0.0, None
@@ -115,11 +110,11 @@ async def checkout(
             "subtotal": item_total
         })
 
+        # FIX: Increment sales_count so "Best Sellers" sort works correctly
+        product.sales_count = (product.sales_count or 0) + item.quantity
+
     product_discount = calculate_tier_discount(user, subtotal)
 
-    # Promo code — validated server-side here too (not just at /validate-promo),
-    # so the discount the customer was shown is the discount that's actually
-    # applied, and `max_uses` is properly enforced via used_count incrementing.
     promo_discount, promo_code_row = await _apply_promo_code(data.discount_code, subtotal, db)
     total_discount = product_discount + promo_discount
     total = max(0.0, subtotal - total_discount)
@@ -144,32 +139,11 @@ async def checkout(
         order_item = OrderItem(order_id=order.order_id, **item_data)
         db.add(order_item)
 
-    # ── Auto-deduct stock (fixed for the multi-staff "shared stock" issue) ──
-    # Each staff can hold their own physical stock count for the same product, so a
-    # product is never one single shared pool — it's the sum of every staff's Stock
-    # row, UNLESS a group of staff physically share one storage location, in which
-    # case they're grouped under the same Warehouse and draw from one shared Stock
-    # row instead (see Staff.warehouse_id / Stock.warehouse_id).
-    # Locking/oversell problems this avoids:
-    # 1) No row locking -> two concurrent checkouts could both read the same
-    #    Stock row before either committed, decrementing past zero (overselling).
-    #    This now also covers two staff sharing one warehouse selling at the same
-    #    time -- the shared row gets locked just the same as a personal one.
-    # 2) If the customer's own assigned staff had 0/insufficient stock, the loop
-    #    used to just skip silently — the order still went through with NOTHING
-    #    decremented anywhere, so the boss had no idea inventory was wrong.
-    # Fix: lock the candidate row with SELECT...FOR UPDATE, prefer the customer's
-    # assigned staff (or their shared warehouse pool), fall back to whichever
-    # staff/pool actually has enough on hand, and if literally nobody has enough
-    # stock, fail the checkout instead of pretending it succeeded.
     for item_data in order_items_data:
         needed_qty = item_data["quantity"]
         product_id = item_data["product_id"]
         stock_row = None
 
-        # 1) Try the customer's assigned staff first — if that staff shares a
-        # warehouse with others, check the shared pool instead of a personal
-        # row. Locks the row for this tx either way.
         if order.staff_id:
             assigned_staff_result = await db.execute(select(Staff).where(Staff.staff_id == order.staff_id))
             assigned_staff = assigned_staff_result.scalar_one_or_none()
@@ -189,8 +163,6 @@ async def checkout(
             if preferred_row and preferred_row.quantity >= needed_qty:
                 stock_row = preferred_row
 
-        # 2) Fall back to ANY staff or shared warehouse pool that actually has
-        # enough stock, locked too.
         if stock_row is None:
             fallback = await db.execute(
                 select(Stock)
@@ -201,7 +173,6 @@ async def checkout(
             stock_row = fallback.scalars().first()
 
         if stock_row is None:
-            # Nobody has enough — don't silently let this sale through.
             product_result = await db.execute(select(Product).where(Product.product_id == product_id))
             product_for_error = product_result.scalar_one_or_none()
             product_label = product_for_error.name if product_for_error else product_id
@@ -211,16 +182,9 @@ async def checkout(
             )
 
         stock_row.quantity -= needed_qty
-        # Attribute the order to whoever actually fulfilled it -- but only when
-        # it came out of an individual's own personal stock. Shared-warehouse
-        # stock doesn't tell us which person handles this particular order, so
-        # leave the customer's already-assigned staff in place for that case.
         if stock_row.staff_id:
             order.staff_id = stock_row.staff_id
 
-        # Low stock alert — fire-and-forget, never blocks checkout. If this came
-        # from a shared warehouse pool, alert EVERY staff member sharing it, not
-        # just one, since any of them might need to restock it.
         if stock_row.quantity <= LOW_STOCK_THRESHOLD:
             if stock_row.warehouse_id:
                 staff_alert_result = await db.execute(select(Staff).where(Staff.warehouse_id == stock_row.warehouse_id))
@@ -232,14 +196,14 @@ async def checkout(
             if product_row:
                 for staff_row in staff_rows_for_alert:
                     send_low_stock_alert(staff_row.email, staff_row.name, product_row.name, stock_row.quantity)
-                    await notify_staff_or_admins(
-                        db,
-                        title="Low stock warning ⚠️",
-                        body=f"{product_row.name} — only {stock_row.quantity} left"
-                             + (" (shared warehouse stock)" if stock_row.warehouse_id else f" for {staff_row.name}.") ,
-                        staff_user_email=staff_row.email,
-                        url="/staff",
-                    )
+                await notify_staff_or_admins(
+                    db,
+                    title="Low stock warning ⚠️",
+                    body=f"{product_row.name} — only {stock_row.quantity} left"
+                         + (" (shared warehouse stock)" if stock_row.warehouse_id else f" for {staff_row.name}."),
+                    staff_user_email=staff_row.email,
+                    url="/staff",
+                )
 
     reward = Reward(
         user_id=user.user_id,
@@ -294,13 +258,13 @@ async def checkout(
 class PersonalOrderItem(BaseModel):
     product_id: str
     quantity: int
-    price: Optional[float] = None  # override price if needed (e.g. negotiated)
+    price: Optional[float] = None
 
 class PersonalOrderRequest(BaseModel):
     customer_name: str
     customer_whatsapp: str
     items: List[PersonalOrderItem]
-    notes: Optional[str] = None  # maps to shipping_address field
+    notes: Optional[str] = None
 
 @router.post("/personal", response_model=OrderResponse)
 async def log_personal_order(
@@ -312,7 +276,6 @@ async def log_personal_order(
     if user.role == UserRole.CUSTOMER:
         raise HTTPException(status_code=403, detail="Staff only boss")
 
-    # Get staff record
     staff_result = await db.execute(select(Staff).where(Staff.email == user.email))
     staff = staff_result.scalar_one_or_none()
     if not staff and user.role == UserRole.STAFF:
@@ -327,10 +290,6 @@ async def log_personal_order(
         if not product:
             raise HTTPException(status_code=404, detail=f"Produk {item.product_id} tak jumpa")
 
-        # Price override is meant for genuine negotiated discounts, not a blank
-        # cheque — bound it so a typo or a bad-faith entry can't record a sale
-        # at RM0, a negative number, or above the product's own listed price
-        # (which would make "personal order" revenue look inflated vs reality).
         if item.price is not None:
             if item.price <= 0 or item.price > product.price:
                 raise HTTPException(
@@ -349,9 +308,9 @@ async def log_personal_order(
             "subtotal": item_total
         })
 
-    # Use a placeholder user_id — personal orders aren't tied to an app account
-    # We embed customer info in the order fields directly
-    # We need a valid user_id for FK — use the staff's own user row
+        # FIX: Increment sales_count for personal/walk-in orders too
+        product.sales_count = (product.sales_count or 0) + item.quantity
+
     staff_user_result = await db.execute(select(User).where(User.email == user.email))
     staff_user = staff_user_result.scalar_one_or_none()
     if not staff_user:
@@ -367,7 +326,7 @@ async def log_personal_order(
         discount_applied=0,
         shipping_discount=0,
         points_earned=0,
-        status=OrderStatus.CONFIRMED,  # personal orders start as confirmed
+        status=OrderStatus.CONFIRMED,
         is_personal_order=True
     )
     db.add(order)
@@ -377,14 +336,6 @@ async def log_personal_order(
         order_item = OrderItem(order_id=order.order_id, **item_data)
         db.add(order_item)
 
-    # Deduct from this staff's own recorded stock too — personal/walk-in sales
-    # used to skip this entirely, which is exactly how stock numbers drift out
-    # of sync between what staff think they have and what's actually left. If
-    # this staff shares a warehouse, deduct from the shared pool instead of a
-    # personal row so the rest of the team sees the updated count too.
-    # We never block a walk-in log (the sale already physically happened), but
-    # we surface a clear warning if it pushes stock into a mismatch so the
-    # boss/staff can reconcile instead of finding out later.
     stock_warnings = []
     if staff:
         for item_data in order_items_data:
@@ -496,9 +447,6 @@ async def get_order(
 
     return await _enrich_with_staff(order, db)
 
-# Allowed forward-moving status transitions. Cancelling is allowed from any
-# non-terminal state. Nothing can move OUT of a terminal state (delivered/
-# cancelled) — if that's genuinely needed, the boss should create a new order.
 _ALLOWED_TRANSITIONS = {
     OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
     OrderStatus.CONFIRMED: {OrderStatus.PREPARING, OrderStatus.CANCELLED},
@@ -537,7 +485,6 @@ async def update_order_status(
         if not staff_record or order.staff_id != staff_record.staff_id:
             raise HTTPException(status_code=403, detail="Order ni tak assigned to you boss")
 
-    # No-op update (e.g. a double-click/retry) — don't re-send the SMS.
     if new_status_enum == order.status:
         return {"message": "Status unchanged", "status": new_status, "order_id": order_id}
 

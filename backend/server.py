@@ -1,13 +1,18 @@
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Response, Request, Cookie
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.orm import noload
 from typing import Optional, List
 from pathlib import Path
 from dotenv import load_dotenv
 import os
 import logging
+
+# Rate limiting
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from database import get_db
 from models import User, UserSession, Staff, Product, UserRole, UserTier
@@ -37,7 +42,12 @@ load_dotenv(ROOT_DIR / '.env')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
+
 app = FastAPI(title="Masterliqours API", description="Premium liquor e-commerce platform API", version="1.0.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 api_router = APIRouter(prefix="/api")
 
 # FIX: Never use wildcard with allow_credentials=True — browsers block it
@@ -85,17 +95,18 @@ async def root():
     return {"message": "Masterliqours API", "version": "1.0.0"}
 
 @api_router.post("/register")
-async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == request.email))
+@limiter.limit("5/minute")
+async def register(request: Request, body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == body.email))
     existing = result.scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=400, detail="Email sudah didaftarkan")
-    hashed = hash_password(request.password)
+    hashed = hash_password(body.password)
     user = User(
-        email=request.email,
+        email=body.email,
         password_hash=hashed,
-        full_name=request.full_name,
-        phone=request.phone,
+        full_name=body.full_name,
+        phone=body.phone,
         role=UserRole.CUSTOMER,
         tier=UserTier.BRONZE,
     )
@@ -106,10 +117,11 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db))
     return {"message": "Pendaftaran berjaya", "token": session_token, "user": UserResponse.model_validate(user, from_attributes=True)}
 
 @api_router.post("/login")
-async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == request.email))
+@limiter.limit("10/minute")
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(request.password, user.password_hash):
+    if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Emel atau kata laluan tidak sah")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Akaun anda telah digantung")
@@ -117,7 +129,13 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     return {"message": "Log masuk berjaya", "token": session_token, "user": UserResponse.model_validate(user, from_attributes=True)}
 
 @api_router.post("/logout")
-async def logout(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db), authorization: Optional[str] = None):
+async def logout(request: Request, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Actually invalidate the session so the token can't be reused
+    auth_header = request.headers.get("authorization", "")
+    token = auth_header.replace("Bearer ", "").strip() if auth_header else ""
+    if token:
+        await db.execute(delete(UserSession).where(UserSession.session_token == token))
+        await db.commit()
     return {"message": "Log keluar berjaya"}
 
 @api_router.get("/me", response_model=UserResponse)
@@ -125,20 +143,37 @@ async def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse.model_validate(current_user, from_attributes=True)
 
 # FIX: noload("*") prevents async lazy-load hang on Product relationships
-@api_router.get("/products", response_model=List[ProductResponse])
+@api_router.get("/products")
 async def get_products(
     category: Optional[str] = None,
     search: Optional[str] = None,
+    page: int = 1,
+    limit: int = 60,
     db: AsyncSession = Depends(get_db)
 ):
-    query = select(Product).options(noload("*")).where(Product.is_active == True)
+    limit = min(max(1, limit), 200)  # clamp between 1 and 200
+    page = max(1, page)
+    offset = (page - 1) * limit
+
+    base_query = select(Product).options(noload("*")).where(Product.is_active == True)
     if category:
-        query = query.where(Product.category == category)
+        base_query = base_query.where(Product.category == category)
     if search:
-        query = query.where(Product.name.ilike(f"%{search}%"))
-    result = await db.execute(query.order_by(Product.created_at.desc()))
+        base_query = base_query.where(Product.name.ilike(f"%{search}%"))
+
+    # Total count for pagination
+    count_result = await db.execute(select(func.count()).select_from(base_query.subquery()))
+    total = count_result.scalar() or 0
+
+    result = await db.execute(base_query.order_by(Product.created_at.desc()).offset(offset).limit(limit))
     products = result.scalars().all()
-    return [ProductResponse.model_validate(p, from_attributes=True) for p in products]
+    return {
+        "products": [ProductResponse.model_validate(p, from_attributes=True) for p in products],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": -(-total // limit),  # ceiling division
+    }
 
 @api_router.get("/products/{product_id}", response_model=ProductResponse)
 async def get_product(product_id: str, db: AsyncSession = Depends(get_db)):
