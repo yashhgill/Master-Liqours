@@ -7,8 +7,8 @@ from pydantic import BaseModel
 
 from database import get_db
 from models import (
-    User, Product, Order, OrderItem, Staff, FlashSale, DiscountCode,
-    UserRole, HeroBanner, MysteryDrop
+    User, Product, Order, Staff, FlashSale, DiscountCode,
+    UserRole, HeroBanner
 )
 from schemas import ProductCreate, ProductResponse
 from auth_utils import get_current_user, require_role
@@ -129,16 +129,12 @@ async def _sync_flash_sale_from_discount(product: Product, data: ProductCreate, 
         # No discount set — deactivate any existing flash sale, restore original price
         if existing_sale:
             existing_sale.is_active = False
-        if product.original_price and product.original_price > product.price:
-            # Restore the original pre-discount price
-            product.price = product.original_price
+        if product.original_price:
             product.original_price = None
         return
 
     # Calculate discount percentage from prices
-    # Use original_price if already set (so repeated edits don't compound discounts)
-    base_price = product.original_price if product.original_price and product.original_price > data.discount_price else product.price
-    discount_pct = round((1 - (data.discount_price / base_price)) * 100, 2)
+    discount_pct = round((1 - (data.discount_price / product.price)) * 100, 2)
     if discount_pct <= 0 or discount_pct >= 100:
         return
 
@@ -152,9 +148,8 @@ async def _sync_flash_sale_from_discount(product: Product, data: ProductCreate, 
     start_time = datetime.utcnow()
     end_time = start_time + timedelta(seconds=total_seconds)
 
-    # Store original price for strikethrough display, update product.price to discounted
-    product.original_price = base_price
-    product.price = data.discount_price  # product.price IS the current selling price
+    # Set original_price so frontend can show strikethrough
+    product.original_price = product.price
 
     if existing_sale:
         existing_sale.discount_percentage = discount_pct
@@ -395,11 +390,20 @@ async def delete_flash_sale(
 # =============================================================================
 # MYSTERY DROPS — Full CRUD (Super Admin)
 # =============================================================================
-# Stored in the `mystery_drops` Postgres table (not a local JSON file). The
-# old local-file version lost all its data every time Render restarted/
-# redeployed (ephemeral disk), and had no protection against two admins
-# editing at the same time clobbering each other's changes. The DB gives us
-# both durability and transactional safety for free.
+
+import json as _json, os as _os, uuid as _uuid
+
+_DROPS_PATH = _os.path.join(_os.path.dirname(__file__), "mystery_drops.json")
+
+def _load_drops():
+    if _os.path.exists(_DROPS_PATH):
+        try:
+            with open(_DROPS_PATH) as f: return _json.load(f)
+        except: pass
+    return []
+
+def _save_drops(drops):
+    with open(_DROPS_PATH, "w") as f: _json.dump(drops, f, indent=2)
 
 class MysteryDropPayload(BaseModel):
     product_id: str
@@ -411,21 +415,13 @@ class MysteryDropPayload(BaseModel):
 async def list_mystery_drops(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """List all mystery drops"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    result = await db.execute(select(MysteryDrop).order_by(MysteryDrop.created_at.desc()))
-    drops = result.scalars().all()
+    drops = _load_drops()
+    # Enrich with product info
     enriched = []
     for d in drops:
-        product_result = await db.execute(select(Product).where(Product.product_id == d.product_id))
+        product_result = await db.execute(select(Product).where(Product.product_id == d["product_id"]))
         product = product_result.scalar_one_or_none()
-        enriched.append({
-            "drop_id": d.drop_id,
-            "product_id": d.product_id,
-            "discount_pct": d.discount_pct,
-            "label": d.label,
-            "is_active": d.is_active,
-            "product_name": product.name if product else "Unknown",
-            "product_price": product.price if product else 0,
-        })
+        enriched.append({**d, "product_name": product.name if product else "Unknown", "product_price": product.price if product else 0})
     return enriched
 
 @router.post("/mystery-drops")
@@ -437,80 +433,242 @@ async def create_mystery_drop(data: MysteryDropPayload, user: User = Depends(get
     product_result = await db.execute(select(Product).where(Product.product_id == data.product_id))
     if not product_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Product not found")
-    drop = MysteryDrop(
-        product_id=data.product_id,
-        discount_pct=data.discount_pct,
-        label=data.label,
-        is_active=data.is_active,
-    )
-    db.add(drop)
-    await db.commit()
-    await db.refresh(drop)
-    return {
-        "drop_id": drop.drop_id,
-        "product_id": drop.product_id,
-        "discount_pct": drop.discount_pct,
-        "label": drop.label,
-        "is_active": drop.is_active,
-    }
+    drops = _load_drops()
+    new_drop = {"drop_id": str(_uuid.uuid4()), "product_id": data.product_id, "discount_pct": data.discount_pct, "label": data.label, "is_active": data.is_active}
+    drops.append(new_drop)
+    _save_drops(drops)
+    return new_drop
 
 @router.patch("/mystery-drops/{drop_id}")
 async def update_mystery_drop(drop_id: str, data: MysteryDropPayload, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Update a mystery drop"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    result = await db.execute(select(MysteryDrop).where(MysteryDrop.drop_id == drop_id))
-    drop = result.scalar_one_or_none()
-    if not drop:
-        raise HTTPException(status_code=404, detail="Drop not found")
-    if not (1 <= data.discount_pct <= 90):
-        raise HTTPException(status_code=400, detail="discount_pct must be 1-90")
-    drop.product_id = data.product_id
-    drop.discount_pct = data.discount_pct
-    drop.label = data.label
-    drop.is_active = data.is_active
-    await db.commit()
-    await db.refresh(drop)
-    return {
-        "drop_id": drop.drop_id,
-        "product_id": drop.product_id,
-        "discount_pct": drop.discount_pct,
-        "label": drop.label,
-        "is_active": drop.is_active,
-    }
+    drops = _load_drops()
+    for i, d in enumerate(drops):
+        if d["drop_id"] == drop_id:
+            drops[i] = {**d, "product_id": data.product_id, "discount_pct": data.discount_pct, "label": data.label, "is_active": data.is_active}
+            _save_drops(drops)
+            return drops[i]
+    raise HTTPException(status_code=404, detail="Drop not found")
 
 @router.patch("/mystery-drops/{drop_id}/toggle")
 async def toggle_mystery_drop(drop_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Toggle a mystery drop on/off"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    result = await db.execute(select(MysteryDrop).where(MysteryDrop.drop_id == drop_id))
-    drop = result.scalar_one_or_none()
-    if not drop:
-        raise HTTPException(status_code=404, detail="Drop not found")
-    drop.is_active = not drop.is_active
-    await db.commit()
-    return {
-        "drop_id": drop.drop_id,
-        "product_id": drop.product_id,
-        "discount_pct": drop.discount_pct,
-        "label": drop.label,
-        "is_active": drop.is_active,
-    }
+    drops = _load_drops()
+    for i, d in enumerate(drops):
+        if d["drop_id"] == drop_id:
+            drops[i]["is_active"] = not d.get("is_active", True)
+            _save_drops(drops)
+            return drops[i]
+    raise HTTPException(status_code=404, detail="Drop not found")
 
 @router.delete("/mystery-drops/{drop_id}")
 async def delete_mystery_drop(drop_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Delete a mystery drop"""
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
-    result = await db.execute(select(MysteryDrop).where(MysteryDrop.drop_id == drop_id))
-    drop = result.scalar_one_or_none()
-    if not drop:
+    drops = _load_drops()
+    new_drops = [d for d in drops if d["drop_id"] != drop_id]
+    if len(new_drops) == len(drops):
         raise HTTPException(status_code=404, detail="Drop not found")
-    await db.delete(drop)
-    await db.commit()
+    _save_drops(new_drops)
     return {"message": "Deleted"}
 
 # =============================================================================
-# ANALYTICS (Master Admin)
+# DISCOUNT CODES — Full CRUD (Super Admin)
 # =============================================================================
+
+class DiscountCodeCreate(BaseModel):
+    code: str
+    discount_type: str          # "percentage" or "fixed"
+    discount_value: float
+    min_purchase: float = 0
+    max_uses: Optional[int] = None          # None = unlimited total uses
+    expires_at: Optional[datetime] = None
+    active: bool = True
+    is_first_order_only: bool = False       # True = only valid on a user's first order
+
+class DiscountCodeUpdate(BaseModel):
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    min_purchase: Optional[float] = None
+    max_uses: Optional[int] = None
+    expires_at: Optional[datetime] = None
+    active: Optional[bool] = None
+    is_first_order_only: Optional[bool] = None
+
+class DiscountCodeResponse(BaseModel):
+    code_id: str
+    code: str
+    discount_type: str
+    discount_value: float
+    min_purchase: float
+    max_uses: Optional[int]
+    used_count: int
+    active: bool
+    is_first_order_only: bool
+    expires_at: Optional[datetime]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+@router.get("/discount-codes", response_model=List[DiscountCodeResponse])
+async def list_discount_codes(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all discount codes (Super Admin only)"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    result = await db.execute(select(DiscountCode).order_by(DiscountCode.created_at.desc()))
+    return result.scalars().all()
+
+@router.post("/discount-codes", response_model=DiscountCodeResponse)
+async def create_discount_code(
+    data: DiscountCodeCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a discount code (Super Admin only)"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+
+    code_upper = data.code.strip().upper()
+    if not code_upper:
+        raise HTTPException(status_code=400, detail="Code cannot be empty")
+    if data.discount_type not in ("percentage", "fixed"):
+        raise HTTPException(status_code=400, detail="discount_type must be 'percentage' or 'fixed'")
+    if data.discount_type == "percentage" and not (1 <= data.discount_value <= 100):
+        raise HTTPException(status_code=400, detail="Percentage discount must be 1-100")
+    if data.discount_value <= 0:
+        raise HTTPException(status_code=400, detail="discount_value must be > 0")
+
+    # Check duplicate
+    existing = await db.execute(select(DiscountCode).where(DiscountCode.code == code_upper))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail=f"Code '{code_upper}' already exists")
+
+    dc = DiscountCode(
+        code=code_upper,
+        discount_type=data.discount_type,
+        discount_value=data.discount_value,
+        min_purchase=data.min_purchase,
+        max_uses=data.max_uses,
+        expires_at=data.expires_at,
+        active=data.active,
+        is_first_order_only=data.is_first_order_only,
+        used_count=0,
+    )
+    db.add(dc)
+    await db.commit()
+    await db.refresh(dc)
+    return dc
+
+@router.patch("/discount-codes/{code_id}", response_model=DiscountCodeResponse)
+async def update_discount_code(
+    code_id: str,
+    data: DiscountCodeUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a discount code (Super Admin only)"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+
+    result = await db.execute(select(DiscountCode).where(DiscountCode.code_id == code_id))
+    dc = result.scalar_one_or_none()
+    if not dc:
+        raise HTTPException(status_code=404, detail="Discount code not found")
+
+    for field, value in data.dict(exclude_unset=True).items():
+        setattr(dc, field, value)
+
+    await db.commit()
+    await db.refresh(dc)
+    return dc
+
+@router.patch("/discount-codes/{code_id}/toggle")
+async def toggle_discount_code(
+    code_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Enable/disable a discount code"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+
+    result = await db.execute(select(DiscountCode).where(DiscountCode.code_id == code_id))
+    dc = result.scalar_one_or_none()
+    if not dc:
+        raise HTTPException(status_code=404, detail="Discount code not found")
+
+    dc.active = not dc.active
+    await db.commit()
+    return {"code": dc.code, "active": dc.active}
+
+@router.delete("/discount-codes/{code_id}")
+async def delete_discount_code(
+    code_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a discount code (Super Admin only)"""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+
+    result = await db.execute(select(DiscountCode).where(DiscountCode.code_id == code_id))
+    dc = result.scalar_one_or_none()
+    if not dc:
+        raise HTTPException(status_code=404, detail="Discount code not found")
+
+    await db.delete(dc)
+    await db.commit()
+    return {"message": f"Code '{dc.code}' deleted"}
+
+# Public endpoint — validate a code at checkout (no auth required)
+@router.post("/discount-codes/validate")
+async def validate_discount_code(
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Validate a discount code without applying it yet.
+    Body: { "code": "SAVE20", "order_total": 150.0 }
+    Returns: { valid, discount_type, discount_value, savings, message }
+    """
+    code = (payload.get("code") or "").strip().upper()
+    order_total = float(payload.get("order_total") or 0)
+
+    if not code:
+        raise HTTPException(status_code=400, detail="No code provided")
+
+    result = await db.execute(select(DiscountCode).where(DiscountCode.code == code))
+    dc = result.scalar_one_or_none()
+
+    if not dc or not dc.active:
+        return {"valid": False, "message": "Code not valid or has been deactivated"}
+
+    if dc.expires_at and dc.expires_at < datetime.utcnow():
+        return {"valid": False, "message": "Code has expired"}
+
+    if dc.max_uses is not None and dc.used_count >= dc.max_uses:
+        return {"valid": False, "message": "Code has reached its usage limit"}
+
+    if order_total < dc.min_purchase:
+        return {"valid": False, "message": f"Minimum order RM{dc.min_purchase:.2f} required for this code"}
+
+    if dc.discount_type == "percentage":
+        savings = round(order_total * dc.discount_value / 100, 2)
+    else:
+        savings = min(dc.discount_value, order_total)
+
+    return {
+        "valid": True,
+        "discount_type": dc.discount_type,
+        "discount_value": dc.discount_value,
+        "savings": savings,
+        "is_first_order_only": dc.is_first_order_only,
+        "message": f"Code applied! You save RM{savings:.2f}",
+    }
+
+
+# =============================================================================
+# ANALYTICS (Master Admin)
 # =============================================================================
 
 @router.get("/analytics")
@@ -551,97 +709,28 @@ async def get_analytics(
     )
     active_sales = result.scalar()
 
-    # Revenue today vs yesterday
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    yesterday_start = today_start - timedelta(days=1)
-
-    result = await db.execute(
-        select(func.sum(Order.total), func.count(Order.order_id))
-        .where(Order.created_at >= today_start)
-    )
-    today_sales, today_orders = result.first()
-
-    result = await db.execute(
-        select(func.sum(Order.total), func.count(Order.order_id))
-        .where(Order.created_at >= yesterday_start, Order.created_at < today_start)
-    )
-    yesterday_sales, yesterday_orders = result.first()
-
-    # Last 7 days daily revenue for chart
-    daily_revenue = []
-    for i in range(6, -1, -1):
-        day_start = today_start - timedelta(days=i)
-        day_end = day_start + timedelta(days=1)
-        result = await db.execute(
-            select(func.sum(Order.total)).where(
-                Order.created_at >= day_start,
-                Order.created_at < day_end,
-                Order.status != "cancelled"
-            )
-        )
-        rev = result.scalar() or 0
-        daily_revenue.append({
-            "date": day_start.strftime("%d %b"),
-            "revenue": round(float(rev), 2)
-        })
-
-    # Top 5 best-selling products
-    result = await db.execute(
-        select(OrderItem.product_id, func.sum(OrderItem.quantity).label("sold"))
-        .group_by(OrderItem.product_id)
-        .order_by(func.sum(OrderItem.quantity).desc())
-        .limit(5)
-    )
-    top_rows = result.all()
-    top_products = []
-    for row in top_rows:
-        pr = await db.execute(select(Product).where(Product.product_id == row.product_id))
-        prod = pr.scalar_one_or_none()
-        if prod:
-            top_products.append({"name": prod.name, "sold": int(row.sold), "price": float(prod.price)})
-
     return {
         "total_sales": total_sales or 0,
         "total_orders": total_orders or 0,
         "pending_orders": pending_orders or 0,
         "active_flash_sales": active_sales or 0,
-        "staff_sales": staff_sales,
-        "today_sales": float(today_sales or 0),
-        "today_orders": int(today_orders or 0),
-        "yesterday_sales": float(yesterday_sales or 0),
-        "yesterday_orders": int(yesterday_orders or 0),
-        "daily_revenue": daily_revenue,
-        "top_products": top_products,
+        "staff_sales": staff_sales
     }
 
 @router.get("/all-orders")
 async def get_all_orders(
     status: Optional[str] = None,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
-    limit: int = 100,
-    offset: int = 0,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get orders (Admin only). Paginated — defaults to the most recent 100
-    so this doesn't load every order in the database into memory on every
-    page view as order history grows over time."""
+    """Get all orders (Admin only)"""
     await require_role(user, UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN)
-
-    limit = max(1, min(limit, 500))
-    offset = max(0, offset)
 
     query = select(Order).order_by(Order.created_at.desc())
 
     if status:
         query = query.where(Order.status == status)
-    if start_date:
-        query = query.where(Order.created_at >= start_date)
-    if end_date:
-        query = query.where(Order.created_at <= end_date)
 
-    query = query.limit(limit).offset(offset)
     result = await db.execute(query)
     return result.scalars().all()
 
@@ -652,14 +741,10 @@ async def get_all_orders(
 
 @router.get("/staff-performance")
 async def staff_performance(
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Per-staff performance: orders count, status breakdown, revenue, customers, last activity.
-    Optional start_date/end_date narrow the order aggregation so the boss isn't
-    forced to scan full order history every time this loads as the store grows."""
+    """Per-staff performance: orders count, status breakdown, revenue, customers, last activity."""
     await require_role(user, UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN)
 
     # All staff
@@ -667,18 +752,15 @@ async def staff_performance(
     staff_list = sr.scalars().all()
 
     # Aggregate per-staff order metrics
-    om_query = select(
-        Order.staff_id,
-        Order.status,
-        func.count(Order.order_id),
-        func.sum(Order.total),
-        func.max(Order.created_at),
+    om = await db.execute(
+        select(
+            Order.staff_id,
+            Order.status,
+            func.count(Order.order_id),
+            func.sum(Order.total),
+            func.max(Order.created_at),
+        ).group_by(Order.staff_id, Order.status)
     )
-    if start_date:
-        om_query = om_query.where(Order.created_at >= start_date)
-    if end_date:
-        om_query = om_query.where(Order.created_at <= end_date)
-    om = await db.execute(om_query.group_by(Order.staff_id, Order.status))
 
     # Build a dict: {staff_id: {status: {count, revenue}, last_at}}
     bucket = {}
@@ -726,12 +808,9 @@ async def staff_performance(
     rows.sort(key=lambda r: r["total_revenue"], reverse=True)
 
     # Unassigned-orders summary
-    unassigned_query = select(func.count(Order.order_id), func.sum(Order.total)).where(Order.staff_id.is_(None))
-    if start_date:
-        unassigned_query = unassigned_query.where(Order.created_at >= start_date)
-    if end_date:
-        unassigned_query = unassigned_query.where(Order.created_at <= end_date)
-    unassigned = await db.execute(unassigned_query)
+    unassigned = await db.execute(
+        select(func.count(Order.order_id), func.sum(Order.total)).where(Order.staff_id.is_(None))
+    )
     u_cnt, u_rev = unassigned.first()
 
     return {
