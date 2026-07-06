@@ -302,6 +302,8 @@ const SuperAdminDashboard = () => {
   const [discountCodes, setDiscountCodes] = useState([]);
   const [showDiscountForm, setShowDiscountForm] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState(null);
+  const blankDiscount = { code: '', discount_type: 'percentage', discount_value: 10, min_order_value: 0, max_uses: '', active: true, is_first_order_only: false };
+  const blankDiscount = { code: '', discount_type: 'percentage', discount_value: 10, min_order_value: 0, max_uses: '', active: true, is_first_order_only: false };
   const [discountForm, setDiscountForm] = useState(blankDiscount);
 
   // Forms
