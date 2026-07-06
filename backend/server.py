@@ -250,10 +250,9 @@ async def get_active_flash_sales(db: AsyncSession = Depends(get_db)):
     for s in sales:
         prod = products_by_id.get(s.product_id)
         if prod:
-            # sale_price = product price with discount applied
             sale_price = round(prod.price * (1 - s.discount_percentage / 100), 2)
             out.append({
-                "flash_sale_id": str(s.sale_id),  # FIX: was s.flash_sale_id (wrong field name)
+                "flash_sale_id": str(s.sale_id),
                 "product_id": str(s.product_id),
                 "product_name": prod.name,
                 "original_price": float(prod.price),
@@ -261,6 +260,19 @@ async def get_active_flash_sales(db: AsyncSession = Depends(get_db)):
                 "discount_percentage": s.discount_percentage,
                 "end_time": s.end_time.isoformat(),
                 "image_url": prod.image_url,
+                # Nested product object — Home.js passes sale.product to ProductCard
+                "product": {
+                    "product_id": str(prod.product_id),
+                    "name": prod.name,
+                    "price": sale_price,
+                    "original_price": float(prod.price),
+                    "category": prod.category,
+                    "image_url": prod.image_url,
+                    "is_active": prod.is_active,
+                    "description": prod.description,
+                    "is_preorder": prod.is_preorder,
+                    "created_at": prod.created_at.isoformat() if prod.created_at else None,
+                },
             })
     return out
 
