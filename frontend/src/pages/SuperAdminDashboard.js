@@ -299,6 +299,10 @@ const SuperAdminDashboard = () => {
   const [staff, setStaff] = useState([]);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [discountCodes, setDiscountCodes] = useState([]);
+  const [showDiscountForm, setShowDiscountForm] = useState(false);
+  const [editingDiscount, setEditingDiscount] = useState(null);
+  const [discountForm, setDiscountForm] = useState(blankDiscount);
 
   // Forms
   const [bannerForm, setBannerForm] = useState(blankBanner);
@@ -351,6 +355,9 @@ const SuperAdminDashboard = () => {
       } else if (tab === 'brands') {
         const r = await axios.get(`${API}/admin/brands`, { withCredentials: true });
         setBrands(r.data);
+      } else if (tab === 'discount-codes') {
+        const r = await axios.get(`${API}/admin/discount-codes`, { withCredentials: true });
+        setDiscountCodes(r.data);
       } else if (tab === 'staff') {
         const r = await axios.get(`${API}/admin/staff`, { withCredentials: true });
         setStaff(r.data);
@@ -614,7 +621,46 @@ const SuperAdminDashboard = () => {
     } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
   };
 
-  const filteredProducts = productSearch
+
+  // === DISCOUNT CODES ===
+  const saveDiscount = async () => {
+    try {
+      const payload = {
+        ...discountForm,
+        discount_value: parseFloat(discountForm.discount_value) || 0,
+        min_order_value: parseFloat(discountForm.min_order_value) || 0,
+        max_uses: discountForm.max_uses !== '' ? parseInt(discountForm.max_uses) : null,
+      };
+      if (!payload.code.trim()) { alert('Enter a promo code lah'); return; }
+      if (editingDiscount) {
+        await axios.patch(`${API}/admin/discount-codes/${editingDiscount}`, payload, { withCredentials: true });
+      } else {
+        await axios.post(`${API}/admin/discount-codes`, payload, { withCredentials: true });
+      }
+      setShowDiscountForm(false); setEditingDiscount(null); setDiscountForm(blankDiscount);
+      load();
+    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+  };
+  const editDiscountCode = (c) => {
+    setEditingDiscount(c.code_id);
+    setDiscountForm({
+      code: c.code, discount_type: c.discount_type, discount_value: c.discount_value,
+      min_order_value: c.min_order_value || 0, max_uses: c.max_uses ?? '',
+      active: !!c.active, is_first_order_only: !!c.is_first_order_only,
+    });
+    setShowDiscountForm(true);
+  };
+  const delDiscountCode = async (id) => {
+    if (!window.confirm('Delete this promo code?')) return;
+    await axios.delete(`${API}/admin/discount-codes/${id}`, { withCredentials: true });
+    load();
+  };
+  const toggleDiscountCode = async (id, current) => {
+    await axios.patch(`${API}/admin/discount-codes/${id}`, { active: !current }, { withCredentials: true });
+    load();
+  };
+
+    const filteredProducts = productSearch
     ? products.filter((p) => p.name.toLowerCase().includes(productSearch.toLowerCase()) || (p.category || '').toLowerCase().includes(productSearch.toLowerCase()))
     : products;
 
@@ -1080,7 +1126,121 @@ const SuperAdminDashboard = () => {
         <SupplierTab API={API} active={tab === 'suppliers'} />
       )}
 
-      {/* === STAFF MODE (redirect) === */}
+      {/* === DISCOUNT CODES === */}
+      {tab === 'discount-codes' && (
+        <div className="surface p-6">
+          <div className="flex justify-between mb-6 flex-wrap gap-3">
+            <div>
+              <h2 className="display-md">Promo Codes ({discountCodes.length})</h2>
+              <p className="text-xs text-white/50 mt-1">Create discount codes for customers. Toggle to activate/deactivate.</p>
+            </div>
+            <button onClick={() => { setEditingDiscount(null); setDiscountForm(blankDiscount); setShowDiscountForm(!showDiscountForm); }} className="btn-pink">
+              <FaPlus /> Add Code
+            </button>
+          </div>
+
+          {showDiscountForm && (
+            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 mb-6 space-y-4">
+              <h3 className="font-display text-xl">{editingDiscount ? 'Edit Code' : 'New Code'}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Code *</label>
+                  <input value={discountForm.code} onChange={(e) => setDiscountForm({ ...discountForm, code: e.target.value.toUpperCase() })}
+                    className="input-dark" placeholder="e.g. NEWBRO" />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Type</label>
+                  <select value={discountForm.discount_type} onChange={(e) => setDiscountForm({ ...discountForm, discount_type: e.target.value })} className="input-dark">
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Fixed (RM)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">
+                    {discountForm.discount_type === 'percentage' ? 'Discount %' : 'Discount (RM)'}
+                  </label>
+                  <input type="number" min="0" step="0.01" value={discountForm.discount_value}
+                    onChange={(e) => setDiscountForm({ ...discountForm, discount_value: e.target.value })} className="input-dark" />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Min Order (RM)</label>
+                  <input type="number" min="0" step="0.01" value={discountForm.min_order_value}
+                    onChange={(e) => setDiscountForm({ ...discountForm, min_order_value: e.target.value })} className="input-dark" placeholder="0 = no minimum" />
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Max Uses (blank = unlimited)</label>
+                  <input type="number" min="0" value={discountForm.max_uses}
+                    onChange={(e) => setDiscountForm({ ...discountForm, max_uses: e.target.value })} className="input-dark" placeholder="Unlimited" />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={discountForm.is_first_order_only}
+                    onChange={(e) => setDiscountForm({ ...discountForm, is_first_order_only: e.target.checked })} />
+                  <span>First order only</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={discountForm.active}
+                    onChange={(e) => setDiscountForm({ ...discountForm, active: e.target.checked })} />
+                  <span>Active</span>
+                </label>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={saveDiscount} className="btn-lime">{editingDiscount ? 'Update' : 'Create Code'}</button>
+                <button onClick={() => { setShowDiscountForm(false); setEditingDiscount(null); setDiscountForm(blankDiscount); }} className="btn-ghost">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {discountCodes.length === 0 ? (
+            <div className="text-center py-16 text-white/40">
+              <FaKey size={32} className="mx-auto mb-4 text-white/20" />
+              <div className="font-bold mb-2">No promo codes yet boss.</div>
+              <div className="text-xs">Click "Add Code" to create your first discount.</div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {discountCodes.map((c) => (
+                <div key={c.code_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center gap-4 flex-wrap">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${c.active ? 'bg-[#39ff14]' : 'bg-white/20'}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <code className="font-display text-xl text-[#ffd700] uppercase">{c.code}</code>
+                      {c.is_first_order_only && (
+                        <span className="text-[10px] bg-[#ff007f]/20 text-[#ff007f] px-2 py-0.5 rounded-full font-bold uppercase">First Order</span>
+                      )}
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${c.active ? 'bg-[#39ff14]/15 text-[#39ff14]' : 'bg-white/5 text-white/30'}`}>
+                        {c.active ? 'Active' : 'Off'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-white/50 mt-1 flex flex-wrap gap-3">
+                      <span>{c.discount_type === 'percentage' ? `${c.discount_value}% off` : `RM${c.discount_value} off`}</span>
+                      {c.min_order_value > 0 && <span>Min: RM{c.min_order_value}</span>}
+                      <span>Used: {c.used_count || 0}{c.max_uses ? ` / ${c.max_uses}` : ''}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button onClick={() => toggleDiscountCode(c.code_id, c.active)}
+                      className={`px-3 py-1.5 rounded-full text-xs border font-bold transition-all ${c.active ? 'border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black' : 'border-white/15 text-white/40 hover:border-white/60'}`}>
+                      {c.active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button onClick={() => editDiscountCode(c)}
+                      className="w-9 h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center transition-all">
+                      <FaPen size={11} />
+                    </button>
+                    <button onClick={() => delDiscountCode(c.code_id)}
+                      className="w-9 h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center transition-all">
+                      <FaTrash size={11} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+            {/* === STAFF MODE (redirect) === */}
       {tab === 'staff-mode' && (
         <div className="surface p-10 text-center space-y-4">
           
