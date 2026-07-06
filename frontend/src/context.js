@@ -37,6 +37,7 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
+      // /api/auth/me is in routes_auth.py (prefix /auth) — correct path
       const response = await axios.get(`${API}/auth/me`, { withCredentials: true });
       setUser(response.data);
     } catch {
@@ -47,21 +48,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    const response = await axios.post(`${API}/auth/login`, { email, password }, { withCredentials: true });
-    if (response.data.session_token) applyToken(response.data.session_token);
+    // FIX: was /api/auth/login — login is registered directly on api_router at /api/login
+    const response = await axios.post(`${API}/login`, { email, password }, { withCredentials: true });
+    if (response.data.token) applyToken(response.data.token);
     setUser(response.data.user);
     return response.data;
   };
 
   const register = async (data) => {
-    const response = await axios.post(`${API}/auth/register`, data);
-    await login(data.email, data.password);
+    // FIX: was /api/auth/register — register is at /api/register
+    const response = await axios.post(`${API}/register`, data);
+    if (response.data.token) applyToken(response.data.token);
+    setUser(response.data.user);
     return response.data;
   };
 
   const logout = async () => {
     try {
-      await axios.post(`${API}/auth/logout`, {}, { withCredentials: true });
+      // FIX: was /api/auth/logout — logout is at /api/logout
+      await axios.post(`${API}/logout`, {}, { withCredentials: true });
     } catch {}
     applyToken(null);
     setUser(null);
