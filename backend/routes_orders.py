@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from pydantic import BaseModel
@@ -11,7 +11,7 @@ from sqlalchemy import and_
 from schemas import CheckoutRequest, OrderResponse, CartItem
 from auth_utils import get_current_user
 from sms_utils import send_sms, status_message
-from email_utils import send_low_stock_alert, LOW_STOCK_THRESHOLD, send_status_notification
+from email_utils import send_low_stock_alert, LOW_STOCK_THRESHOLD
 from routes_push import notify_staff_or_admins
 from datetime import datetime
 
@@ -51,7 +51,7 @@ async def _enrich_with_staff(order, db):
             payload["staff_name"] = staff.name
     return payload
 
-async def _apply_promo_code(code_str: Optional[str], subtotal: float, db: AsyncSession):
+async def _apply_promo_code(code_str: Optional[str], subtotal: float, user: User, db: AsyncSession):
     code_str = (code_str or "").upper().strip()
     if not code_str:
         return 0.0, None
@@ -71,6 +71,17 @@ async def _apply_promo_code(code_str: Optional[str], subtotal: float, db: AsyncS
     if code.min_purchase and subtotal < code.min_purchase:
         raise HTTPException(status_code=400, detail=f"Minimum spend RM{code.min_purchase:.2f} for this code")
 
+    # NEWBRO / first-order-only enforcement
+    if code.is_first_order_only:
+        prior_result = await db.execute(
+            select(func.count(Order.order_id)).where(
+                Order.user_id == user.user_id,
+                Order.is_personal_order == False,
+            )
+        )
+        if (prior_result.scalar() or 0) > 0:
+            raise HTTPException(status_code=400, detail="This code is for new customers only lah")
+
     if code.discount_type == "percentage":
         discount = subtotal * (code.discount_value / 100)
     else:
@@ -80,7 +91,7 @@ async def _apply_promo_code(code_str: Optional[str], subtotal: float, db: AsyncS
     code.used_count = (code.used_count or 0) + 1
     return discount, code
 
-# ─── CUSTOMER CHECKOUT ────────────────────────────────────────────────────────
+# ─── CUSTOMER CHECKOUT ──────────────────────────────────────────────
 
 @router.post("/checkout", response_model=OrderResponse)
 async def checkout(
@@ -115,7 +126,7 @@ async def checkout(
 
     product_discount = calculate_tier_discount(user, subtotal)
 
-    promo_discount, promo_code_row = await _apply_promo_code(data.discount_code, subtotal, db)
+    promo_discount, promo_code_row = await _apply_promo_code(data.discount_code, subtotal, user, db)
     total_discount = product_discount + promo_discount
     total = max(0.0, subtotal - total_discount)
 
@@ -130,7 +141,8 @@ async def checkout(
         shipping_discount=0,
         points_earned=int(total / 10),
         status=OrderStatus.PENDING,
-        is_personal_order=False
+        is_personal_order=False,
+        discount_code_used=promo_code_row.code if promo_code_row else None,
     )
     db.add(order)
     await db.flush()
@@ -253,7 +265,7 @@ async def checkout(
         "staff_name": staff_name
     }
 
-# ─── STAFF: LOG A PERSONAL / WALK-IN ORDER ───────────────────────────────────
+# ─── STAFF: LOG A PERSONAL / WALK-IN ORDER ────────────────────────────────────────────
 
 class PersonalOrderItem(BaseModel):
     product_id: str
@@ -379,10 +391,11 @@ async def log_personal_order(
         "stock_warnings": stock_warnings,
     }
 
-# ─── GET ORDERS ───────────────────────────────────────────────────────────────
+# ─── GET ORDERS ───────────────────────────────────────────────────────────────────────────────
 
 class PromoValidateRequest(BaseModel):
     code: str
+    order_total: Optional[float] = 0
 
 @router.post("/validate-promo")
 async def validate_promo(
@@ -390,10 +403,12 @@ async def validate_promo(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Validate a discount code and return the discount amount."""
+    """Validate a discount code and return calculated savings. Checks first-order-only rules."""
+    subtotal = data.order_total or 0
+    code_upper = data.code.upper().strip()
     result = await db.execute(
         select(DiscountCode).where(
-            DiscountCode.code == data.code.upper().strip(),
+            DiscountCode.code == code_upper,
             DiscountCode.active == True
         )
     )
@@ -404,12 +419,30 @@ async def validate_promo(
         raise HTTPException(status_code=400, detail="Promo code dah expired boss")
     if code.max_uses and code.used_count >= code.max_uses:
         raise HTTPException(status_code=400, detail="Promo code dah habis quota")
+    if code.min_purchase and subtotal < code.min_purchase:
+        raise HTTPException(status_code=400, detail=f"Minimum spend RM{code.min_purchase:.2f} for this code")
+    if code.is_first_order_only:
+        prior_result = await db.execute(
+            select(func.count(Order.order_id)).where(
+                Order.user_id == user.user_id,
+                Order.is_personal_order == False,
+            )
+        )
+        if (prior_result.scalar() or 0) > 0:
+            raise HTTPException(status_code=400, detail="This code is for new customers only lah")
+
+    if code.discount_type == "percentage":
+        savings = round(subtotal * code.discount_value / 100, 2)
+    else:
+        savings = min(code.discount_value, subtotal)
+
     return {
         "code": code.code,
         "discount_type": code.discount_type,
         "discount_value": code.discount_value,
-        "discount_amount": code.discount_value,
-        "message": f"Code valid — RM{code.discount_value:.2f} off!"
+        "savings": savings,
+        "is_first_order_only": code.is_first_order_only,
+        "message": f"Code valid — you save RM{savings:.2f}!",
     }
 
 @router.get("/my-orders", response_model=List[OrderResponse])
@@ -506,31 +539,7 @@ async def update_order_status(
         staff_obj = s.scalar_one_or_none()
         if staff_obj:
             staff_name = staff_obj.name
-    staff_email_addr = None
-    staff_whatsapp = None
-    if order.staff_id:
-        s2 = await db.execute(select(Staff).where(Staff.staff_id == order.staff_id))
-        staff_obj2 = s2.scalar_one_or_none()
-        if staff_obj2:
-            staff_email_addr = staff_obj2.email
-            staff_whatsapp = staff_obj2.whatsapp_number
-
     if customer and customer.phone:
         send_sms(customer.phone, status_message(new_status, order.order_id, staff_name))
-
-    # Auto email notification to customer on every status change
-    try:
-        if customer and customer.email:
-            send_status_notification(
-                to_email=customer.email,
-                customer_name=order.customer_name or customer.full_name or customer.email,
-                order_id=order.order_id,
-                status=new_status_enum.value,
-                staff_name=staff_name,
-                staff_email=staff_email_addr,
-                staff_whatsapp=staff_whatsapp,
-            )
-    except Exception:
-        pass  # Non-fatal — order status was already saved
 
     return {"message": "Status updated", "status": new_status, "order_id": order_id}
