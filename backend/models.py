@@ -68,7 +68,6 @@ class UserSession(Base):
     user = relationship('User', back_populates='sessions')
 
 class Warehouse(Base):
-    """A shared physical storage location."""
     __tablename__ = 'warehouses'
 
     warehouse_id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -109,6 +108,7 @@ class Product(Base):
     is_active = Column(Boolean, default=True, index=True)
     is_preorder = Column(Boolean, default=False)
     original_price = Column(Float, nullable=True)
+    sales_count = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=utcnow)
     staff_id = Column(String(36), ForeignKey('staff.staff_id'), nullable=True, index=True)
 
@@ -116,7 +116,6 @@ class Product(Base):
     stock = relationship('Stock', back_populates='product', cascade='all, delete-orphan')
     order_items = relationship('OrderItem', back_populates='product')
     flash_sales = relationship('FlashSale', back_populates='product', cascade='all, delete-orphan')
-    supplier_products = relationship('SupplierProduct', back_populates='product', cascade='all, delete-orphan')
 
 class Stock(Base):
     __tablename__ = 'stocks'
@@ -148,6 +147,7 @@ class Order(Base):
     discount_applied = Column(Float, default=0)
     shipping_discount = Column(Float, default=0)
     points_earned = Column(Integer, default=0)
+    discount_code_used = Column(String(50), nullable=True)  # track which promo code was applied
     created_at = Column(DateTime, default=utcnow, index=True)
 
     user = relationship('User', back_populates='orders')
@@ -198,13 +198,15 @@ class DiscountCode(Base):
 
     code_id = Column(String(36), primary_key=True, default=generate_uuid)
     code = Column(String(50), unique=True, nullable=False, index=True)
-    discount_type = Column(String(20), nullable=False)
+    discount_type = Column(String(20), nullable=False)   # "percentage" or "fixed"
     discount_value = Column(Float, nullable=False)
     min_purchase = Column(Float, default=0)
-    max_uses = Column(Integer, nullable=True)
+    max_uses = Column(Integer, nullable=True)            # None = unlimited total uses
     used_count = Column(Integer, default=0)
     active = Column(Boolean, default=True, index=True)
     expires_at = Column(DateTime, nullable=True)
+    # If True, the code can only be used on a user's FIRST order (e.g. NEWBRO).
+    is_first_order_only = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utcnow)
 
 class Review(Base):
@@ -214,7 +216,7 @@ class Review(Base):
     order_id = Column(String(36), ForeignKey('orders.order_id', ondelete='CASCADE'), nullable=False)
     user_id = Column(String(36), ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
     staff_id = Column(String(36), ForeignKey('staff.staff_id', ondelete='SET NULL'), nullable=True)
-    rating = Column(Integer, nullable=False)
+    rating = Column(Integer, nullable=False)  # 1-5
     comment = Column(Text, nullable=True)
     is_visible = Column(Boolean, default=True)
     created_at = Column(DateTime, default=utcnow)
@@ -291,60 +293,3 @@ class Brand(Base):
     order_position = Column(Integer, default=0)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
-
-
-
-
-
-class ProductEvent(Base):
-    """Lightweight event log for product interactions.
-    event_type: 'view' | 'search_click' | 'add_to_cart'
-    Used by the ranking algorithm to surface popular products.
-    """
-    __tablename__ = 'product_events'
-
-    event_id = Column(String(36), primary_key=True, default=generate_uuid)
-    product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)
-    event_type = Column(String(20), nullable=False, index=True)  # view / search_click / add_to_cart
-    created_at = Column(DateTime, default=utcnow, index=True)
-
-class MysteryDrop(Base):
-    """Admin-controlled mystery drops stored in DB (survives Render restarts)."""
-    __tablename__ = 'mystery_drops'
-
-    drop_id = Column(String(36), primary_key=True, default=generate_uuid)
-    product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)
-    discount_pct = Column(Float, default=10, nullable=False)
-    label = Column(String(255), default='Mystery Drop', nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=utcnow)
-
-# ââ Supplier Management (boss-only, staff never see this) âââââââââââââââââââââ
-
-class Supplier(Base):
-    """A supplier the boss buys stock from. Staff cannot see this."""
-    __tablename__ = 'suppliers'
-
-    supplier_id = Column(String(36), primary_key=True, default=generate_uuid)
-    name = Column(String(255), nullable=False)
-    contact = Column(String(255), nullable=True)
-    notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=utcnow)
-
-    products = relationship('SupplierProduct', back_populates='supplier', cascade='all, delete-orphan')
-
-
-class SupplierProduct(Base):
-    """A product line carried by a supplier â qty, cost price, selling price."""
-    __tablename__ = 'supplier_products'
-
-    id = Column(String(36), primary_key=True, default=generate_uuid)
-    supplier_id = Column(String(36), ForeignKey('suppliers.supplier_id', ondelete='CASCADE'), nullable=False, index=True)
-    product_id = Column(String(36), ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False, index=True)
-    cost_price = Column(Float, nullable=False, default=0.0)
-    selling_price = Column(Float, nullable=False, default=0.0)
-    quantity = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime, default=utcnow)
-
-    supplier = relationship('Supplier', back_populates='products')
-    product = relationship('Product', back_populates='supplier_products')
