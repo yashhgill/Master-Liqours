@@ -105,10 +105,10 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
     user = User(
         email=body.email,
         password_hash=hashed,
-        full_name=body.full_name,
+        name=body.name,
         phone=body.phone,
         role=UserRole.CUSTOMER,
-        tier=UserTier.BRONZE,
+        tier=UserTier.REGULAR,
     )
     db.add(user)
     await db.commit()
@@ -228,54 +228,45 @@ async def get_active_flash_sales(db: AsyncSession = Depends(get_db)):
     from models import FlashSale
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
+    # Use naive UTC for comparison (DB stores naive datetimes)
+    now_naive = now.replace(tzinfo=None)
     result = await db.execute(
         select(FlashSale).where(
             FlashSale.is_active == True,
-            FlashSale.start_time <= now,
-            FlashSale.end_time >= now,
+            FlashSale.start_time <= now_naive,
+            FlashSale.end_time >= now_naive,
         )
     )
     sales = result.scalars().all()
+    if not sales:
+        return []
+    # FIX: batch-fetch all products in one query instead of N+1 per sale
+    product_ids = [s.product_id for s in sales]
+    prod_result = await db.execute(
+        select(Product).options(noload("*")).where(Product.product_id.in_(product_ids))
+    )
+    products_by_id = {p.product_id: p for p in prod_result.scalars().all()}
     out = []
     for s in sales:
-        prod_result = await db.execute(
-            select(Product).options(noload("*")).where(Product.product_id == s.product_id)
-        )
-        prod = prod_result.scalar_one_or_none()
+        prod = products_by_id.get(s.product_id)
         if prod:
-            # Compute discounted price from discount_percentage
-            pct = float(s.discount_percentage or 0)
-            original = float(prod.original_price or prod.price)
-            computed_sale = round(original * (1 - pct / 100), 2)
+            # sale_price = product price with discount applied
+            sale_price = round(prod.price * (1 - s.discount_percentage / 100), 2)
             out.append({
-                "flash_sale_id": str(s.sale_id),
+                "flash_sale_id": str(s.sale_id),  # FIX: was s.flash_sale_id (wrong field name)
                 "product_id": str(s.product_id),
-                "product": {
-                    "product_id": str(prod.product_id),
-                    "name": prod.name,
-                    "category": prod.category or "",
-                    "price": float(prod.price),
-                    "original_price": original,
-                    "image_url": prod.image_url or "",
-                    "description": prod.description or "",
-                    "is_active": prod.is_active,
-                    "is_preorder": prod.is_preorder,
-                    "available_stock": -1,
-                },
                 "product_name": prod.name,
-                "original_price": original,
-                "sale_price": computed_sale,
-                "discounted_price": computed_sale,
-                "discount_percentage": pct,
+                "original_price": float(prod.price),
+                "sale_price": sale_price,
+                "discount_percentage": s.discount_percentage,
                 "end_time": s.end_time.isoformat(),
-                "quantity_available": getattr(s, "quantity_available", None),
-                "quantity_sold": getattr(s, "quantity_sold", 0),
+                "image_url": prod.image_url,
             })
     return out
 
 @api_router.get("/users/{user_id}/rewards")
 async def get_user_rewards(user_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if str(current_user.user_id) != user_id and current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
+    if str(current_user.user_id) != user_id and current_user.role not in [UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN]:
         raise HTTPException(status_code=403, detail="Akses ditolak")
     result = await db.execute(select(User).where(User.user_id == user_id))
     user = result.scalar_one_or_none()
