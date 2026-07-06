@@ -207,7 +207,7 @@ async def get_categories(db: AsyncSession = Depends(get_db)):
 async def get_hero_banners(db: AsyncSession = Depends(get_db)):
     from models import HeroBanner
     result = await db.execute(
-        select(HeroBanner).where(HeroBanner.is_active == True).order_by(HeroBanner.display_order)
+        select(HeroBanner).where(HeroBanner.is_active == True).order_by(HeroBanner.order_position)
     )
     banners = result.scalars().all()
     return [
@@ -218,7 +218,7 @@ async def get_hero_banners(db: AsyncSession = Depends(get_db)):
             "background_image": b.background_image,
             "cta_text": b.cta_text,
             "cta_link": b.cta_link,
-            "display_order": b.display_order,
+            "display_order": b.order_position,
         }
         for b in banners
     ]
