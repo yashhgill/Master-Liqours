@@ -319,6 +319,18 @@ async def startup():
         from models import Base
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # Migrate new columns that create_all skips on existing tables
+            from sqlalchemy import text as _text
+            _migrations = [
+                "ALTER TABLE products ADD COLUMN IF NOT EXISTS sales_count INTEGER DEFAULT 0 NOT NULL",
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code_used VARCHAR(50)",
+                "ALTER TABLE discount_codes ADD COLUMN IF NOT EXISTS is_first_order_only BOOLEAN DEFAULT FALSE",
+            ]
+            for _sql in _migrations:
+                try:
+                    await conn.execute(_text(_sql))
+                except Exception as _me:
+                    logger.warning("Migration skipped: %s", _me)
         async with AsyncSessionLocal() as db:
             n = await seed_default_brands(db)
             if n:
