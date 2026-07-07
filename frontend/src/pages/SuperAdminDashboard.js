@@ -5,7 +5,7 @@ import {
   FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlass,
   FaArrowUp, FaArrowDown, FaPen, FaFileCsv, FaDownload, FaSpinner,
   FaUsers, FaKey, FaCopy, FaWhatsapp, FaChartLine, FaTrophy, FaRandom, FaClock, FaToggleOff, FaTruck,
-  FaRobot, FaPaperPlane, FaTimes as FaXIcon,
+  FaRobot, FaPaperPlane, FaTimes as FaXIcon, FaTag,
 } from 'react-icons/fa';
 import ImageUploader from '../components/ImageUploader';
 import { resolveImageUrl } from '../lib/imageUrl';
@@ -24,6 +24,7 @@ const TABS = [
   { id: 'staff-perf', label: 'Staff Performance', icon: FaTrophy },
   { id: 'mystery-drop', label: 'Mystery Drop', icon: FaWineGlass },
   { id: 'suppliers', label: 'Suppliers', icon: FaTruck },
+  { id: 'discount-codes', label: 'Promo Codes', icon: FaTag },
   { id: 'staff-mode', label: 'My Sales', icon: FaBoxOpen },
 ];
 

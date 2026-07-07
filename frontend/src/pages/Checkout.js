@@ -55,14 +55,18 @@ const Checkout = () => {
     return e;
   };
 
+  // Check if user has any prior orders — show NEWBRO hint if not
+  const isFirstOrder = orders => !orders || orders.length === 0;
+
   const applyPromo = async () => {
     if (!promoCode.trim()) return;
     setPromoLoading(true);
     try {
-      const res = await axios.post(API + '/orders/validate-promo', { code: promoCode.trim() }, { withCredentials: true });
+      const res = await axios.post(API + '/orders/validate-promo', { code: promoCode.trim(), order_total: total }, { withCredentials: true });
       setPromoValid(true);
-      setPromoDiscount(res.data.discount_amount || 0);
-      setPromoMsg('Code applied — RM' + (res.data.discount_amount || 0).toFixed(2) + ' off!');
+      const saved = res.data.savings ?? res.data.discount_amount ?? 0;
+      setPromoDiscount(saved);
+      setPromoMsg(res.data.message || ('Code applied — RM' + saved.toFixed(2) + ' off!'));
     } catch (e) {
       setPromoValid(false);
       setPromoDiscount(0);
