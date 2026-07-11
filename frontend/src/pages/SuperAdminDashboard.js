@@ -319,6 +319,9 @@ const SuperAdminDashboard = () => {
   // Visibility & edit state
   const [showBanner, setShowBanner] = useState(false);
   const [showProduct, setShowProduct] = useState(false);
+  const [prodPage, setProdPage] = useState(1);
+  const [prodTotal, setProdTotal] = useState(0);
+  const [prodPageLoading, setProdPageLoading] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
   const [showBrand, setShowBrand] = useState(false);
   const [editingBanner, setEditingBanner] = useState(null);
@@ -337,13 +340,17 @@ const SuperAdminDashboard = () => {
         const r = await axios.get(`${API}/admin/hero-banners`, { withCredentials: true });
         setBanners(r.data);
       } else if (tab === 'products') {
-        const r = await axios.get(`${API}/products`);
-        setProducts(r.data);
+        const r = await axios.get(`${API}/products`, { params: { page: 1, limit: 60 } });
+        const data = r.data?.products || r.data || [];
+        setProducts(data);
+        setProdTotal(r.data?.total || data.length);
+        setProdPage(1);
       } else if (tab === 'mystery-drop') {
         try {
           const [dropsRes, prodsRes] = await Promise.all([
             axios.get(`${API}/admin/mystery-drops`, { withCredentials: true }),
-            products.length ? Promise.resolve({data: products}) : axios.get(`${API}/products`, { withCredentials: true }),
+            // Only fetch products if we don't have them — use all-products endpoint for dropdowns
+            products.length ? Promise.resolve({data: products}) : axios.get(`${API}/products/all-names`),
           ]);
           setMysteryDrops(dropsRes.data || []);
           if (!products.length) setProducts(prodsRes.data?.products || prodsRes.data || []);
@@ -351,9 +358,10 @@ const SuperAdminDashboard = () => {
       } else if (tab === 'flash-sales') {
         const [r, p] = await Promise.all([
           axios.get(`${API}/admin/flash-sales?include_expired=true`, { withCredentials: true }),
-          axios.get(`${API}/products`),
+          products.length ? Promise.resolve({data: products}) : axios.get(`${API}/products/all-names`),
         ]);
-        setFlashSales(r.data); setProducts(p.data);
+        setFlashSales(r.data);
+        if (!products.length) setProducts(p.data?.products || p.data || []);
       } else if (tab === 'brands') {
         const r = await axios.get(`${API}/admin/brands`, { withCredentials: true });
         setBrands(r.data);
@@ -366,6 +374,21 @@ const SuperAdminDashboard = () => {
       }
       // 'overview' and 'staff-perf' tabs handle their own fetches (OverviewTab/StaffPerfTab)
     } catch (e) { console.error(e); }
+  };
+
+  // === PRODUCT PAGINATION ===
+  const loadProdPage = async (page, search = productSearch) => {
+    setProdPageLoading(true);
+    try {
+      const r = await axios.get(`${API}/products`, {
+        params: { page, limit: 60, ...(search ? { search } : {}) }
+      });
+      const data = r.data?.products || r.data || [];
+      setProducts(data);
+      setProdTotal(r.data?.total || data.length);
+      setProdPage(page);
+    } catch {}
+    finally { setProdPageLoading(false); }
   };
 
   // === BANNERS ===
@@ -662,9 +685,8 @@ const SuperAdminDashboard = () => {
     load();
   };
 
-    const filteredProducts = productSearch
-    ? products.filter((p) => p.name.toLowerCase().includes(productSearch.toLowerCase()) || (p.category || '').toLowerCase().includes(productSearch.toLowerCase()))
-    : products;
+    // filteredProducts = all products returned by server (search handled server-side)
+  const filteredProducts = products;
 
   return (
     <div style={{minHeight:'100vh',background:'#030303'}}>
@@ -755,14 +777,25 @@ const SuperAdminDashboard = () => {
             </div>
           )}
 
-          <div className="relative mb-4">
+          <div className="relative mb-4" style={{display:'flex',gap:8}}>
             <input
               value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
+              onChange={(e) => {
+                setProductSearch(e.target.value);
+                clearTimeout(window._prodSearchTimer);
+                window._prodSearchTimer = setTimeout(() => loadProdPage(1, e.target.value), 350);
+              }}
               placeholder="Search products lah..."
               className="input-dark"
+              style={{flex:1}}
               data-testid="admin-products-search"
             />
+            {productSearch && (
+              <button onClick={() => { setProductSearch(''); loadProdPage(1, ''); }}
+                style={{padding:'0 14px',borderRadius:50,border:'1px solid rgba(255,255,255,0.1)',background:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',fontSize:13}}>
+                Clear
+              </button>
+            )}
           </div>
 
           {/* Bulk select bar */}
@@ -872,7 +905,11 @@ const SuperAdminDashboard = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {prodPageLoading && (
+            <div style={{textAlign:'center',padding:'40px 0',color:'rgba(255,255,255,0.3)',fontSize:14}}>Loading...</div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{opacity: prodPageLoading ? 0.4 : 1, transition:'opacity 0.2s'}}>
             {filteredProducts.map((p) => (
               <div key={p.product_id} className={`bg-[#0a0a0a] border rounded-2xl p-4 flex items-center gap-4 group transition-all ${selectedProducts.includes(p.product_id) ? 'border-[#ff007f]/50 bg-[#ff007f08]' : 'border-white/5'}`} data-testid={`admin-product-${p.product_id}`}>
                 <input type="checkbox" className="shrink-0 w-4 h-4"
@@ -920,6 +957,27 @@ const SuperAdminDashboard = () => {
               </div>
             ))}
           </div>
+
+          {/* Pagination */}
+          {prodTotal > 60 && !productSearch && (
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:20,paddingTop:16,borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.3)'}}>
+                Showing {((prodPage-1)*60)+1}–{Math.min(prodPage*60, prodTotal)} of {prodTotal} products
+              </div>
+              <div style={{display:'flex',gap:6}}>
+                {Array.from({length: Math.ceil(prodTotal/60)}, (_,i) => i+1).map(pg => (
+                  <button key={pg} onClick={() => loadProdPage(pg)}
+                    style={{width:34,height:34,borderRadius:'50%',border:'none',cursor:'pointer',fontSize:13,fontWeight:700,transition:'all 0.2s',
+                      background: pg===prodPage ? '#ff007f' : 'rgba(255,255,255,0.06)',
+                      color: pg===prodPage ? '#fff' : 'rgba(255,255,255,0.5)',
+                      boxShadow: pg===prodPage ? '0 0 16px rgba(255,0,127,0.4)' : 'none',
+                    }}>
+                    {pg}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

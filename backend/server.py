@@ -163,15 +163,25 @@ async def get_products(
     if search:
         base_query = base_query.where(Product.name.ilike(f"%{search}%"))
 
-    # No page param → return plain array (backward compat for admin dashboard etc.)
+    # No page param → return paginated with default limit for backward compat
     if page is None:
-        cache_key = f"products:all:{category}:{search}"
+        page = 1
+        cache_key = f"products:page:{category}:{search}:1:{limit}"
         cached = _cache_get(cache_key)
         if cached is not None:
             return cached
-        result = await db.execute(base_query.order_by(Product.created_at.desc()))
+        offset = 0
+        count_result = await db.execute(select(func.count()).select_from(base_query.subquery()))
+        total = count_result.scalar() or 0
+        result = await db.execute(base_query.order_by(Product.created_at.desc()).offset(offset).limit(limit))
         products = result.scalars().all()
-        out = [ProductResponse.model_validate(p, from_attributes=True) for p in products]
+        out = {
+            "products": [ProductResponse.model_validate(p, from_attributes=True) for p in products],
+            "total": total,
+            "page": 1,
+            "limit": limit,
+            "pages": -(-total // limit),
+        }
         _cache_set(cache_key, out, ttl_seconds=30)
         return out
 
@@ -195,6 +205,24 @@ async def get_products(
     }
     _cache_set(cache_key, out, ttl_seconds=30)
     return out
+
+@api_router.get("/products/all-names")
+async def get_all_product_names(db: AsyncSession = Depends(get_db)):
+    """Lightweight endpoint — returns id, name, price, category only. Used for admin dropdowns."""
+    cache_key = "products:names"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+    result = await db.execute(
+        select(Product.product_id, Product.name, Product.price, Product.category, Product.is_active)
+        .where(Product.is_active == True)
+        .order_by(Product.name)
+    )
+    rows = result.all()
+    out = [{"product_id": str(r.product_id), "name": r.name, "price": float(r.price), "category": r.category or ""} for r in rows]
+    _cache_set(cache_key, out, ttl_seconds=60)
+    return out
+
 
 @api_router.get("/products/{product_id}", response_model=ProductResponse)
 async def get_product(product_id: str, db: AsyncSession = Depends(get_db)):
