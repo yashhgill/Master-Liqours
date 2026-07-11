@@ -14,13 +14,13 @@ const FALLBACK_BRANDS = [
 ];
 
 const BrandCarousel = () => {
-  const [brands, setBrands] = useState([]);
+  const [brands, setBrands] = useState(FALLBACK_BRANDS);
 
   useEffect(() => {
-    axios.get(`${API}/brands`).then(r => {
+    axios.get(`${API}/brands`, { timeout: 8000 }).then(r => {
       const names = (r.data || []).map(b => b.short_name || b.name).filter(Boolean);
-      setBrands(names.length >= 6 ? names : FALLBACK_BRANDS);
-    }).catch(() => setBrands(FALLBACK_BRANDS));
+      if (names.length >= 6) setBrands(names);
+    }).catch(() => {});
   }, []);
 
   // Duplicate for seamless loop

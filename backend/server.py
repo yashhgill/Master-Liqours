@@ -198,16 +198,12 @@ async def get_products(
     cached = _cache_get(cache_key)
     if cached is not None:
         return cached
-    # Run count and data fetch in parallel for speed
-    import asyncio as _asyncio
+    # NOTE: must run sequentially — one AsyncSession cannot execute
+    # two queries concurrently (raises "concurrent operations are not permitted")
     order_col = Product.name if search else Product.created_at.desc()
-    count_q = select(func.count()).select_from(base_query.subquery())
-    data_q = base_query.order_by(order_col).offset(offset).limit(limit)
-    count_result, data_result = await _asyncio.gather(
-        db.execute(count_q),
-        db.execute(data_q),
-    )
+    count_result = await db.execute(select(func.count()).select_from(base_query.subquery()))
     total = count_result.scalar() or 0
+    data_result = await db.execute(base_query.order_by(order_col).offset(offset).limit(limit))
     products = data_result.scalars().all()
     out = {
         "products": [ProductResponse.model_validate(p, from_attributes=True) for p in products],
