@@ -299,8 +299,13 @@ const Home = () => {
       <section
         ref={heroRef}
         className="relative flex items-center overflow-hidden"
-        style={{ minHeight: 'calc(100svh - 0px)' }}
-        style={{ background: hero.bg_image ? `linear-gradient(160deg, rgba(3,3,3,0.35) 0%, rgba(3,3,3,0.1) 35%, rgba(3,3,3,0.08) 60%, rgba(3,3,3,0.4) 100%), url(${hero.bg_image}) center/cover no-repeat` : '#030303', cursor: 'grab' }}
+        style={{
+          minHeight: '100vh',
+          background: hero.bg_image
+            ? `linear-gradient(160deg, rgba(3,3,3,0.55) 0%, rgba(3,3,3,0.35) 40%, rgba(3,3,3,0.3) 60%, rgba(3,3,3,0.7) 100%), url(${hero.bg_image}) center/cover no-repeat`
+            : '#030303',
+          cursor: 'grab'
+        }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         onMouseDown={(e) => { touchStartX.current = e.clientX; touchStartY.current = e.clientY; }}
@@ -327,18 +332,18 @@ const Home = () => {
         </>)}
 
         {/* Content */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 w-full py-16 md:py-24">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 w-full py-20 md:py-28">
           <div className="max-w-[700px]">
 
-            {(!hero.bg_image || hero.has_custom_text) && (<>
-      {/* Eyebrow */}
+            <>
+            {/* Eyebrow */}
             <div className="flex items-center gap-3 mb-6" style={{ marginBottom: 20 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ffd700', boxShadow: '0 0 8px #ffd700', animation: 'tagPulse 2s infinite', display: 'inline-block', flexShrink: 0 }} />
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.4em', textTransform: 'uppercase', color: 'rgba(255,215,0,0.75)', background: 'none' }}>{hero.eyebrow}</span>
             </div>
 
             {/* Headline */}
-            <h1 style={{ fontFamily: "'Bebas Neue', 'Inter', sans-serif", fontSize: 'clamp(44px, 10vw, 130px)', lineHeight: 0.92, letterSpacing: '0.02em', marginBottom: 28, background: 'none', padding: 0, margin: '0 0 28px 0' }}>
+            <h1 style={{ fontFamily: "'Bebas Neue', 'Inter', sans-serif", fontSize: 'clamp(52px, 9vw, 130px)', lineHeight: 0.92, letterSpacing: '0.02em', marginBottom: 28, background: 'none', padding: 0, margin: '0 0 28px 0' }}>
               <span style={{ display: 'block', color: '#fff', background: 'none' }}>{hero.title}</span>
               <span style={{ display: 'block', color: '#ff007f', background: 'none', textShadow: hero.bg_image ? '0 0 40px rgba(255,0,127,0.8)' : '0 0 60px rgba(255,0,127,0.5)' }}>
                 {hero.title2}
