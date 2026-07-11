@@ -257,25 +257,36 @@ const Home = () => {
     const [bannersRes, salesRes, productsRes, dropsRes] = await Promise.all([
       safe(axios.get(API + '/hero-banners')),
       safe(axios.get(API + '/flash-sales/active')),
-      safe(axios.get(API + '/products')),
+      safe(axios.get(API + '/products', { params: { page: 1, limit: 12 } })),
       safe(axios.get(API + '/drink-reveal/today')),
     ]);
 
     if (bannersRes?.data?.length > 0) {
       const mapped = bannersRes.data.map(b => {
+        const hasTitle = !!(b.title && b.title.trim());
+        const hasBgImage = !!(b.background_image && b.background_image.trim());
+        // image-only banner: don't overlay any text
+        if (hasBgImage && !hasTitle) {
+          return {
+            bg_image: b.background_image,
+            show_text: false,
+            cta_text: null,
+            cta_link: null,
+            eyebrow: '', title: '', title2: '', sub: '',
+          };
+        }
+        // banner with title (image or no image)
         const words = (b.title || 'PREMIUM DROPS').toUpperCase().split(' ');
         const mid = Math.max(1, Math.ceil(words.length / 2));
         return {
           eyebrow: 'KL & Klang Valley · Premium Drops',
           title: words.slice(0, mid).join(' '),
           title2: words.slice(mid).join(' ') || 'DELIVERED.',
-          accent: words[words.length - 1] + '.',
-          sub: b.subtitle || 'Top quality drops, harga terbaik.',
+          sub: b.subtitle || '',
           cta_text: b.cta_text || 'Shop Now Lah',
           cta_link: b.cta_link || '/products',
           bg_image: b.background_image || '',
-          has_custom_text: !!(b.title && b.title.trim()),
-          bottle: 'whiskey',
+          show_text: true,
         };
       });
       setSlides(mapped);
@@ -283,9 +294,10 @@ const Home = () => {
 
     if (salesRes?.data) setFlashSales(salesRes.data);
     if (productsRes?.data) {
-      const all = productsRes.data?.products || productsRes.data || [];
+      const all = productsRes.data?.products || (Array.isArray(productsRes.data) ? productsRes.data : []);
       setProducts(all.slice(0, 12));
-      setNewArrivals([...all].reverse().slice(0, 8));
+      // For new arrivals, fetch separately sorted by newest
+      setNewArrivals(all.slice(0, 8));
     }
     if (dropsRes?.data?.available) setMysteryDrops(dropsRes.data.drops || []);
   };
@@ -335,7 +347,8 @@ const Home = () => {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 w-full py-20 md:py-28">
           <div className="max-w-[700px]">
 
-            <>
+            {/* Only show text overlay when banner has text, or when no background image */}
+            {(hero.show_text !== false) && <>
             {/* Eyebrow */}
             <div className="flex items-center gap-3 mb-6" style={{ marginBottom: 20 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ffd700', boxShadow: '0 0 8px #ffd700', animation: 'tagPulse 2s infinite', display: 'inline-block', flexShrink: 0 }} />
@@ -364,7 +377,7 @@ const Home = () => {
                 <FaWhatsapp size={15} /> Chat With Us
               </a>
             </div>
-            </>)}
+            </>}
           </div>
         </div>
 

@@ -147,6 +147,12 @@ async def get_me(current_user: User = Depends(get_current_user)):
 # FIX: noload("*") prevents async lazy-load hang on Product relationships
 # Backward compat: omitting `page` returns a plain array (existing callers like admin dashboard)
 # Passing `page` returns paginated object { products, total, page, limit, pages }
+@api_router.get("/ping")
+async def ping():
+    """Keep-alive endpoint — called every 14 min to prevent Render cold start."""
+    return {"ok": True}
+
+
 @api_router.get("/products")
 async def get_products(
     category: Optional[str] = None,
@@ -192,10 +198,17 @@ async def get_products(
     cached = _cache_get(cache_key)
     if cached is not None:
         return cached
-    count_result = await db.execute(select(func.count()).select_from(base_query.subquery()))
+    # Run count and data fetch in parallel for speed
+    import asyncio as _asyncio
+    order_col = Product.name if search else Product.created_at.desc()
+    count_q = select(func.count()).select_from(base_query.subquery())
+    data_q = base_query.order_by(order_col).offset(offset).limit(limit)
+    count_result, data_result = await _asyncio.gather(
+        db.execute(count_q),
+        db.execute(data_q),
+    )
     total = count_result.scalar() or 0
-    result = await db.execute(base_query.order_by(Product.created_at.desc()).offset(offset).limit(limit))
-    products = result.scalars().all()
+    products = data_result.scalars().all()
     out = {
         "products": [ProductResponse.model_validate(p, from_attributes=True) for p in products],
         "total": total,
