@@ -33,10 +33,10 @@ engine = create_async_engine(
     echo=False,
     connect_args={
         "statement_cache_size": 0,  # Required for Supabase pgbouncer compatibility
-        "command_timeout": 15,      # Query timeout 15s (was 30s — fail fast)
-        "server_settings": {
-            "jit": "off",           # Disable JIT — adds latency on short queries
-        },
+        "command_timeout": 15,      # Query timeout 15s (fail fast)
+        # NOTE: do NOT pass server_settings (e.g. jit) here — Supabase's
+        # Supavisor pooler rejects extra startup parameters, which makes
+        # every connection fail ("unsupported startup parameter").
     }
 )
 

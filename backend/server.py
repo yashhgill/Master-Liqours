@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Response, Request, Cookie
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
@@ -47,6 +48,21 @@ limiter = Limiter(key_func=get_remote_address, default_limits=[])
 app = FastAPI(title="Masterliqours API", description="Premium liquor e-commerce platform API", version="1.0.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Global 500 handler — ensures CORS headers are present even on unhandled errors,
+# otherwise the browser reports a misleading "CORS policy" error instead of the real 500.
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request: Request, exc: Exception):
+    import logging as _logging
+    _logging.getLogger(__name__).exception("Unhandled error on %s %s: %s", request.method, request.url.path, exc)
+    origin = request.headers.get("origin", "")
+    headers = {}
+    if origin in _origins:
+        headers = {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+        }
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"}, headers=headers)
 
 
 from cache import cache_get as _cache_get, cache_set as _cache_set, cache_clear as _cache_clear
