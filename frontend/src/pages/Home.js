@@ -254,14 +254,10 @@ const Home = () => {
 
   const loadData = async () => {
     const safe = (p) => p.catch(() => null);
-    const [bannersRes, salesRes, productsRes, dropsRes] = await Promise.all([
-      safe(axios.get(API + '/hero-banners')),
-      safe(axios.get(API + '/flash-sales/active')),
-      safe(axios.get(API + '/products', { params: { page: 1, limit: 12 } })),
-      safe(axios.get(API + '/drink-reveal/today')),
-    ]);
 
-    if (bannersRes?.data?.length > 0) {
+    // ── Priority 1: hero banners — fast, shows first ──────────────────────
+    safe(axios.get(API + '/hero-banners')).then(bannersRes => {
+      if (bannersRes?.data?.length > 0) {
       const mapped = bannersRes.data.map(b => {
         const hasTitle = !!(b.title && b.title.trim());
         const hasBgImage = !!(b.background_image && b.background_image.trim());
@@ -290,16 +286,26 @@ const Home = () => {
         };
       });
       setSlides(mapped);
-    }
+      }
+    });
 
-    if (salesRes?.data) setFlashSales(salesRes.data);
-    if (productsRes?.data) {
-      const all = productsRes.data?.products || (Array.isArray(productsRes.data) ? productsRes.data : []);
-      setProducts(all.slice(0, 12));
-      // For new arrivals, fetch separately sorted by newest
-      setNewArrivals(all.slice(0, 8));
-    }
-    if (dropsRes?.data?.available) setMysteryDrops(dropsRes.data.drops || []);
+    // ── Priority 2: products + flash sales — load independently, don't block hero ──
+    safe(axios.get(API + '/products', { params: { page: 1, limit: 12 } })).then(productsRes => {
+      if (productsRes?.data) {
+        const all = productsRes.data?.products || (Array.isArray(productsRes.data) ? productsRes.data : []);
+        setProducts(all.slice(0, 12));
+        setNewArrivals(all.slice(0, 8));
+      }
+    });
+
+    safe(axios.get(API + '/flash-sales/active')).then(salesRes => {
+      if (salesRes?.data) setFlashSales(salesRes.data);
+    });
+
+    // ── Priority 3: mystery drops — lowest priority ───────────────────────
+    safe(axios.get(API + '/drink-reveal/today')).then(dropsRes => {
+      if (dropsRes?.data?.available) setMysteryDrops(dropsRes.data.drops || []);
+    });
   };
 
   const hero = slides[slide] || DEFAULT_HERO[0];

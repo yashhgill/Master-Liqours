@@ -340,11 +340,14 @@ const SuperAdminDashboard = () => {
         const r = await axios.get(`${API}/admin/hero-banners`, { withCredentials: true });
         setBanners(r.data);
       } else if (tab === 'products') {
-        const r = await axios.get(`${API}/products`, { params: { page: 1, limit: 60 } });
-        const data = r.data?.products || r.data || [];
-        setProducts(data);
-        setProdTotal(r.data?.total || data.length);
-        setProdPage(1);
+        setProdPageLoading(true);
+        try {
+          const r = await axios.get(`${API}/products`, { params: { page: 1, limit: 60 } });
+          const data = r.data?.products || r.data || [];
+          setProducts(data);
+          setProdTotal(r.data?.total || data.length);
+          setProdPage(1);
+        } finally { setProdPageLoading(false); }
       } else if (tab === 'mystery-drop') {
         try {
           const [dropsRes, prodsRes] = await Promise.all([

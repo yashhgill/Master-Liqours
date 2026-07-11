@@ -25,15 +25,18 @@ ASYNC_DATABASE_URL = DATABASE_URL_CLEAN.replace('postgresql://', 'postgresql+asy
 # connection the pooler has silently dropped, instead of erroring on first use.
 engine = create_async_engine(
     ASYNC_DATABASE_URL,
-    pool_size=5,
-    max_overflow=5,
-    pool_timeout=30,
-    pool_recycle=1800,
-    pool_pre_ping=True,
+    pool_size=10,          # Keep 10 connections warm at all times
+    max_overflow=10,       # Allow burst to 20 total connections
+    pool_timeout=10,       # Fail fast if no connection available (was 30s)
+    pool_recycle=600,      # Recycle connections every 10 min (Supabase drops idle ones)
+    pool_pre_ping=True,    # Verify connection alive before use
     echo=False,
     connect_args={
-        "statement_cache_size": 0,  # disable asyncpg prepared-statement cache (pooler-safe)
-        "command_timeout": 30,
+        "statement_cache_size": 0,  # Required for Supabase pgbouncer compatibility
+        "command_timeout": 15,      # Query timeout 15s (was 30s — fail fast)
+        "server_settings": {
+            "jit": "off",           # Disable JIT — adds latency on short queries
+        },
     }
 )
 

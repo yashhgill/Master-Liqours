@@ -188,7 +188,7 @@ async def get_products(
             "limit": limit,
             "pages": -(-total // limit),
         }
-        _cache_set(cache_key, out, ttl_seconds=30)
+        _cache_set(cache_key, out, ttl_seconds=300)
         return out
 
     # page param present → return paginated envelope
@@ -216,7 +216,7 @@ async def get_products(
         "limit": limit,
         "pages": -(-total // limit),
     }
-    _cache_set(cache_key, out, ttl_seconds=30)
+    _cache_set(cache_key, out, ttl_seconds=300)
     return out
 
 @api_router.get("/products/all-names")
