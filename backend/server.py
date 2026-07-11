@@ -204,7 +204,7 @@ async def get_products(
             "limit": limit,
             "pages": -(-total // limit),
         }
-        _cache_set(cache_key, out, ttl_seconds=300)
+        _cache_set(cache_key, out, ttl=300)
         return out
 
     # page param present → return paginated envelope
@@ -228,7 +228,7 @@ async def get_products(
         "limit": limit,
         "pages": -(-total // limit),
     }
-    _cache_set(cache_key, out, ttl_seconds=300)
+    _cache_set(cache_key, out, ttl=300)
     return out
 
 @api_router.get("/products/all-names")
@@ -245,7 +245,7 @@ async def get_all_product_names(db: AsyncSession = Depends(get_db)):
     )
     rows = result.all()
     out = [{"product_id": str(r.product_id), "name": r.name, "price": float(r.price), "category": r.category or ""} for r in rows]
-    _cache_set(cache_key, out, ttl_seconds=60)
+    _cache_set(cache_key, out, ttl=60)
     return out
 
 

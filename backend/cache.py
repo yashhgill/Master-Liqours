@@ -9,7 +9,9 @@ def cache_get(key: str):
         return entry["val"]
     return None
 
-def cache_set(key: str, val, ttl: int = 30):
+def cache_set(key: str, val, ttl: int = 30, ttl_seconds: int = None):
+    if ttl_seconds is not None:
+        ttl = ttl_seconds
     _store[key] = {"val": val, "exp": _time.time() + ttl}
 
 def cache_clear(prefix: str = ""):
