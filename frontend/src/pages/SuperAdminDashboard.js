@@ -19,7 +19,7 @@ const TABS = [
   { id: 'banners', label: 'Hero Banners', icon: FaImage },
   { id: 'products', label: 'Products', icon: FaBoxOpen },
   { id: 'flash-sales', label: 'Flash Sales', icon: FaBolt },
-  { id: 'brands', label: 'Brands', icon: FaWineGlass },
+  // brands tab hidden — not needed
   { id: 'staff', label: 'Staff', icon: FaUsers },
   { id: 'staff-perf', label: 'Staff Performance', icon: FaTrophy },
   { id: 'mystery-drop', label: 'Mystery Drop', icon: FaWineGlass },

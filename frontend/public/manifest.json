@@ -1,16 +1,68 @@
 {
   "short_name": "Masterliqours",
-  "name": "Masterliqours — Boost with Booze",
-  "description": "Order premium liquor online, manage staff orders and stock on the go.",
+  "name": "Masterliqours \u2014 Premium Liquor Delivery KL & Klang Valley",
+  "description": "500+ premium bottles. Order online, pay via WhatsApp. Same-day delivery across KL & Klang Valley.",
   "icons": [
-    { "src": "/icons/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
-    { "src": "/icons/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
-    { "src": "/icons/icon-512-maskable.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+    {
+      "src": "/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512-maskable.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/icons/og-image.png",
+      "type": "image/png",
+      "sizes": "1200x630",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/icons/og-image.png",
+      "type": "image/png",
+      "sizes": "1200x630",
+      "form_factor": "narrow"
+    }
   ],
   "start_url": "/",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "portrait-primary",
-  "theme_color": "#000000",
-  "background_color": "#050505",
-  "scope": "/"
+  "theme_color": "#030303",
+  "background_color": "#030303",
+  "scope": "/",
+  "categories": [
+    "shopping",
+    "food"
+  ],
+  "lang": "en-MY",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Browse Products",
+      "url": "/products",
+      "description": "Browse all premium bottles"
+    },
+    {
+      "name": "Bulk Order",
+      "url": "/bulk-order",
+      "description": "Order by carton for events"
+    }
+  ]
 }

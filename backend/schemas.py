@@ -26,6 +26,9 @@ class UserResponse(BaseModel):
     picture: Optional[str]
     referral_code: Optional[str]
     assigned_staff_id: Optional[str]
+    assigned_staff_name: Optional[str] = None
+    assigned_staff_whatsapp: Optional[str] = None
+    assigned_staff_referral: Optional[str] = None
     created_at: datetime
 
 # Product Schemas

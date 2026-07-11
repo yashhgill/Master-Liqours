@@ -6,6 +6,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from database import get_db
+from cache import cache_clear as _cache_clear
 from models import (
     User, Product, Order, Staff, FlashSale, DiscountCode,
     UserRole, HeroBanner

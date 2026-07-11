@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useCart } from '../context';
+import { useCart, useAuth } from '../context';
 import { FaShoppingBag, FaBolt, FaClock, FaWhatsapp, FaHourglassHalf } from 'react-icons/fa';
 import { resolveImageUrl } from '../lib/imageUrl';
 
@@ -28,6 +28,12 @@ const pad = (n) => String(n).padStart(2, '0');
 
 const ProductCard = ({ product, flashSale, totalStock }) => {
   const { addToCart } = useCart();
+  const { user } = useAuth();
+
+  // Use customer's assigned staff WA if available, else fall back to boss number
+  const staffWa = user?.assigned_staff_whatsapp || BOSS_WA;
+  const staffName = user?.assigned_staff_name || 'Boss';
+  const staffReferral = user?.assigned_staff_referral || '';
   const countdown = useCountdown(flashSale?.end_time);
 
   // Use explicit flashSale prop if given, otherwise derive from product.original_price
@@ -60,15 +66,17 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
   const handlePreorder = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const msg = `Hi! I'm interested in *${product.name}* (RM${price.toFixed(2)}). Is it available / can I pre-order?`;
-    window.open(`https://wa.me/${BOSS_WA.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+    const ref = staffReferral ? ` (Ref: ${staffReferral})` : '';
+    const msg = `Hi${staffName !== 'Boss' ? ' ' + staffName : ''}! I'm interested in *${product.name}* (RM${price.toFixed(2)}). Is it available / can I pre-order?${ref}`;
+    window.open(`https://wa.me/${staffWa.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   const handleOutOfStock = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const msg = `Hi! I'd like to pre-order *${product.name}* (RM${price.toFixed(2)}). When will it be back in stock?`;
-    window.open(`https://wa.me/${BOSS_WA.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+    const ref = staffReferral ? ` (Ref: ${staffReferral})` : '';
+    const msg = `Hi${staffName !== 'Boss' ? ' ' + staffName : ''}! I'd like to order *${product.name}* (RM${price.toFixed(2)}) but it shows unavailable. When will it be back in stock?${ref}`;
+    window.open(`https://wa.me/${staffWa.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   // Determine card state
@@ -148,7 +156,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
             <div className="text-center px-4">
               <FaHourglassHalf size={28} className="text-[#ffd700] mx-auto mb-2" />
               <p className="text-white font-bold text-sm">Pre-order — Check Boss</p>
-              <p className="text-[#25d366] text-xs mt-1 font-bold">+{BOSS_WA.replace(/\D/g, '')}</p>
+              <p className="text-[#25d366] text-xs mt-1 font-bold">+{staffWa.replace(/\D/g, '')}</p>
             </div>
           </div>
         )}
@@ -188,7 +196,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
               style={{ pointerEvents: 'all' }}
               className="flex items-center gap-1.5 bg-[#333] text-white/70 px-3 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer hover:bg-[#ff007f] hover:text-white"
               data-testid={`product-card-oos-btn-${product.product_id}`}>
-              <FaWhatsapp size={13} /> Contact Boss
+              <FaWhatsapp size={13} /> {staffName !== 'Boss' ? staffName : 'Contact Boss'}
             </button>
           )}
           {cardState === 'available' && (
@@ -207,9 +215,9 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
             <div className="flex items-center gap-1.5">
               <FaWhatsapp size={10} className="text-[#25d366]" />
               <span className="text-[10px] text-white/60">Boss: </span>
-              <a href={`https://wa.me/${BOSS_WA.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()}
+              <a href={`https://wa.me/${staffWa.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()}
                 className="text-[10px] text-[#25d366] font-bold hover:underline">
-                +{BOSS_WA.replace(/\D/g, '')}
+                {staffName !== 'Boss' ? staffName : `+${staffWa.replace(/\D/g, '')}`}
               </a>
             </div>
           </div>

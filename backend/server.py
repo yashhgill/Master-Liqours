@@ -48,6 +48,8 @@ app = FastAPI(title="Masterliqours API", description="Premium liquor e-commerce 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+
+from cache import cache_get as _cache_get, cache_set as _cache_set, cache_clear as _cache_clear
 api_router = APIRouter(prefix="/api")
 
 # FIX: Never use wildcard with allow_credentials=True — browsers block it
@@ -163,24 +165,36 @@ async def get_products(
 
     # No page param → return plain array (backward compat for admin dashboard etc.)
     if page is None:
+        cache_key = f"products:all:{category}:{search}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
         result = await db.execute(base_query.order_by(Product.created_at.desc()))
         products = result.scalars().all()
-        return [ProductResponse.model_validate(p, from_attributes=True) for p in products]
+        out = [ProductResponse.model_validate(p, from_attributes=True) for p in products]
+        _cache_set(cache_key, out, ttl_seconds=30)
+        return out
 
     # page param present → return paginated envelope
     page = max(1, page)
     offset = (page - 1) * limit
+    cache_key = f"products:page:{category}:{search}:{page}:{limit}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
     count_result = await db.execute(select(func.count()).select_from(base_query.subquery()))
     total = count_result.scalar() or 0
     result = await db.execute(base_query.order_by(Product.created_at.desc()).offset(offset).limit(limit))
     products = result.scalars().all()
-    return {
+    out = {
         "products": [ProductResponse.model_validate(p, from_attributes=True) for p in products],
         "total": total,
         "page": page,
         "limit": limit,
         "pages": -(-total // limit),
     }
+    _cache_set(cache_key, out, ttl_seconds=30)
+    return out
 
 @api_router.get("/products/{product_id}", response_model=ProductResponse)
 async def get_product(product_id: str, db: AsyncSession = Depends(get_db)):
