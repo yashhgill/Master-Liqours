@@ -5,7 +5,7 @@ import {
   FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlass,
   FaArrowUp, FaArrowDown, FaPen, FaFileCsv, FaDownload, FaSpinner,
   FaUsers, FaKey, FaCopy, FaWhatsapp, FaChartLine, FaTrophy, FaRandom, FaClock, FaToggleOff, FaTruck,
-  FaRobot, FaPaperPlane, FaTimes as FaXIcon, FaTag,
+  FaRobot, FaPaperPlane, FaTimes as FaXIcon, FaTag, FaEnvelope,
 } from 'react-icons/fa';
 import ImageUploader from '../components/ImageUploader';
 import { resolveImageUrl } from '../lib/imageUrl';
@@ -25,6 +25,7 @@ const TABS = [
   { id: 'mystery-drop', label: 'Mystery Drop', icon: FaWineGlass },
   { id: 'suppliers', label: 'Suppliers', icon: FaTruck },
   { id: 'discount-codes', label: 'Promo Codes', icon: FaTag },
+  { id: 'newsletter', label: 'Newsletter', icon: FaEnvelope },
   { id: 'staff-mode', label: 'My Sales', icon: FaBoxOpen },
 ];
 
@@ -37,6 +38,122 @@ const blankFlash = { product_id: '', discount_percentage: 10, start_time: '', en
 const blankStaff = { name: '', email: '', whatsapp_number: '', referral_code: '', warehouse_name: '' };
 
 // ── Supplier Tab ────────────────────────────────────────────────────
+const NewsletterTab = ({ API, active }) => {
+  const [count, setCount] = useState(null);
+  const [subject, setSubject] = useState('We just launched! 🥃');
+  const [heading, setHeading] = useState('WE JUST LAUNCHED');
+  const [imageUrl, setImageUrl] = useState('');
+  const [body, setBody] = useState(
+    "Find your best booze to pair with your best days.<br/><br/>" +
+    "Sign up using code <b style=\"color:#ff6bd0\">ILOVEWHISKEY</b> for exclusive promos, " +
+    "and use code <b style=\"color:#39ff14\">NEWBRO</b> for 5% off your first order when you sign up!"
+  );
+  const [ctaText, setCtaText] = useState('Shop Now Lah');
+  const [ctaLink, setCtaLink] = useState('https://masterliqours.my/products');
+  const [testEmail, setTestEmail] = useState('');
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState('');
+
+  useEffect(() => {
+    if (!active) return;
+    axios.get(`${API}/newsletter/subscribers/count`, { withCredentials: true })
+      .then(r => setCount(r.data.count)).catch(() => setCount(null));
+  }, [active, API]);
+
+  const send = async (isTest) => {
+    if (isTest && !testEmail) { setResult('Enter a test email first'); return; }
+    if (!isTest && !window.confirm(`Send this to ALL ${count ?? ''} subscribers? This cannot be undone.`)) return;
+    setSending(true); setResult('');
+    try {
+      const payload = {
+        subject, heading, body_html: body, image_url: imageUrl || null,
+        cta_text: ctaText, cta_link: ctaLink,
+        ...(isTest ? { test_email: testEmail } : {}),
+      };
+      const r = await axios.post(`${API}/newsletter/broadcast`, payload, { withCredentials: true });
+      setResult(r.data.message || 'Sent!');
+    } catch (e) {
+      setResult(e.response?.data?.detail || 'Send failed');
+    } finally { setSending(false); }
+  };
+
+  const lbl = { fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 6, marginTop: 16 };
+  const inp = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '11px 14px', color: '#fff', fontSize: 14, outline: 'none' };
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+      {/* Composer */}
+      <div className="surface p-6">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, letterSpacing: '0.02em' }}>Send Newsletter</h2>
+          <span style={{ fontSize: 13, color: '#39ff14', fontWeight: 700 }}>
+            {count === null ? '…' : `${count} subscriber${count === 1 ? '' : 's'}`}
+          </span>
+        </div>
+        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Compose once, preview to yourself, then blast to everyone.</p>
+
+        <label style={lbl}>Subject line</label>
+        <input style={inp} value={subject} onChange={e => setSubject(e.target.value)} />
+
+        <label style={lbl}>Heading (top banner)</label>
+        <input style={inp} value={heading} onChange={e => setHeading(e.target.value)} />
+
+        <label style={lbl}>Poster / image URL (upload to R2 or paste any link)</label>
+        <input style={inp} value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://masterliqours.my/poster.png" />
+
+        <label style={lbl}>Body (HTML allowed)</label>
+        <textarea style={{ ...inp, minHeight: 90, resize: 'vertical', fontFamily: 'inherit' }} value={body} onChange={e => setBody(e.target.value)} />
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div><label style={lbl}>Button text</label><input style={inp} value={ctaText} onChange={e => setCtaText(e.target.value)} /></div>
+          <div><label style={lbl}>Button link</label><input style={inp} value={ctaLink} onChange={e => setCtaLink(e.target.value)} /></div>
+        </div>
+
+        <div style={{ marginTop: 20, padding: 16, borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <label style={{ ...lbl, marginTop: 0 }}>1 · Test first (send to yourself)</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input style={{ ...inp, flex: 1 }} value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="you@email.com" />
+            <button onClick={() => send(true)} disabled={sending}
+              style={{ padding: '11px 20px', borderRadius: 12, border: '1px solid rgba(0,240,255,0.3)', background: 'rgba(0,240,255,0.1)', color: '#00f0ff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              {sending ? '…' : 'Send Test'}
+            </button>
+          </div>
+          <label style={{ ...lbl, marginTop: 16 }}>2 · Send to everyone</label>
+          <button onClick={() => send(false)} disabled={sending || !count}
+            style={{ width: '100%', padding: '13px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#ff007f,#c8005a)', color: '#fff', fontWeight: 800, fontSize: 14, letterSpacing: '0.05em', cursor: 'pointer', boxShadow: '0 0 20px rgba(255,0,127,0.3)' }}>
+            {sending ? 'Sending…' : `📣 Blast to ${count ?? 0} subscribers`}
+          </button>
+        </div>
+
+        {result && <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 10, background: 'rgba(57,255,20,0.1)', border: '1px solid rgba(57,255,20,0.3)', color: '#39ff14', fontSize: 13 }}>{result}</div>}
+      </div>
+
+      {/* Live preview */}
+      <div className="surface p-6">
+        <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, letterSpacing: '0.02em', marginBottom: 12 }}>Live Preview</h2>
+        <div style={{ borderRadius: 16, overflow: 'hidden', background: '#0d0d0d' }}>
+          <div style={{ background: 'linear-gradient(135deg,#ff007f,#c8005a)', padding: '20px', textAlign: 'center' }}>
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '0.04em' }}>{heading || 'Masterliqours'}</div>
+          </div>
+          <div style={{ padding: 24 }}>
+            {imageUrl && <img src={imageUrl} alt="poster" style={{ width: '100%', borderRadius: 12, marginBottom: 16 }} onError={e => e.target.style.display = 'none'} />}
+            <div style={{ fontSize: 14, lineHeight: 1.7, color: '#e5e5e5' }} dangerouslySetInnerHTML={{ __html: body }} />
+            {ctaText && (
+              <div style={{ textAlign: 'center', marginTop: 20 }}>
+                <span style={{ display: 'inline-block', background: 'linear-gradient(135deg,#ff007f,#c8005a)', color: '#fff', padding: '12px 28px', borderRadius: 50, fontWeight: 800, fontSize: 13 }}>{ctaText} →</span>
+              </div>
+            )}
+          </div>
+          <div style={{ padding: '14px 24px', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
+            <div style={{ color: '#777', fontSize: 11 }}>Masterliqours · KL & Klang Valley</div>
+            <div style={{ color: '#555', fontSize: 10, marginTop: 4 }}>Drink responsibly · 21+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const SupplierTab = ({ API, active }) => {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1187,6 +1304,10 @@ const SuperAdminDashboard = () => {
       {/* === SUPPLIERS (Master Admin only) === */}
       {tab === 'suppliers' && (
         <SupplierTab API={API} active={tab === 'suppliers'} />
+      )}
+
+      {tab === 'newsletter' && (
+        <NewsletterTab API={API} active={tab === 'newsletter'} />
       )}
 
       {/* === DISCOUNT CODES === */}
