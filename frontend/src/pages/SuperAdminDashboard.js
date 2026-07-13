@@ -183,8 +183,10 @@ const SupplierTab = ({ API, active }) => {
   const loadProducts = async () => {
     if (allProducts.length > 0) return;
     try {
-      const r = await axios.get(`${API}/products`);
-      setAllProducts(r.data || []);
+      const r = await axios.get(`${API}/products/all-names`, { withCredentials: true });
+      // all-names returns a plain array; guard against envelope shape too
+      const list = Array.isArray(r.data) ? r.data : (r.data?.products || []);
+      setAllProducts(list);
     } catch(e) {}
   };
 
@@ -238,7 +240,7 @@ const SupplierTab = ({ API, active }) => {
     } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
   };
 
-  const filteredProducts = allProducts.filter(p =>
+  const filteredProducts = (Array.isArray(allProducts) ? allProducts : []).filter(p =>
     p.name?.toLowerCase().includes(productSearch.toLowerCase()) &&
     !selectedSupplier?.products?.find(sp => sp.product_id === p.product_id)
   );

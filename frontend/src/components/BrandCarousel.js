@@ -59,9 +59,9 @@ const BrandCarousel = () => {
           {doubled.map((name, i) => (
             <Link key={i} to={`/products?search=${encodeURIComponent(name)}`}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 20, padding: '0 32px', textDecoration: 'none', flexShrink: 0 }}>
-              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(24px, 3vw, 36px)', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.12)', transition: 'color 0.3s', whiteSpace: 'nowrap' }}
-                onMouseEnter={e => e.target.style.color = '#fff'}
-                onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.12)'}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(24px, 3vw, 36px)', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.85)', textShadow: '0 0 18px rgba(255,0,127,0.45)', transition: 'all 0.3s', whiteSpace: 'nowrap' }}
+                onMouseEnter={e => { e.target.style.color = '#fff'; e.target.style.textShadow = '0 0 26px rgba(255,0,127,0.9), 0 0 40px rgba(255,0,127,0.5)'; }}
+                onMouseLeave={e => { e.target.style.color = 'rgba(255,255,255,0.85)'; e.target.style.textShadow = '0 0 18px rgba(255,0,127,0.45)'; }}>
                 {name}
               </span>
               <span style={{ color: 'rgba(255,0,127,0.3)', fontSize: 8 }}>✦</span>
@@ -76,9 +76,9 @@ const BrandCarousel = () => {
           {[...doubled].reverse().map((name, i) => (
             <Link key={i} to={`/products?search=${encodeURIComponent(name)}`}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 20, padding: '0 32px', textDecoration: 'none', flexShrink: 0 }}>
-              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(18px, 2.5vw, 28px)', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.06)', transition: 'color 0.3s', whiteSpace: 'nowrap' }}
-                onMouseEnter={e => e.target.style.color = 'rgba(255,255,255,0.5)'}
-                onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.06)'}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(18px, 2.5vw, 28px)', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)', textShadow: '0 0 14px rgba(0,240,255,0.35)', transition: 'all 0.3s', whiteSpace: 'nowrap' }}
+                onMouseEnter={e => { e.target.style.color = '#fff'; e.target.style.textShadow = '0 0 22px rgba(0,240,255,0.8)'; }}
+                onMouseLeave={e => { e.target.style.color = 'rgba(255,255,255,0.5)'; e.target.style.textShadow = '0 0 14px rgba(0,240,255,0.35)'; }}>
                 {name}
               </span>
               <span style={{ color: 'rgba(0,240,255,0.2)', fontSize: 6 }}>✦</span>
