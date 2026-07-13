@@ -119,6 +119,22 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
     existing = result.scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=400, detail="Email sudah didaftarkan")
+
+    # Resolve referral code → assign the owning staff to this customer
+    assigned_staff_id = None
+    stored_referral = None
+    if body.referral_code and body.referral_code.strip():
+        code = body.referral_code.strip().upper()
+        staff_res = await db.execute(
+            select(Staff).where(func.upper(Staff.referral_code) == code)
+        )
+        ref_staff = staff_res.scalar_one_or_none()
+        if ref_staff:
+            assigned_staff_id = ref_staff.staff_id
+            stored_referral = ref_staff.referral_code
+        # If the code doesn't match any staff we still let them register,
+        # just without an assigned staff (avoids blocking signup on a typo).
+
     hashed = hash_password(body.password)
     user = User(
         email=body.email,
@@ -127,6 +143,8 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
         phone=body.phone,
         role=UserRole.CUSTOMER,
         tier=UserTier.REGULAR,
+        referral_code=stored_referral,
+        assigned_staff_id=assigned_staff_id,
     )
     db.add(user)
     await db.commit()
