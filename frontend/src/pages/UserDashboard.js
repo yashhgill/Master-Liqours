@@ -12,6 +12,7 @@ const UserDashboard = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [showAllOrders, setShowAllOrders] = useState(false);
   const wishlistCount = (() => { try { return JSON.parse(localStorage.getItem('ml_wishlist')||'[]').length; } catch { return 0; } })();
 
   useEffect(() => {
@@ -90,7 +91,7 @@ const UserDashboard = () => {
           <div className="text-center py-12 text-white/40">No orders yet boss. <Link to="/products" className="text-[#ff007f] hover:underline">Start shopping lah!</Link></div>
         ) : (
           <div className="space-y-3">
-            {orders.slice(0, 8).map((o) => (
+            {(showAllOrders ? orders : orders.slice(0, 8)).map((o) => (
               <Link
                 key={o.order_id}
                 to={`/orders/${o.order_id}`}
@@ -119,9 +120,9 @@ const UserDashboard = () => {
         )}
         {orders.length > 8 && (
           <div style={{textAlign:'center',marginTop:16}}>
-            <Link to="/orders" style={{fontSize:13,color:'rgba(255,255,255,0.4)',textDecoration:'none',fontWeight:600,letterSpacing:'0.1em',textTransform:'uppercase'}}>
-              View all {orders.length} orders →
-            </Link>
+            <button onClick={() => setShowAllOrders(v => !v)} style={{fontSize:13,color:'rgba(255,255,255,0.4)',background:'none',border:'none',cursor:'pointer',fontWeight:600,letterSpacing:'0.1em',textTransform:'uppercase'}}>
+              {showAllOrders ? 'Show less' : `View all ${orders.length} orders →`}
+            </button>
           </div>
         )}
       </div>

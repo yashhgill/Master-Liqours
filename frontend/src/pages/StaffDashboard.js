@@ -493,6 +493,9 @@ const StaffDashboard = () => {
                           {o.is_personal_order && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ff007f20] text-[#ff007f] font-bold uppercase">Personal</span>
                           )}
+                          {!o.is_personal_order && (o.shipping_address || '').startsWith('PREORDER') && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ffd70020] text-[#ffd700] font-bold uppercase">Potential · Preorder</span>
+                          )}
                         </div>
                         <div className="text-xs text-white/40 mt-0.5">{new Date(o.created_at).toLocaleString()}</div>
 

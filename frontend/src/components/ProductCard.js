@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { useCart, useAuth } from '../context';
 import { FaShoppingBag, FaBolt, FaClock, FaWhatsapp, FaHourglassHalf } from 'react-icons/fa';
 import { resolveImageUrl } from '../lib/imageUrl';
 
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const BOSS_WA = process.env.REACT_APP_PREORDER_WHATSAPP || '60182085097';
 const BOSS_NAME = process.env.REACT_APP_BOSS_NAME || 'Boss';
 
@@ -63,9 +65,20 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
     addToCart(product, 1, price);
   };
 
+  // Log a potential order to the customer's assigned staff (fire-and-forget)
+  const logPreorder = () => {
+    if (!user) return; // only logged-in customers create potential orders
+    axios.post(`${API}/orders/preorder`, {
+      product_id: product.product_id,
+      quantity: 1,
+      note: isOutOfStock ? 'Out of stock request' : 'Preorder request',
+    }, { withCredentials: true }).catch(() => {});
+  };
+
   const handlePreorder = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    logPreorder();
     const ref = staffReferral ? ` (Ref: ${staffReferral})` : '';
     const msg = `Hi${staffName !== 'Boss' ? ' ' + staffName : ''}! I'm interested in *${product.name}* (RM${price.toFixed(2)}). Is it available / can I pre-order?${ref}`;
     window.open(`https://wa.me/${staffWa.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -74,6 +87,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
   const handleOutOfStock = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    logPreorder();
     const ref = staffReferral ? ` (Ref: ${staffReferral})` : '';
     const msg = `Hi${staffName !== 'Boss' ? ' ' + staffName : ''}! I'd like to order *${product.name}* (RM${price.toFixed(2)}) but it shows unavailable. When will it be back in stock?${ref}`;
     window.open(`https://wa.me/${staffWa.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');

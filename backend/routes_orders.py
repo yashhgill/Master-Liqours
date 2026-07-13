@@ -391,11 +391,86 @@ async def log_personal_order(
         "stock_warnings": stock_warnings,
     }
 
+# ─── PREORDER (potential order from out-of-stock product) ──────────────────────────────────────
+
+class PreorderRequest(BaseModel):
+    product_id: str
+    quantity: Optional[int] = 1
+    note: Optional[str] = None
+
+
+@router.post("/preorder")
+async def create_preorder(
+    data: PreorderRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    A customer requests an out-of-stock/unavailable product.
+    Logged as a PENDING potential order attached to the customer's
+    assigned staff, so the staff can follow up and convert it.
+    """
+    # Fetch the product
+    pr = await db.execute(select(Product).where(Product.product_id == data.product_id))
+    product = pr.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    qty = max(1, int(data.quantity or 1))
+    unit_price = float(product.price or 0)
+    subtotal = unit_price * qty
+
+    # Resolve assigned staff (may be None → falls back to unassigned)
+    staff_id = user.assigned_staff_id
+    staff_name = None
+    if staff_id:
+        sres = await db.execute(select(Staff).where(Staff.staff_id == staff_id))
+        st = sres.scalar_one_or_none()
+        staff_name = st.name if st else None
+
+    note = (data.note or "").strip()
+    address = f"PREORDER — customer requested out-of-stock item{(' · ' + note) if note else ''}"
+
+    order = Order(
+        user_id=user.user_id,
+        staff_id=staff_id,
+        total=subtotal,
+        customer_name=user.name,
+        customer_whatsapp=user.phone or "",
+        shipping_address=address,
+        discount_applied=0,
+        shipping_discount=0,
+        points_earned=0,
+        status=OrderStatus.PENDING,      # potential order — not yet confirmed
+        is_personal_order=False,
+    )
+    db.add(order)
+    await db.flush()
+
+    db.add(OrderItem(
+        order_id=order.order_id,
+        product_id=product.product_id,
+        quantity=qty,
+        price=unit_price,
+        subtotal=subtotal,
+    ))
+    await db.commit()
+
+    return {
+        "message": "Preorder logged",
+        "order_id": order.order_id,
+        "product_name": product.name,
+        "staff_name": staff_name,
+        "referral_code": user.referral_code,
+    }
+
+
 # ─── GET ORDERS ───────────────────────────────────────────────────────────────────────────────
 
 class PromoValidateRequest(BaseModel):
     code: str
     order_total: Optional[float] = 0
+
 
 @router.post("/validate-promo")
 async def validate_promo(
