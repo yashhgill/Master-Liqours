@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
@@ -6,6 +6,7 @@ import os
 import resend
 
 from database import get_db
+from rate_limit import limiter
 from models import NewsletterSubscriber
 from schemas import NewsletterSubscribe
 
@@ -15,7 +16,9 @@ resend.api_key = os.environ.get('RESEND_API_KEY')
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'noreply@masterliqours.my')
 
 @router.post("/subscribe")
+@limiter.limit("5/minute;20/hour")
 async def subscribe(
+    request: Request,
     data: NewsletterSubscribe,
     db: AsyncSession = Depends(get_db)
 ):

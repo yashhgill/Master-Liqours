@@ -65,7 +65,9 @@ class ProductCreate(BaseModel):
 # Cart & Order Schemas
 class CartItem(BaseModel):
     product_id: str
-    quantity: int
+    # Must be positive: a negative quantity would reduce the order total AND
+    # add stock back on checkout. Upper bound guards against absurd orders.
+    quantity: int = Field(gt=0, le=1000)
 
 class CheckoutRequest(BaseModel):
     items: List[CartItem]

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context';
 import { subscribeStaffToPush } from '../lib/pwa';
+import { toast } from '../lib/toast';
 import {
   FaCheck, FaSpinner, FaTruck, FaBoxOpen, FaTimes, FaPlus, FaRobot, FaPaperPlane,
   FaMinus, FaEdit, FaRandom, FaWhatsapp, FaBox, FaEnvelope
@@ -94,8 +95,8 @@ const PersonalOrderModal = ({ products, onClose, onSaved }) => {
   }, 0);
 
   const submit = async () => {
-    if (!customer.name.trim() || !customer.whatsapp.trim()) { alert('Name & WhatsApp required lah'); return; }
-    if (items.some(it => !it.product_id)) { alert('Select a product for each item'); return; }
+    if (!customer.name.trim() || !customer.whatsapp.trim()) { toast('Name & WhatsApp required lah', 'error'); return; }
+    if (items.some(it => !it.product_id)) { toast('Select a product for each item', 'error'); return; }
     setSaving(true);
     try {
       await axios.post(`${API}/orders/personal`, {
@@ -110,7 +111,7 @@ const PersonalOrderModal = ({ products, onClose, onSaved }) => {
       }, { withCredentials: true });
       onSaved();
       onClose();
-    } catch (e) { alert(e.response?.data?.detail || 'Save failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Save failed', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -169,7 +170,7 @@ const TransferModal = ({ order, allStaff, onClose, onTransferred }) => {
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
-    if (!targetId) { alert('Select a staff to transfer to'); return; }
+    if (!targetId) { toast('Select a staff to transfer to', 'error'); return; }
     setSaving(true);
     try {
       await axios.post(`${API}/staff/orders/${order.order_id}/transfer`, { target_staff_id: targetId }, { withCredentials: true });
@@ -177,7 +178,7 @@ const TransferModal = ({ order, allStaff, onClose, onTransferred }) => {
       onClose();
     } catch (e) {
       const msg = e.response?.data?.detail || e.message || 'Transfer failed — check connection';
-      alert(msg);
+      toast(msg, 'error');
     }
     finally { setSaving(false); }
   };
@@ -215,7 +216,7 @@ const StockModal = ({ stock, onClose, onSaved }) => {
 
   const submit = async () => {
     const n = parseInt(qty);
-    if (isNaN(n) || n < 0) { alert('Enter a valid number'); return; }
+    if (isNaN(n) || n < 0) { toast('Enter a valid number', 'error'); return; }
     let newQty = stock.quantity;
     if (mode === 'set') newQty = n;
     else if (mode === 'add') newQty = stock.quantity + n;
@@ -226,7 +227,7 @@ const StockModal = ({ stock, onClose, onSaved }) => {
       await axios.patch(`${API}/staff/my-stock/${stock.stock_id}`, { quantity: newQty }, { withCredentials: true });
       onSaved(stock.stock_id, newQty);
       onClose();
-    } catch (e) { alert(e.response?.data?.detail || 'Update failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Update failed', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -297,15 +298,15 @@ const AddStockModal = ({ products, existingStock, onClose, onSaved }) => {
   const available = products.filter(p => !existingIds.has(p.product_id) && p.is_active);
 
   const submit = async () => {
-    if (!productId) { alert('Select a product lah'); return; }
-    if (quantity < 0) { alert('Quantity cannot be negative'); return; }
+    if (!productId) { toast('Select a product lah', 'error'); return; }
+    if (quantity < 0) { toast('Quantity cannot be negative', 'error'); return; }
     setSaving(true);
     try {
       await axios.post(`${API}/staff/my-stock`, { product_id: productId, quantity: parseInt(quantity) }, { withCredentials: true });
       onSaved();
       onClose();
     } catch (e) {
-      alert(e.response?.data?.detail || 'Failed to add stock');
+      toast(e.response?.data?.detail || 'Failed to add stock', 'error');
     } finally { setSaving(false); }
   };
 
@@ -385,7 +386,7 @@ const StaffDashboard = () => {
     setOrders(os => os.map(o => o.order_id === orderId ? { ...o, status: newStatus } : o));
     try {
       await axios.patch(`${API}/orders/${orderId}/status`, { status: newStatus }, { withCredentials: true });
-    } catch (e) { setOrders(prev); alert(e.response?.data?.detail || 'Update failed'); }
+    } catch (e) { setOrders(prev); toast(e.response?.data?.detail || 'Update failed', 'error'); }
     finally { setUpdating(null); }
   };
 
@@ -400,7 +401,7 @@ const StaffDashboard = () => {
       await axios.post(`${API}/staff/orders/${orderId}/notify-customer`, {}, { withCredentials: true });
       setNotifiedIds(ids => ({ ...ids, [orderId]: Date.now() }));
     } catch (e) {
-      alert(e.response?.data?.detail || 'Could not send email');
+      toast(e.response?.data?.detail || 'Could not send email', 'error');
     } finally { setNotifying(null); }
   };
 

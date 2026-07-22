@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth, useCart } from '../context';
 import { FaWhatsapp, FaCheckCircle, FaArrowRight, FaTrophy } from 'react-icons/fa';
+import { toast } from '../lib/toast';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const TIER_DISPLAY = { bronze: 'Regular', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' };
@@ -89,7 +90,7 @@ const Checkout = () => {
       }, { withCredentials: true });
       setDone(res.data);
     } catch (err) {
-      alert('Checkout failed: ' + (err.response?.data?.detail || 'Try again lah'));
+      toast('Checkout failed: ' + (err.response?.data?.detail || 'Try again lah'), 'error');
     } finally { setLoading(false); }
   };
 

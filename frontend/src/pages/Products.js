@@ -116,7 +116,14 @@ const Products = () => {
       const params = { page: isNewQuery ? 1 : page + 1, limit: PAGE_SIZE };
       if (selected) params.category = selected;
       if (search.trim()) params.search = search.trim();
-      // Price filter — done client-side on the returned page (server has no price range endpoint)
+      // Price range + sort are applied server-side so they cover the whole
+      // catalogue, not just the page already loaded in the browser.
+      const pr = PRICE_RANGES[priceRange];
+      if (pr && priceRange > 0) {
+        if (pr.min > 0) params.min_price = pr.min;
+        if (pr.max !== Infinity) params.max_price = pr.max;
+      }
+      if (sort && sort !== 'trending') params.sort = sort;
       const res = await axios.get(`${API}/products`, { params });
       const data = res.data?.products || res.data || [];
       const total = res.data?.total ?? data.length;
@@ -151,10 +158,21 @@ const Products = () => {
   // Load more
   const loadMore = () => fetchProducts({ reset: false });
 
-  // Client-side price + sort on already-fetched page
+  // Price range / sort changed → refetch from server (covers whole catalogue)
+  const firstFilterRun = useRef(true);
   useEffect(() => {
-    setProducts(applyFilters(allProducts, '', '', priceRange, sort));
-  }, [priceRange, sort, allProducts]); // eslint-disable-line
+    if (firstFilterRun.current) { firstFilterRun.current = false; return; }
+    fetchProducts({ reset: true });
+  }, [priceRange, sort]); // eslint-disable-line
+
+  // 'trending' has no SQL equivalent (sales_count ordering) — sort the page locally.
+  useEffect(() => {
+    if (sort === 'trending') {
+      setProducts([...allProducts].sort((a, b) => (b.sales_count || 0) - (a.sales_count || 0)));
+    } else {
+      setProducts(allProducts);
+    }
+  }, [allProducts, sort]); // eslint-disable-line
 
   const setCat = (c) => {
     setSelected(c);

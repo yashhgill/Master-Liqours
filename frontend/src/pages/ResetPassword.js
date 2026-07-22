@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FaArrowRight, FaArrowLeft } from 'react-icons/fa';
+import { toast } from '../lib/toast';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -26,7 +27,7 @@ const ResetPassword = () => {
     setError(''); setLoading(true);
     try {
       await axios.post(`${API}/auth/reset-password`, { email, token, new_password: password });
-      alert('Password reset! You can now log in.');
+      toast('Password reset! You can now log in.', 'success');
       navigate('/login');
     } catch (e) { setError(e.response?.data?.detail || 'Reset failed — try requesting a new link'); }
     finally { setLoading(false); }

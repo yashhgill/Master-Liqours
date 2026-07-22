@@ -4,13 +4,14 @@ Auth routes: /me, forgot-password, reset-password, change-password.
 import secrets
 import hashlib
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Cookie, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 
 from database import get_db
+from rate_limit import limiter
 from models import User
 from schemas import UserResponse
 from auth_utils import get_current_user, hash_password, verify_password, invalidate_other_sessions
@@ -42,7 +43,8 @@ class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
 @router.post("/forgot-password")
-async def forgot_password(data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("3/minute;10/hour")
+async def forgot_password(request: Request, data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
     """Send password reset email. Always returns 200 to prevent email enumeration."""
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
@@ -82,7 +84,8 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 @router.post("/reset-password")
-async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute;20/hour")
+async def reset_password(request: Request, data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
 

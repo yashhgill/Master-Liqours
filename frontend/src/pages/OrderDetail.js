@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FaArrowLeft, FaWhatsapp, FaCheckCircle, FaClock, FaTimesCircle, FaBox, FaUser, FaMapMarkerAlt, FaPhone, FaTruck, FaBoxOpen, FaStar } from 'react-icons/fa';
 import { useAuth, useCart } from '../context';
+import { toast } from '../lib/toast';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -47,12 +48,12 @@ const OrderDetail = () => {
   };
 
   const submitReview = async () => {
-    if (!review.rating) { alert('Please select a rating'); return; }
+    if (!review.rating) { toast('Please select a rating', 'error'); return; }
     setReviewLoading(true);
     try {
       await axios.post(API + '/reviews/', { order_id: id, rating: review.rating, comment: review.comment }, { withCredentials: true });
       setReviewSent(true);
-    } catch (e) { alert(e.response?.data?.detail || 'Failed to submit review'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Failed to submit review', 'error'); }
     finally { setReviewLoading(false); }
   };
 

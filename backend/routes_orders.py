@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from database import get_db
 from models import User, Product, Order, OrderItem, Stock, Reward, Staff, UserTier, OrderStatus, UserRole, DiscountCode
@@ -269,8 +269,8 @@ async def checkout(
 
 class PersonalOrderItem(BaseModel):
     product_id: str
-    quantity: int
-    price: Optional[float] = None
+    quantity: int = Field(gt=0, le=1000)
+    price: Optional[float] = Field(default=None, ge=0)
 
 class PersonalOrderRequest(BaseModel):
     customer_name: str
@@ -395,8 +395,8 @@ async def log_personal_order(
 
 class PreorderRequest(BaseModel):
     product_id: str
-    quantity: Optional[int] = 1
-    note: Optional[str] = None
+    quantity: Optional[int] = Field(default=1, gt=0, le=1000)
+    note: Optional[str] = Field(default=None, max_length=500)
 
 
 @router.post("/preorder")

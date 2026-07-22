@@ -43,9 +43,21 @@ load_dotenv(ROOT_DIR / '.env')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-limiter = Limiter(key_func=get_remote_address, default_limits=[])
+from rate_limit import limiter
 
-app = FastAPI(title="Masterliqours API", description="Premium liquor e-commerce platform API", version="1.0.0")
+# Public API docs (/docs, /redoc, /openapi.json) expose the full API surface,
+# including admin endpoints. Keep them on locally, off in production.
+# Set ENABLE_DOCS=true in the environment to re-enable temporarily.
+_docs_on = os.environ.get("ENABLE_DOCS", "").lower() in ("1", "true", "yes")
+
+app = FastAPI(
+    title="Masterliqours API",
+    description="Premium liquor e-commerce platform API",
+    version="1.0.0",
+    docs_url="/docs" if _docs_on else None,
+    redoc_url="/redoc" if _docs_on else None,
+    openapi_url="/openapi.json" if _docs_on else None,
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -193,6 +205,9 @@ async def get_products(
     search: Optional[str] = None,
     page: Optional[int] = None,
     limit: int = 60,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    sort: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     limit = min(max(1, limit), 200)
@@ -202,49 +217,50 @@ async def get_products(
         base_query = base_query.where(Product.category == category)
     if search:
         base_query = base_query.where(Product.name.ilike(f"%{search}%"))
+    # Price range filtering happens in SQL so it applies to the whole catalog,
+    # not just the page already loaded in the browser.
+    if min_price is not None:
+        base_query = base_query.where(Product.price >= min_price)
+    if max_price is not None:
+        base_query = base_query.where(Product.price <= max_price)
 
-    # No page param → return paginated with default limit for backward compat
-    if page is None:
-        page = 1
-        cache_key = f"products:page:{category}:{search}:1:{limit}"
-        cached = _cache_get(cache_key)
-        if cached is not None:
-            return cached
-        offset = 0
-        count_result = await db.execute(select(func.count()).select_from(base_query.subquery()))
-        total = count_result.scalar() or 0
-        result = await db.execute(base_query.order_by(Product.created_at.desc()).offset(offset).limit(limit))
-        products = result.scalars().all()
-        out = {
-            "products": [ProductResponse.model_validate(p, from_attributes=True) for p in products],
-            "total": total,
-            "page": 1,
-            "limit": limit,
-            "pages": -(-total // limit),
-        }
-        _cache_set(cache_key, out, ttl=300)
-        return out
+    # Ordering
+    if sort == "price_asc":
+        order_col = Product.price.asc()
+    elif sort == "price_desc":
+        order_col = Product.price.desc()
+    elif sort == "name_asc":
+        order_col = Product.name.asc()
+    elif sort == "name_desc":
+        order_col = Product.name.desc()
+    elif search:
+        order_col = Product.name
+    else:
+        order_col = Product.created_at.desc()
 
-    # page param present → return paginated envelope
-    page = max(1, page)
+    # Always return the paginated envelope. A missing `page` just means page 1,
+    # so there is no code path that dumps the entire catalogue in one response.
+    page = max(1, page or 1)
     offset = (page - 1) * limit
-    cache_key = f"products:page:{category}:{search}:{page}:{limit}"
+
+    cache_key = f"products:page:{category}:{search}:{page}:{limit}:{min_price}:{max_price}:{sort}"
     cached = _cache_get(cache_key)
     if cached is not None:
         return cached
-    # NOTE: must run sequentially — one AsyncSession cannot execute
-    # two queries concurrently (raises "concurrent operations are not permitted")
-    order_col = Product.name if search else Product.created_at.desc()
+
+    # NOTE: these must run sequentially — a single AsyncSession cannot execute
+    # two queries concurrently ("concurrent operations are not permitted").
     count_result = await db.execute(select(func.count()).select_from(base_query.subquery()))
     total = count_result.scalar() or 0
     data_result = await db.execute(base_query.order_by(order_col).offset(offset).limit(limit))
     products = data_result.scalars().all()
+
     out = {
         "products": [ProductResponse.model_validate(p, from_attributes=True) for p in products],
         "total": total,
         "page": page,
         "limit": limit,
-        "pages": -(-total // limit),
+        "pages": -(-total // limit) if limit else 0,
     }
     _cache_set(cache_key, out, ttl=300)
     return out
@@ -262,7 +278,7 @@ async def get_all_product_names(db: AsyncSession = Depends(get_db)):
         .order_by(Product.name)
     )
     rows = result.all()
-    out = [{"product_id": str(r.product_id), "name": r.name, "price": float(r.price), "category": r.category or ""} for r in rows]
+    out = [{"product_id": str(r.product_id), "name": r.name, "price": float(r.price), "category": r.category or "", "is_active": bool(r.is_active)} for r in rows]
     _cache_set(cache_key, out, ttl=60)
     return out
 
@@ -441,6 +457,18 @@ async def startup():
                 logger.info(f"Products already in DB: {_count}")
     except Exception as e:
         logger.exception("Startup product import failed: %s", e)
+
+    # Warm the connection pool so the first real request doesn't pay the
+    # asyncpg connection-setup cost (noticeable on a cold Render instance).
+    try:
+        from database import AsyncSessionLocal
+        from sqlalchemy import text as _wt
+        async with AsyncSessionLocal() as _wdb:
+            await _wdb.execute(_wt("SELECT 1"))
+        logger.info("DB connection pool warmed")
+    except Exception as e:
+        logger.warning("Pool warm-up skipped: %s", e)
+
     logger.info("All routes loaded OK")
 
 if __name__ == "__main__":

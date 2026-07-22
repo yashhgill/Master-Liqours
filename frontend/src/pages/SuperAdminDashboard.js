@@ -11,6 +11,7 @@ import ImageUploader from '../components/ImageUploader';
 import { resolveImageUrl } from '../lib/imageUrl';
 import OverviewTab from './admin/OverviewTab';
 import StaffPerfTab from './admin/StaffPerfTab';
+import { toast } from '../lib/toast';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -193,14 +194,14 @@ const SupplierTab = ({ API, active }) => {
   useEffect(() => { if (active) load(); }, [active]);
 
   const save = async () => {
-    if (!form.name.trim()) { alert('Supplier name required'); return; }
+    if (!form.name.trim()) { toast('Supplier name required', 'error'); return; }
     setSaving(true);
     try {
       if (editId) await axios.put(`${API}/admin/suppliers/${editId}`, form, { withCredentials: true });
       else await axios.post(`${API}/admin/suppliers`, form, { withCredentials: true });
       setShowForm(false); setEditId(null); setForm({ name: '', contact: '', notes: '' });
       await load();
-    } catch (e) { alert(e.response?.data?.detail || 'Save failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Save failed', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -210,12 +211,12 @@ const SupplierTab = ({ API, active }) => {
       await axios.delete(`${API}/admin/suppliers/${id}`, { withCredentials: true });
       if (expanded === id) setExpanded(null);
       await load();
-    } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Delete failed', 'error'); }
   };
 
   const addProduct = async (supplierId) => {
-    if (!productForm.product_id) { alert('Select a product first'); return; }
-    if (!productForm.cost_price || !productForm.selling_price) { alert('Enter cost and selling price'); return; }
+    if (!productForm.product_id) { toast('Select a product first', 'error'); return; }
+    if (!productForm.cost_price || !productForm.selling_price) { toast('Enter cost and selling price', 'error'); return; }
     setSaving(true);
     try {
       await axios.post(`${API}/admin/suppliers/${supplierId}/products`, {
@@ -228,7 +229,7 @@ const SupplierTab = ({ API, active }) => {
       setProductForm({ product_id: '', cost_price: '', selling_price: '', stock_qty: 0 });
       setProductSearch('');
       await load();
-    } catch (e) { alert(e.response?.data?.detail || 'Failed to add product'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Failed to add product', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -237,7 +238,7 @@ const SupplierTab = ({ API, active }) => {
     try {
       await axios.delete(`${API}/admin/suppliers/${supplierId}/products/${spId}`, { withCredentials: true });
       await load();
-    } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Delete failed', 'error'); }
   };
 
   const filteredProducts = (Array.isArray(allProducts) ? allProducts : []).filter(p =>
@@ -409,6 +410,9 @@ const SuperAdminDashboard = () => {
 
   const [banners, setBanners] = useState([]);
   const [products, setProducts] = useState([]);
+  // Full lightweight catalog (id/name/price/category) for dropdowns — kept
+  // separate from `products`, which only ever holds the current 60-item page.
+  const [catalog, setCatalog] = useState([]);
   const [flashSales, setFlashSales] = useState([]);
   const [editingFlash, setEditingFlash] = useState(null);
   const [mysteryDrops, setMysteryDrops] = useState([]);
@@ -471,19 +475,25 @@ const SuperAdminDashboard = () => {
         try {
           const [dropsRes, prodsRes] = await Promise.all([
             axios.get(`${API}/admin/mystery-drops`, { withCredentials: true }),
-            // Only fetch products if we don't have them — use all-products endpoint for dropdowns
-            products.length ? Promise.resolve({data: products}) : axios.get(`${API}/products/all-names`),
+            // Full catalog for the picker — NOT the paged `products` list
+            catalog.length ? Promise.resolve({ data: catalog }) : axios.get(`${API}/products/all-names`),
           ]);
           setMysteryDrops(dropsRes.data || []);
-          if (!products.length) setProducts(prodsRes.data?.products || prodsRes.data || []);
+          if (!catalog.length) {
+            const list = Array.isArray(prodsRes.data) ? prodsRes.data : (prodsRes.data?.products || []);
+            setCatalog(list);
+          }
         } catch(e) {}
       } else if (tab === 'flash-sales') {
         const [r, p] = await Promise.all([
           axios.get(`${API}/admin/flash-sales?include_expired=true`, { withCredentials: true }),
-          products.length ? Promise.resolve({data: products}) : axios.get(`${API}/products/all-names`),
+          catalog.length ? Promise.resolve({ data: catalog }) : axios.get(`${API}/products/all-names`),
         ]);
         setFlashSales(r.data);
-        if (!products.length) setProducts(p.data?.products || p.data || []);
+        if (!catalog.length) {
+          const list = Array.isArray(p.data) ? p.data : (p.data?.products || []);
+          setCatalog(list);
+        }
       } else if (tab === 'brands') {
         const r = await axios.get(`${API}/admin/brands`, { withCredentials: true });
         setBrands(r.data);
@@ -523,7 +533,7 @@ const SuperAdminDashboard = () => {
       }
       setShowBanner(false); setEditingBanner(null); setBannerForm(blankBanner);
       load();
-    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Failed', 'error'); }
   };
   const editBanner = (b) => {
     setEditingBanner(b.banner_id);
@@ -558,7 +568,7 @@ const SuperAdminDashboard = () => {
       }
       setShowProduct(false); setEditingProduct(null); setProductForm(blankProduct);
       load();
-    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Failed', 'error'); }
   };
   const editProduct = (p) => {
     setEditingProduct(p.product_id);
@@ -591,7 +601,7 @@ const SuperAdminDashboard = () => {
     try {
       await axios.delete(`${API}/admin/products/${id}`, { withCredentials: true });
       load();
-    } catch (e) { alert(e.response?.data?.detail || 'Delete failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Delete failed', 'error'); }
   };
 
   const toggleSelectProduct = (id) => {
@@ -614,7 +624,7 @@ const SuperAdminDashboard = () => {
       await axios.post(`${API}/admin/products/bulk-delete`, { product_ids: selectedProducts }, { withCredentials: true });
       setSelectedProducts([]);
       load();
-    } catch (e) { alert(e.response?.data?.detail || 'Bulk delete failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Bulk delete failed', 'error'); }
     finally { setBulkDeleting(false); }
   };
 
@@ -648,7 +658,7 @@ const SuperAdminDashboard = () => {
       else await axios.post(`${API}/admin/brands`, brandForm, { withCredentials: true });
       setShowBrand(false); setEditingBrand(null); setBrandForm(blankBrand);
       load();
-    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Failed', 'error'); }
   };
   const editBrand = (b) => {
     setEditingBrand(b.brand_id);
@@ -687,7 +697,7 @@ const SuperAdminDashboard = () => {
       }
       setShowStaff(false); setEditingStaff(null); setStaffForm(blankStaff);
       load();
-    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Failed', 'error'); }
   };
   const editStaff = (s) => {
     setEditingStaff(s.staff_id);
@@ -704,7 +714,7 @@ const SuperAdminDashboard = () => {
       const res = await axios.post(`${API}/admin/staff/${id}/reset-password`, {}, { withCredentials: true });
       const s = staff.find((x) => x.staff_id === id);
       setStaffSecret({ email: s?.email, password: res.data.temp_password, name: s?.name, referral: s?.referral_code });
-    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Failed', 'error'); }
   };
   const copyToClipboard = (text) => {
     navigator.clipboard?.writeText(text);
@@ -716,11 +726,11 @@ const SuperAdminDashboard = () => {
     try {
       await axios.delete(`${API}/admin/flash-sales/${saleId}`, { withCredentials: true });
       setFlashSales(fs => fs.filter(s => s.sale_id !== saleId));
-    } catch(e) { alert(e.response?.data?.detail || 'Delete failed'); }
+    } catch(e) { toast(e.response?.data?.detail || 'Delete failed', 'error'); }
   };
 
   const saveDrop = async () => {
-    if (!dropForm.product_id) { alert('Select a product lah'); return; }
+    if (!dropForm.product_id) { toast('Select a product lah', 'error'); return; }
     try {
       if (editingDrop) {
         const r = await axios.patch(`${API}/admin/mystery-drops/${editingDrop}`, dropForm, { withCredentials: true });
@@ -732,14 +742,14 @@ const SuperAdminDashboard = () => {
         setMysteryDrops(all.data || []);
       }
       setShowMysteryForm(false); setEditingDrop(null);
-    } catch(e) { alert(e.response?.data?.detail || 'Save failed'); }
+    } catch(e) { toast(e.response?.data?.detail || 'Save failed', 'error'); }
   };
 
   const toggleDrop = async (dropId) => {
     try {
       const r = await axios.patch(`${API}/admin/mystery-drops/${dropId}/toggle`, {}, { withCredentials: true });
       setMysteryDrops(ds => ds.map(d => d.drop_id === dropId ? {...d, is_active: r.data.is_active} : d));
-    } catch(e) { alert('Toggle failed'); }
+    } catch(e) { toast('Toggle failed', 'error'); }
   };
 
   const deleteDrop = async (dropId) => {
@@ -747,7 +757,7 @@ const SuperAdminDashboard = () => {
     try {
       await axios.delete(`${API}/admin/mystery-drops/${dropId}`, { withCredentials: true });
       setMysteryDrops(ds => ds.filter(d => d.drop_id !== dropId));
-    } catch(e) { alert('Delete failed'); }
+    } catch(e) { toast('Delete failed', 'error'); }
   };
 
   // saveMysteryConfig replaced by saveDrop/toggleDrop/deleteDrop above
@@ -756,7 +766,7 @@ const SuperAdminDashboard = () => {
     try {
       const toIso = (s) => s ? new Date(s).toISOString() : null;
       const payload = { ...flashForm, start_time: toIso(flashForm.start_time), end_time: toIso(flashForm.end_time) };
-      if (!payload.start_time || !payload.end_time) { alert('Pick both times lah'); return; }
+      if (!payload.start_time || !payload.end_time) { toast('Pick both times lah', 'error'); return; }
       if (editingFlash) {
         await axios.patch(`${API}/admin/flash-sales/${editingFlash.sale_id}`, payload, { withCredentials: true });
         setEditingFlash(null);
@@ -765,7 +775,7 @@ const SuperAdminDashboard = () => {
       }
       setShowFlash(false); setFlashForm(blankFlash);
       load();
-    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Failed', 'error'); }
   };
 
 
@@ -778,7 +788,7 @@ const SuperAdminDashboard = () => {
         min_order_value: parseFloat(discountForm.min_order_value) || 0,
         max_uses: discountForm.max_uses !== '' ? parseInt(discountForm.max_uses) : null,
       };
-      if (!payload.code.trim()) { alert('Enter a promo code lah'); return; }
+      if (!payload.code.trim()) { toast('Enter a promo code lah', 'error'); return; }
       if (editingDiscount) {
         await axios.patch(`${API}/admin/discount-codes/${editingDiscount}`, payload, { withCredentials: true });
       } else {
@@ -786,7 +796,7 @@ const SuperAdminDashboard = () => {
       }
       setShowDiscountForm(false); setEditingDiscount(null); setDiscountForm(blankDiscount);
       load();
-    } catch (e) { alert(e.response?.data?.detail || 'Failed'); }
+    } catch (e) { toast(e.response?.data?.detail || 'Failed', 'error'); }
   };
   const editDiscountCode = (c) => {
     setEditingDiscount(c.code_id);
@@ -1174,7 +1184,7 @@ const SuperAdminDashboard = () => {
             <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 mb-6 space-y-3">
               <select value={flashForm.product_id} onChange={(e) => setFlashForm({ ...flashForm, product_id: e.target.value })} className="input-dark">
                 <option value="">Select Product</option>
-                {products.map((p) => <option key={p.product_id} value={p.product_id}>{p.name} — RM{p.price}</option>)}
+                {catalog.map((p) => <option key={p.product_id} value={p.product_id}>{p.name} — RM{p.price}</option>)}
               </select>
               <div>
                 <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Discount %</label>
@@ -1198,7 +1208,7 @@ const SuperAdminDashboard = () => {
           )}
           <div className="space-y-3">
             {flashSales.map((s) => {
-              const prod = products.find((p) => p.product_id === s.product_id);
+              const prod = catalog.find((p) => p.product_id === s.product_id) || products.find((p) => p.product_id === s.product_id);
               return (
                 <div key={s.sale_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center gap-4">
                   <div className="w-14 h-14 rounded-xl bg-white overflow-hidden shrink-0">
@@ -1243,7 +1253,7 @@ const SuperAdminDashboard = () => {
                   <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Product <span className="text-[#ff007f]">*</span></label>
                   <select className="input-dark" value={dropForm.product_id} onChange={e => setDropForm(f => ({...f, product_id: e.target.value}))}>
                     <option value="">Select product</option>
-                    {products.filter(p => p.is_active).map(p => <option key={p.product_id} value={p.product_id}>{p.name} — RM{p.price}</option>)}
+                    {catalog.filter(p => p.is_active !== false).map(p => <option key={p.product_id} value={p.product_id}>{p.name} — RM{p.price}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
