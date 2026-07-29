@@ -120,16 +120,22 @@ async def _sync_flash_sale_from_discount(product: Product, data: ProductCreate, 
     """Create/update/remove a flash sale based on discount_price + duration fields."""
     has_discount = data.discount_price is not None and data.discount_price > 0 and data.discount_price < product.price
 
-    # Find existing active flash sale for this product
+    # Find existing active flash sale(s) for this product. There may be more
+    # than one if duplicates were created previously — collapse them to a single
+    # active sale and deactivate the rest so the storefront stops showing copies.
     existing_result = await db.execute(
         select(FlashSale).where(FlashSale.product_id == product.product_id, FlashSale.is_active == True)
     )
-    existing_sale = existing_result.scalars().first()
+    existing_sales = existing_result.scalars().all()
+    existing_sale = existing_sales[0] if existing_sales else None
+    # Deactivate any extras beyond the first.
+    for extra in existing_sales[1:]:
+        extra.is_active = False
 
     if not has_discount:
-        # No discount set — deactivate any existing flash sale, restore original price
-        if existing_sale:
-            existing_sale.is_active = False
+        # No discount set — deactivate ALL active flash sales, restore original price
+        for s in existing_sales:
+            s.is_active = False
         if product.original_price:
             product.original_price = None
         return
@@ -149,8 +155,12 @@ async def _sync_flash_sale_from_discount(product: Product, data: ProductCreate, 
     start_time = datetime.utcnow()
     end_time = start_time + timedelta(seconds=total_seconds)
 
-    # Set original_price so frontend can show strikethrough
-    product.original_price = product.price
+    # Set original_price so the storefront can show a strikethrough. Only capture
+    # it the first time a discount is applied — otherwise re-saving an already
+    # discounted product would treat the discounted price as the "original",
+    # compounding the discount each time.
+    if not product.original_price or product.original_price <= product.price:
+        product.original_price = product.price
 
     if existing_sale:
         existing_sale.discount_percentage = discount_pct
@@ -179,6 +189,26 @@ async def create_product(
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
 
     try:
+        # Guard against accidental duplicates: if an active product with the same
+        # (case-insensitive) name already exists, update THAT one instead of
+        # creating a second copy. This is what was producing multiple identical
+        # cards when an image edit was saved from the "Add" form by mistake.
+        dupe_result = await db.execute(
+            select(Product).where(
+                func.lower(Product.name) == data.name.strip().lower(),
+                Product.is_active == True,
+            )
+        )
+        existing = dupe_result.scalars().first()
+        if existing:
+            base_fields = data.dict(exclude_unset=True, exclude={"discount_price", "discount_days", "discount_hours", "discount_minutes"})
+            for key, value in base_fields.items():
+                setattr(existing, key, value)
+            await _sync_flash_sale_from_discount(existing, data, db)
+            await db.commit()
+            await db.refresh(existing)
+            return existing
+
         base_fields = data.dict(exclude={"discount_price", "discount_days", "discount_hours", "discount_minutes"})
         product = Product(**base_fields)
         db.add(product)

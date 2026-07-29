@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from database import get_db
-from models import Product, User, UserRole
+from models import Product, User, UserRole, FlashSale
 from auth_utils import get_current_user
 
 router = APIRouter(prefix="/admin", tags=["Admin · Uploads"])
@@ -182,6 +182,41 @@ async def r2_status(user: User = Depends(get_current_user)):
         "access_key_set": bool(os.environ.get("R2_ACCESS_KEY_ID")),
         "secret_key_set": bool(os.environ.get("R2_SECRET_ACCESS_KEY")),
     }
+
+
+@router.post("/products/dedupe")
+async def dedupe_products(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Merge products that share the same (case-insensitive) name. Keeps the oldest
+    record of each name, deactivates the newer copies, and deactivates their
+    flash sales so the storefront stops showing duplicate cards.
+    """
+    await _require_admin(user)
+
+    result = await db.execute(select(Product).order_by(Product.created_at.asc()))
+    products = result.scalars().all()
+
+    seen = {}          # lowercased name -> keeper product
+    removed = 0
+    for p in products:
+        key = (p.name or "").strip().lower()
+        if not key:
+            continue
+        if key not in seen:
+            seen[key] = p
+            continue
+        # This is a duplicate — deactivate it and any of its flash sales.
+        p.is_active = False
+        fs_res = await db.execute(select(FlashSale).where(FlashSale.product_id == p.product_id, FlashSale.is_active == True))
+        for fs in fs_res.scalars().all():
+            fs.is_active = False
+        removed += 1
+
+    await db.commit()
+    return {"message": f"Merged {removed} duplicate product(s)", "removed": removed, "unique": len(seen)}
 
 
 class BulkDeleteRequest(BaseModel):

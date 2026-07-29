@@ -551,6 +551,19 @@ const SuperAdminDashboard = () => {
   };
 
   // === PRODUCTS ===
+  const [dedupeBusy, setDedupeBusy] = useState(false);
+  const dedupeProducts = async () => {
+    if (!window.confirm('Merge products that share the same name? The oldest copy of each is kept; newer duplicates are hidden. This is safe and reversible from the database.')) return;
+    setDedupeBusy(true);
+    try {
+      const r = await axios.post(`${API}/admin/products/dedupe`, {}, { withCredentials: true });
+      toast(r.data.message || 'Duplicates merged', 'success');
+      loadProdPage(1);
+    } catch (e) {
+      toast(e.response?.data?.detail || 'Merge failed', 'error');
+    } finally { setDedupeBusy(false); }
+  };
+
   const saveProduct = async () => {
     try {
       const payload = {
@@ -887,9 +900,12 @@ const SuperAdminDashboard = () => {
           <div className="flex justify-between items-start mb-6 flex-wrap gap-3">
             <div>
               <h2 className="display-md">Products ({filteredProducts.length})</h2>
-              <p className="text-xs text-white/50 mt-1">Click any card to edit · drag image to replace</p>
+              <p className="text-xs text-white/50 mt-1">Click any card to edit · use the pencil to change image &amp; details</p>
             </div>
             <div className="flex gap-2 flex-wrap">
+              <button onClick={dedupeProducts} className="btn-ghost text-xs px-4 py-2.5" data-testid="dedupe-btn" disabled={dedupeBusy} title="Merge products that share the same name">
+                {dedupeBusy ? <FaSpinner className="animate-spin" size={11} /> : <FaCopy size={11} />} Merge Duplicates
+              </button>
               <button onClick={downloadSampleCsv} className="btn-ghost text-xs px-4 py-2.5" data-testid="csv-sample-btn">
                 <FaDownload size={11} /> Sample CSV
               </button>
@@ -1059,7 +1075,7 @@ const SuperAdminDashboard = () => {
                     </div>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => editProduct(p)} title="Click to edit">
                   <div className="font-display text-lg uppercase truncate">{p.name}</div>
                   <div className="text-[10px] uppercase tracking-wider text-white/40 flex items-center gap-2">
                     {p.category}
