@@ -103,6 +103,10 @@ async def checkout(
     if not data.items:
         raise HTTPException(status_code=400, detail="Keranjang kosong")
 
+    from models import FlashSale
+    from datetime import datetime as _dt
+    _now = _dt.utcnow()
+
     subtotal = 0
     order_items_data = []
 
@@ -112,12 +116,29 @@ async def checkout(
         if not product:
             raise HTTPException(status_code=404, detail=f"Produk {item.product_id} tak jumpa")
 
-        item_total = product.price * item.quantity
+        # Honor an active flash sale for this product. The discount lives on the
+        # FlashSale record (as a percentage), and product.price stays at the
+        # original — so we must compute the sale price here, otherwise the
+        # customer would be charged full price for a flash-sale item.
+        unit_price = product.price
+        fs_result = await db.execute(
+            select(FlashSale).where(
+                FlashSale.product_id == product.product_id,
+                FlashSale.is_active == True,
+                FlashSale.start_time <= _now,
+                FlashSale.end_time >= _now,
+            )
+        )
+        active_sale = fs_result.scalars().first()
+        if active_sale and 0 < active_sale.discount_percentage < 100:
+            unit_price = round(product.price * (1 - active_sale.discount_percentage / 100), 2)
+
+        item_total = unit_price * item.quantity
         subtotal += item_total
         order_items_data.append({
             "product_id": product.product_id,
             "quantity": item.quantity,
-            "price": product.price,
+            "price": unit_price,
             "subtotal": item_total
         })
 

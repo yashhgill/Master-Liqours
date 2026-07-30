@@ -26,6 +26,7 @@ const ProductDetail = () => {
   const { user } = useAuth();
   const isStaffOrAdmin = user && ['staff', 'super_admin', 'master_admin'].includes(user.role);
   const [product, setProduct] = useState(null);
+  const [flashSale, setFlashSale] = useState(null);
   const [related, setRelated] = useState([]);
   const [qty, setQty] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,12 @@ const ProductDetail = () => {
       trackRecent(id);
       // Track view — fire and forget, don't await
       axios.post(`${API}/products/track?product_id=${id}&event_type=view`).catch(() => {});
+      // Check if this product is in an active flash sale so the detail page
+      // shows the same discounted price the flash-sale card shows.
+      axios.get(`${API}/flash-sales/active`).then(fs => {
+        const match = (fs.data || []).find(s => s.product_id === id);
+        setFlashSale(match || null);
+      }).catch(() => setFlashSale(null));
       // Load related products from same category
       const allRes = await axios.get(`${API}/products`, { params: { category: res.data.category } });
       const allData = allRes.data?.products || allRes.data || [];
@@ -51,7 +58,12 @@ const ProductDetail = () => {
     finally { setLoading(false); }
   };
 
-  const handleAdd = () => { addToCart(product, qty); navigate('/cart'); };
+  const handleAdd = () => {
+    // Pass the flash-sale price so the cart charges the discounted amount.
+    const fsPrice = flashSale ? (flashSale.sale_price ?? flashSale.product?.price ?? null) : null;
+    addToCart(product, qty, fsPrice);
+    navigate('/cart');
+  };
 
   const toggleWishlist = () => {
     const cur = getWishlist();
@@ -82,6 +94,19 @@ const ProductDetail = () => {
 
   const isWished = wishlist.includes(id);
   const isPreorder = product.is_preorder;
+
+  // Effective price: flash-sale price if on sale, otherwise the product's own
+  // price. original_price is the strikethrough value shown next to it.
+  const salePrice = flashSale
+    ? (flashSale.sale_price ?? flashSale.product?.price ?? product.price)
+    : null;
+  const effectivePrice = salePrice != null ? salePrice : product.price;
+  const strikePrice = flashSale
+    ? (flashSale.original_price ?? product.price)
+    : (product.original_price && product.original_price > product.price ? product.original_price : null);
+  const discountPct = strikePrice && effectivePrice < strikePrice
+    ? Math.round((1 - effectivePrice / strikePrice) * 100)
+    : 0;
 
   return (
     <div>
@@ -136,7 +161,19 @@ const ProductDetail = () => {
                 </a>
               </div>
             ) : (
-              <div className="display-mega neon-pink-text mb-8" style={{fontSize:'4rem',lineHeight:1}}>RM{product.price.toFixed(2)}</div>
+              <div className="mb-8">
+                {strikePrice && discountPct > 0 ? (
+                  <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
+                    <span className="display-mega neon-pink-text" style={{fontSize:'4rem',lineHeight:1}}>RM{effectivePrice.toFixed(2)}</span>
+                    <div className="flex flex-col">
+                      <span className="text-white/40 line-through text-2xl leading-none">RM{strikePrice.toFixed(2)}</span>
+                      <span className="text-[#39ff14] font-bold text-sm mt-1">SAVE {discountPct}% — flash sale on lah!</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="display-mega neon-pink-text" style={{fontSize:'4rem',lineHeight:1}}>RM{effectivePrice.toFixed(2)}</div>
+                )}
+              </div>
             )}
 
             <p className="text-white/70 leading-relaxed mb-8">{product.description}</p>

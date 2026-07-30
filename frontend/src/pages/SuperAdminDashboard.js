@@ -442,6 +442,7 @@ const SuperAdminDashboard = () => {
   // Visibility & edit state
   const [showBanner, setShowBanner] = useState(false);
   const [showProduct, setShowProduct] = useState(false);
+  const productFormRef = useRef(null);
   const [prodPage, setProdPage] = useState(1);
   const [prodTotal, setProdTotal] = useState(0);
   const [prodPageLoading, setProdPageLoading] = useState(false);
@@ -593,6 +594,11 @@ const SuperAdminDashboard = () => {
       discount_days: 0, discount_hours: 0, discount_minutes: 0,
     });
     setShowProduct(true);
+    // Bring the edit form into view — otherwise it opens above the list and the
+    // user has to scroll up to find it.
+    setTimeout(() => {
+      productFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
   };
   const duplicateProduct = (p) => {
     // Pre-fill form with the source product's data but as a NEW record
@@ -963,7 +969,7 @@ const SuperAdminDashboard = () => {
           </div>
 
           {showProduct && (
-            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 mb-6 grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6" data-testid="admin-product-form">
+            <div ref={productFormRef} className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 mb-6 grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6" data-testid="admin-product-form">
               <ImageUploader
                 value={productForm.image_url}
                 onChange={(url) => setProductForm({ ...productForm, image_url: url })}
