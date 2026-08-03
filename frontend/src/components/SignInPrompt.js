@@ -10,7 +10,7 @@ const SignInPrompt = () => {
 
   useEffect(() => {
     if (loading || user || dismissed) return;
-    const t = setTimeout(() => setVisible(true), 8000);
+    const t = setTimeout(() => setVisible(true), 3500);
     return () => clearTimeout(t);
   }, [user, loading, dismissed]);
 
@@ -23,7 +23,14 @@ const SignInPrompt = () => {
   if (!visible || user || dismissed) return null;
 
   return (
-    <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 999, width: 320, animation: 'slideUp 0.4s cubic-bezier(0.22,1,0.36,1)' }}>
+    <div style={{
+      position: 'fixed',
+      bottom: 92,              // sits ABOVE the chat button (which is at bottom:24, ~52px tall)
+      right: 16,
+      zIndex: 1000,            // above the chat widget button (z-40)
+      width: 'min(340px, calc(100vw - 32px))',
+      animation: 'slideUp 0.4s cubic-bezier(0.22,1,0.36,1)'
+    }}>
       <div style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 24, overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,0.6)' }}>
         {/* Top bar */}
         <div style={{ background: 'linear-gradient(135deg,#ff007f,#c8005a)', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

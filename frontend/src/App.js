@@ -40,7 +40,7 @@ const ProtectedRoute = ({ children, roles = [] }) => {
 
 function AppContent() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#050505]">
+    <div className="min-h-screen flex flex-col bg-[#050505] overflow-x-hidden">
       <ScrollToTop />
       <AnnouncementBar />
       <Navbar />
