@@ -26,7 +26,7 @@ const Cart = () => {
   );
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '60px 24px' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 16px', width: '100%' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40, flexWrap: 'wrap', gap: 12 }}>
         <div>
@@ -48,39 +48,42 @@ const Cart = () => {
         {/* Items */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {cart.map(item => (
-            <div key={item.product_id} style={{ display: 'flex', alignItems: 'center', gap: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 24, padding: '16px 20px' }}
+            <div key={item.product_id} style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 24, padding: '14px 16px', flexWrap: 'wrap' }}
               data-testid={`cart-item-${item.product_id}`}>
               <img src={item.image_url || 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=200'}
-                alt={item.name} style={{ width: 88, height: 88, borderRadius: 16, objectFit: 'cover', background: '#111', flexShrink: 0 }}
+                alt={item.name} style={{ width: 72, height: 72, borderRadius: 14, objectFit: 'cover', background: '#111', flexShrink: 0 }}
                 onError={e => { e.target.src = 'https://images.unsplash.com/photo-1569529465841-dfecdab7503b?w=200'; }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: 1, minWidth: 120 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 4 }}>{item.category}</div>
-                <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: '0.02em', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#ff007f' }}>RM{item.price.toFixed(2)}</div>
+                <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, letterSpacing: '0.02em', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: '#ff007f' }}>RM{item.price.toFixed(2)}</div>
               </div>
-              {/* Qty controls */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 50, padding: '4px 6px', flexShrink: 0 }}>
-                <button onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
-                  style={{ width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <FaMinus size={10} />
+              {/* Second row on mobile: qty + subtotal + remove all together, pushed right */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto', flexShrink: 0 }}>
+                {/* Qty controls */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'rgba(255,255,255,0.05)', borderRadius: 50, padding: '4px 5px', flexShrink: 0 }}>
+                  <button onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
+                    style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FaMinus size={10} />
+                  </button>
+                  <div style={{ fontWeight: 800, width: 24, textAlign: 'center', fontSize: 15 }}>{item.quantity}</div>
+                  <button onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
+                    style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FaPlus size={10} />
+                  </button>
+                </div>
+                {/* Subtotal */}
+                <div style={{ textAlign: 'right', minWidth: 64, flexShrink: 0 }}>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginBottom: 2 }}>Subtotal</div>
+                  <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, color: '#fff' }}>RM{(item.price * item.quantity).toFixed(2)}</div>
+                </div>
+                <button onClick={() => removeFromCart(item.product_id)}
+                  style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.08)', background: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s' }}
+                  className="hover:border-[#ff007f] hover:text-[#ff007f] transition-all"
+                  data-testid={`cart-remove-${item.product_id}`}>
+                  <FaTrash size={12} />
                 </button>
-                <div style={{ fontWeight: 800, width: 28, textAlign: 'center', fontSize: 16 }}>{item.quantity}</div>
-                <button onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
-                  style={{ width: 32, height: 32, borderRadius: '50%', border: 'none', background: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <FaPlus size={10} />
-                </button>
               </div>
-              {/* Subtotal */}
-              <div style={{ textAlign: 'right', minWidth: 80, flexShrink: 0 }}>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 2 }}>Subtotal</div>
-                <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, color: '#fff' }}>RM{(item.price * item.quantity).toFixed(2)}</div>
-              </div>
-              <button onClick={() => removeFromCart(item.product_id)}
-                style={{ width: 38, height: 38, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.08)', background: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s' }}
-                className="hover:border-[#ff007f] hover:text-[#ff007f] transition-all"
-                data-testid={`cart-remove-${item.product_id}`}>
-                <FaTrash size={12} />
-              </button>
             </div>
           ))}
         </div>
