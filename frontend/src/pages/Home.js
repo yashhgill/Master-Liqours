@@ -261,13 +261,13 @@ const Home = () => {
       const mapped = bannersRes.data.map(b => {
         const hasTitle = !!(b.title && b.title.trim());
         const hasBgImage = !!(b.background_image && b.background_image.trim());
-        // image-only banner: don't overlay any text
+        // image-only banner: show the full poster, no text overlay
         if (hasBgImage && !hasTitle) {
           return {
             bg_image: b.background_image,
             show_text: false,
-            cta_text: null,
-            cta_link: null,
+            cta_text: b.cta_text || null,
+            cta_link: b.cta_link || '/products',
             eyebrow: '', title: '', title2: '', sub: '',
           };
         }
@@ -309,16 +309,82 @@ const Home = () => {
   };
 
   const hero = slides[slide] || DEFAULT_HERO[0];
+  const isPoster = hero.bg_image && hero.show_text === false;
 
   return (
     <div style={{ fontFamily: "'Inter', sans-serif" }}>
 
       {/* ═══ HERO ═══ */}
+      {isPoster ? (
+        /* ---- IMAGE POSTER MODE: show the whole image, never crop ---- */
+        <section
+          ref={heroRef}
+          className="relative overflow-hidden"
+          style={{ background: '#030303', cursor: 'grab' }}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+        >
+          <div className="relative w-full">
+            {/* Blurred fill behind the poster removes ugly black bars while the
+                real poster sits on top fully visible (object-contain). */}
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url(${hero.bg_image})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: 'blur(28px) brightness(0.4)',
+                transform: 'scale(1.1)',
+              }}
+            />
+            <img
+              src={hero.bg_image}
+              alt="Masterliqours promotion"
+              className="relative z-[1] w-full h-auto object-contain mx-auto block"
+              style={{ maxHeight: '85vh' }}
+            />
+
+            {/* Optional shop button for a poster */}
+            {hero.cta_text && (
+              <div className="absolute z-[2] bottom-6 left-1/2 -translate-x-1/2 w-full flex justify-center px-4">
+                <Link to={hero.cta_link || '/products'} className="btn-fire">
+                  {hero.cta_text} <FaArrowRight size={13} />
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Arrows — only if more than one slide */}
+          {slides.length > 1 && (
+            <>
+              <button onClick={() => { prev(); resetTimer(); }} aria-label="Previous"
+                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-[3] w-10 h-10 rounded-full bg-black/50 backdrop-blur border border-white/15 flex items-center justify-center text-white/80 hover:bg-black/70">
+                <FaChevronLeft size={14} />
+              </button>
+              <button onClick={() => { next(); resetTimer(); }} aria-label="Next"
+                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-[3] w-10 h-10 rounded-full bg-black/50 backdrop-blur border border-white/15 flex items-center justify-center text-white/80 hover:bg-black/70">
+                <FaChevronRight size={14} />
+              </button>
+            </>
+          )}
+
+          {/* Dots */}
+          {slides.length > 1 && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[3] flex gap-2">
+              {slides.map((_, i) => (
+                <button key={i} onClick={() => { setSlide(i); resetTimer(); }} aria-label={`Slide ${i + 1}`}
+                  style={{ width: i === slide ? 22 : 7, height: 7, borderRadius: 4, background: i === slide ? '#ff007f' : 'rgba(255,255,255,0.3)', transition: 'all 0.3s', border: 'none', cursor: 'pointer' }} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : (
+      /* ---- TEXT HERO MODE (no image, or image + custom title) ---- */
       <section
         ref={heroRef}
         className="relative flex items-center overflow-hidden"
         style={{
-          minHeight: '100vh',
+          minHeight: '92vh',
           background: hero.bg_image
             ? `linear-gradient(160deg, rgba(3,3,3,0.55) 0%, rgba(3,3,3,0.35) 40%, rgba(3,3,3,0.3) 60%, rgba(3,3,3,0.7) 100%), url(${hero.bg_image}) center/cover no-repeat`
             : '#030303',
@@ -353,8 +419,7 @@ const Home = () => {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 w-full py-20 md:py-28">
           <div className="max-w-[700px]">
 
-            {/* Only show text overlay when banner has text, or when no background image */}
-            {(hero.show_text !== false) && <>
+            <>
             {/* Eyebrow */}
             <div className="flex items-center gap-3 mb-6" style={{ marginBottom: 20 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ffd700', boxShadow: '0 0 8px #ffd700', animation: 'tagPulse 2s infinite', display: 'inline-block', flexShrink: 0 }} />
@@ -383,7 +448,7 @@ const Home = () => {
                 <FaWhatsapp size={15} /> Chat With Us
               </a>
             </div>
-            </>}
+            </>
           </div>
         </div>
 
@@ -451,6 +516,7 @@ const Home = () => {
           <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.25em', textTransform: 'uppercase' }}>Scroll</span>
         </div>
       </section>
+      )}
 
       {/* ═══ MARQUEE ═══ */}
       <div className="overflow-hidden" style={{ background: '#39ff14', padding: '11px 0' }}>
