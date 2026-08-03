@@ -39,6 +39,26 @@ const ProtectedRoute = ({ children, roles = [] }) => {
 };
 
 function AppContent() {
+  // Keep-alive ping: while someone has the site open, ping the backend so a
+  // free-tier Render instance doesn't spin down between their page views.
+  // NOTE: this only runs in an open browser tab — it cannot keep the server
+  // awake when nobody is on the site. For true 24/7 uptime, use an external
+  // uptime monitor (e.g. UptimeRobot hitting /api/ping) or Render's paid tier.
+  useEffect(() => {
+    const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+    const ping = () => {
+      // Skip while the tab is in the background — no point, and browsers throttle it.
+      if (document.visibilityState === 'hidden') return;
+      fetch(`${API}/ping`, { cache: 'no-store' }).catch(() => {});
+    };
+    ping(); // immediate ping on load so the first real request is warm
+    const id = setInterval(ping, 30000); // every 30s
+    // Fire one immediately whenever the user returns to the tab.
+    const onVis = () => { if (document.visibilityState === 'visible') ping(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-[#050505] overflow-x-hidden">
       <ScrollToTop />
