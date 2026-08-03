@@ -191,6 +191,9 @@ const Home = () => {
   const [mysteryDrops, setMysteryDrops] = useState([]);
   const [slides, setSlides] = useState(DEFAULT_HERO);
   const [slide, setSlide] = useState(0);
+  // Natural aspect ratio (w/h) of the current poster image, so the hero
+  // container matches the image exactly — no letterbox bars, no cropping.
+  const [posterRatio, setPosterRatio] = useState(null);
 
   // Touch/swipe state
   const touchStartX = useRef(null);
@@ -200,14 +203,17 @@ const Home = () => {
 
   const goTo = useCallback((idx) => {
     setSlide(idx);
+    setPosterRatio(null);
   }, []);
 
   const next = useCallback(() => {
     setSlide(s => (s + 1) % slides.length);
+    setPosterRatio(null);
   }, [slides.length]);
 
   const prev = useCallback(() => {
     setSlide(s => (s - 1 + slides.length) % slides.length);
+    setPosterRatio(null);
   }, [slides.length]);
 
   // Auto-advance with reset on manual nav
@@ -316,37 +322,56 @@ const Home = () => {
 
       {/* ═══ HERO ═══ */}
       {isPoster ? (
-        /* ---- IMAGE POSTER MODE: show the whole image, never crop ---- */
+        /* ---- IMAGE POSTER MODE: container locks to the image's own shape ---- */
         <section
           ref={heroRef}
-          className="relative overflow-hidden"
-          style={{ background: '#030303', cursor: 'grab' }}
+          className="relative overflow-hidden bg-[#030303]"
+          style={{ cursor: 'grab' }}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
-          <div className="relative w-full">
-            {/* Blurred fill behind the poster removes ugly black bars while the
-                real poster sits on top fully visible (object-contain). */}
+          {/*
+            The wrapper takes the image's natural aspect ratio (measured on load).
+            Because the box matches the image shape exactly, object-cover fills it
+            edge-to-edge with NO letterbox bars and NO cropping. A max-height keeps
+            a very tall portrait poster from taking over big screens; if that cap
+            ever kicks in, the blurred fill (below) covers the small side margins.
+          */}
+          <div
+            className="relative w-full mx-auto"
+            style={{
+              aspectRatio: posterRatio ? String(posterRatio) : undefined,
+              maxHeight: '90vh',
+              // When max-height caps a portrait image, keep the width proportional
+              // so it stays centred rather than stretching.
+              maxWidth: posterRatio && posterRatio < 1 ? `calc(90vh * ${posterRatio})` : '100%',
+            }}
+          >
+            {/* Blurred same-image fill — only visible in the rare case the height
+                cap leaves a sliver of margin; otherwise fully covered by the poster. */}
             <div
               className="absolute inset-0"
               style={{
                 backgroundImage: `url(${hero.bg_image})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-                filter: 'blur(28px) brightness(0.4)',
-                transform: 'scale(1.1)',
+                filter: 'blur(30px) brightness(0.35)',
+                transform: 'scale(1.15)',
               }}
             />
             <img
               src={hero.bg_image}
               alt="Masterliqours promotion"
-              className="relative z-[1] w-full h-auto object-contain mx-auto block"
-              style={{ maxHeight: '85vh' }}
+              onLoad={(e) => {
+                const { naturalWidth: w, naturalHeight: h } = e.target;
+                if (w && h) setPosterRatio(w / h);
+              }}
+              className="relative z-[1] w-full h-full object-cover block"
             />
 
             {/* Optional shop button for a poster */}
             {hero.cta_text && (
-              <div className="absolute z-[2] bottom-6 left-1/2 -translate-x-1/2 w-full flex justify-center px-4">
+              <div className="absolute z-[2] bottom-5 left-1/2 -translate-x-1/2 w-full flex justify-center px-4">
                 <Link to={hero.cta_link || '/products'} className="btn-fire">
                   {hero.cta_text} <FaArrowRight size={13} />
                 </Link>
