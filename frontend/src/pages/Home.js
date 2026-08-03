@@ -191,9 +191,12 @@ const Home = () => {
   const [mysteryDrops, setMysteryDrops] = useState([]);
   const [slides, setSlides] = useState(DEFAULT_HERO);
   const [slide, setSlide] = useState(0);
-  // Natural aspect ratio (w/h) of the current poster image, so the hero
-  // container matches the image exactly — no letterbox bars, no cropping.
-  const [posterRatio, setPosterRatio] = useState(null);
+  // One stable aspect ratio for the whole poster carousel. Locked by the first
+  // poster that loads and NOT reset per slide — otherwise the container would
+  // collapse to zero height (black) during each swipe while the next image
+  // loads. Defaults to 4:5 portrait so there's a sensible height immediately.
+  const [posterRatio, setPosterRatio] = useState(0.8);
+  const posterRatioLocked = useRef(false);
 
   // Touch/swipe state
   const touchStartX = useRef(null);
@@ -203,17 +206,14 @@ const Home = () => {
 
   const goTo = useCallback((idx) => {
     setSlide(idx);
-    setPosterRatio(null);
   }, []);
 
   const next = useCallback(() => {
     setSlide(s => (s + 1) % slides.length);
-    setPosterRatio(null);
   }, [slides.length]);
 
   const prev = useCallback(() => {
     setSlide(s => (s - 1 + slides.length) % slides.length);
-    setPosterRatio(null);
   }, [slides.length]);
 
   // Auto-advance with reset on manual nav
@@ -292,6 +292,11 @@ const Home = () => {
         };
       });
       setSlides(mapped);
+      // Preload every poster image so swiping to the next slide shows instantly
+      // instead of flashing empty/black while the browser fetches it.
+      mapped.forEach(m => {
+        if (m.bg_image) { const im = new Image(); im.src = m.bg_image; }
+      });
       }
     });
 
@@ -340,15 +345,15 @@ const Home = () => {
           <div
             className="relative w-full mx-auto"
             style={{
-              aspectRatio: posterRatio ? String(posterRatio) : undefined,
+              aspectRatio: String(posterRatio),
               maxHeight: '90vh',
-              // When max-height caps a portrait image, keep the width proportional
-              // so it stays centred rather than stretching.
-              maxWidth: posterRatio && posterRatio < 1 ? `calc(90vh * ${posterRatio})` : '100%',
+              // Keep width proportional to the locked ratio for portrait posters
+              // so the box stays centred rather than stretching full-width.
+              maxWidth: posterRatio < 1 ? `calc(90vh * ${posterRatio})` : '100%',
             }}
           >
-            {/* Blurred same-image fill — only visible in the rare case the height
-                cap leaves a sliver of margin; otherwise fully covered by the poster. */}
+            {/* Blurred same-image fill — covers any sliver of margin when a
+                slide's ratio differs slightly from the locked carousel ratio. */}
             <div
               className="absolute inset-0"
               style={{
@@ -363,8 +368,13 @@ const Home = () => {
               src={hero.bg_image}
               alt="Masterliqours promotion"
               onLoad={(e) => {
-                const { naturalWidth: w, naturalHeight: h } = e.target;
-                if (w && h) setPosterRatio(w / h);
+                // Lock the carousel height to the FIRST poster's shape and keep it
+                // stable for every slide — prevents any layout jump or black gap
+                // when swiping between posters.
+                if (!posterRatioLocked.current) {
+                  const { naturalWidth: w, naturalHeight: h } = e.target;
+                  if (w && h) { setPosterRatio(w / h); posterRatioLocked.current = true; }
+                }
               }}
               className="relative z-[1] w-full h-full object-cover block"
             />
