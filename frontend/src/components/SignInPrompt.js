@@ -18,9 +18,17 @@ const SignInPrompt = () => {
 
   useEffect(() => {
     if (loading) return;                 // wait for auth to resolve
-    if (user) { setVisible(false); return; }
+    if (user) {
+      // Signed in (or a stale valid token is present) — prompt intentionally hidden.
+      // eslint-disable-next-line no-console
+      console.info('[SignInPrompt] hidden: a user session is active', user?.email || '');
+      setVisible(false);
+      return;
+    }
     if (dismissed) return;
-    const t = setTimeout(() => setVisible(true), 3000);
+    // eslint-disable-next-line no-console
+    console.info('[SignInPrompt] no user — prompt will show in 2s');
+    const t = setTimeout(() => setVisible(true), 2000);
     return () => clearTimeout(t);
   }, [user, loading, dismissed]);
 
