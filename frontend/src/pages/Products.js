@@ -1,12 +1,26 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FaSearch, FaSlidersH, FaTh, FaList, FaHeart, FaRegHeart, FaTimes, FaPhone, FaWhatsapp } from 'react-icons/fa';
+import { FaSearch, FaSlidersH, FaTh, FaList, FaHeart, FaRegHeart, FaTimes, FaPhone, FaWhatsapp, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const BOSS_WHATSAPP = process.env.REACT_APP_WHATSAPP_NUMBER || '60182085097';
 const PAGE_SIZE = 60;
+
+// Build a windowed list of page numbers with ellipses, e.g.
+// [1, '…', 4, 5, 6, '…', 11]. Always shows first, last, and neighbours of current.
+const getPageList = (current, total) => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) pages.push('…');
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < total - 1) pages.push('…');
+  pages.push(total);
+  return pages;
+};
 const PRICE_RANGES = [
   { label: 'All Prices', min: 0, max: Infinity },
   { label: 'Under RM50', min: 0, max: 50 },
@@ -94,9 +108,9 @@ const Products = () => {
   const [orderWithBoss, setOrderWithBoss] = useState(null);
   const [page, setPage] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [ALL_CATS, setAllCats] = useState(['Whiskey', 'Vodka', 'Gin', 'Rum', 'Cognac', 'Brandy', 'Tequila', 'Liqueur', 'Wine', 'Champagne']);
   const debounceRef = useRef(null);
+  const gridTopRef = useRef(null);
 
   // Fetch categories dynamically
   useEffect(() => {
@@ -108,16 +122,21 @@ const Products = () => {
       .catch(() => {});
   }, []);
 
-  // ── Server-side fetch: fires whenever search/category/sort/page changes ──
+  // ── Server-side fetch: loads ONE page and replaces the current list ──
   const fetchProducts = async (opts = {}) => {
-    const isNewQuery = opts.reset !== false;
-    if (isNewQuery) setLoading(true); else setLoadingMore(true);
+    // opts.page = which page to load; opts.reset = filters changed → go to page 1
+    const targetPage = opts.reset ? 1 : (opts.page || page);
+    setLoading(true);
+    // Scroll to the top of the grid when changing pages (not on first mount).
+    if (opts.scroll) {
+      window.scrollTo({ top: gridTopRef.current?.offsetTop ? gridTopRef.current.offsetTop - 100 : 0, behavior: 'smooth' });
+    }
     try {
-      const params = { page: isNewQuery ? 1 : page + 1, limit: PAGE_SIZE };
+      const params = { page: targetPage, limit: PAGE_SIZE };
       if (selected) params.category = selected;
       if (search.trim()) params.search = search.trim();
       // Price range + sort are applied server-side so they cover the whole
-      // catalogue, not just the page already loaded in the browser.
+      // catalogue, not just the page currently shown.
       const pr = PRICE_RANGES[priceRange];
       if (pr && priceRange > 0) {
         if (pr.min > 0) params.min_price = pr.min;
@@ -127,22 +146,19 @@ const Products = () => {
       const res = await axios.get(`${API}/products`, { params });
       const data = res.data?.products || res.data || [];
       const total = res.data?.total ?? data.length;
-      if (isNewQuery) {
-        setAllProducts(data);
-        setPage(1);
-        // Recent products only on first full load
+      setAllProducts(data);
+      setPage(targetPage);
+      setTotalProducts(total);
+      // Recent products only on the very first load
+      if (opts.reset) {
         const recentIds = getRecent();
         if (recentIds.length) {
           const recent = recentIds.map(id => data.find(p => p.product_id === id)).filter(Boolean);
           setRecentProducts(recent.slice(0, 5));
         }
-      } else {
-        setAllProducts(prev => [...prev, ...data]);
-        setPage(p => p + 1);
       }
-      setTotalProducts(total);
     } catch {}
-    finally { setLoading(false); setLoadingMore(false); }
+    finally { setLoading(false); }
   };
 
   // Initial load and whenever category changes
@@ -155,8 +171,13 @@ const Products = () => {
     return () => clearTimeout(debounceRef.current);
   }, [search]); // eslint-disable-line
 
-  // Load more
-  const loadMore = () => fetchProducts({ reset: false });
+  // Jump to a specific page
+  const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
+  const goToPage = (p) => {
+    const target = Math.min(Math.max(1, p), totalPages);
+    if (target === page) return;
+    fetchProducts({ page: target, scroll: true });
+  };
 
   // Price range / sort changed → refetch from server (covers whole catalogue)
   const firstFilterRun = useRef(true);
@@ -387,6 +408,7 @@ const Products = () => {
         )}
 
         {/* Product grid / list */}
+        <div ref={gridTopRef} />
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {Array(8).fill(0).map((_, i) => <div key={i} className="bg-white/5 rounded-3xl aspect-[3/4] animate-pulse" />)}
@@ -445,17 +467,64 @@ const Products = () => {
         )}
       </div>
 
-      {/* Load More */}
-      {!loading && !loadingMore && allProducts.length < totalProducts && (
-        <div style={{ textAlign: 'center', marginTop: 32, paddingBottom: 32 }}>
-          <button
-            onClick={loadMore}
-            disabled={loadingMore}
-            className="btn-pink"
-            style={{ minWidth: 200, opacity: loadingMore ? 0.6 : 1 }}
-          >
-            {loadingMore ? 'Loading...' : `Load More (${totalProducts - allProducts.length} remaining)`}
-          </button>
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginTop: 36, paddingBottom: 36 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {/* Prev */}
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+              aria-label="Previous page"
+              style={{
+                minWidth: 40, height: 40, borderRadius: 12, border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.04)', color: page <= 1 ? 'rgba(255,255,255,0.25)' : '#fff',
+                cursor: page <= 1 ? 'not-allowed' : 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <FaChevronLeft size={12} />
+            </button>
+
+            {/* Page numbers — windowed with ellipses */}
+            {getPageList(page, totalPages).map((p, i) =>
+              p === '…' ? (
+                <span key={`e${i}`} style={{ color: 'rgba(255,255,255,0.3)', padding: '0 4px', minWidth: 20, textAlign: 'center' }}>…</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => goToPage(p)}
+                  aria-current={p === page ? 'page' : undefined}
+                  style={{
+                    minWidth: 40, height: 40, borderRadius: 12, cursor: 'pointer', fontWeight: 700, fontSize: 14,
+                    border: p === page ? 'none' : '1px solid rgba(255,255,255,0.12)',
+                    background: p === page ? 'linear-gradient(135deg,#ff007f,#c8005a)' : 'rgba(255,255,255,0.04)',
+                    color: p === page ? '#fff' : 'rgba(255,255,255,0.7)',
+                    boxShadow: p === page ? '0 0 18px rgba(255,0,127,0.4)' : 'none',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {p}
+                </button>
+              )
+            )}
+
+            {/* Next */}
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
+              aria-label="Next page"
+              style={{
+                minWidth: 40, height: 40, borderRadius: 12, border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.04)', color: page >= totalPages ? 'rgba(255,255,255,0.25)' : '#fff',
+                cursor: page >= totalPages ? 'not-allowed' : 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <FaChevronRight size={12} />
+            </button>
+          </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+            Page {page} of {totalPages} · {totalProducts} bottles
+          </div>
         </div>
       )}
 
