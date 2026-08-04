@@ -293,6 +293,34 @@ async def get_product(product_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Produk tidak dijumpai")
     return ProductResponse.model_validate(product, from_attributes=True)
 
+@api_router.get("/my-unavailable-products")
+async def my_unavailable_products(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns the set of product IDs the signed-in customer's ASSIGNED STAFF is out
+    of stock on (has a stock row with quantity <= 0). The storefront uses this to
+    grey those bottles out — the customer can't buy them directly but can message
+    that staff member to arrange it.
+
+    Products with no stock row for the staff are treated as AVAILABLE (untracked),
+    so this only flags things the staff explicitly holds zero of.
+    """
+    from models import Stock
+    staff_id = getattr(current_user, "assigned_staff_id", None)
+    if not staff_id:
+        return {"unavailable": []}
+
+    result = await db.execute(
+        select(Stock.product_id).where(
+            Stock.staff_id == staff_id,
+            Stock.quantity <= 0,
+        )
+    )
+    ids = [str(r[0]) for r in result.all()]
+    return {"unavailable": ids}
+
 @api_router.get("/categories")
 async def get_categories(db: AsyncSession = Depends(get_db)):
     result = await db.execute(

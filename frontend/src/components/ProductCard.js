@@ -30,7 +30,7 @@ const pad = (n) => String(n).padStart(2, '0');
 
 const ProductCard = ({ product, flashSale, totalStock }) => {
   const { addToCart } = useCart();
-  const { user } = useAuth();
+  const { user, unavailableIds } = useAuth();
 
   // Use customer's assigned staff WA if available, else fall back to boss number
   const staffWa = user?.assigned_staff_whatsapp || BOSS_WA;
@@ -54,7 +54,10 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
     : typeof product.available_stock === 'number'
       ? product.available_stock
       : -1;
-  const isOutOfStock = stockLevel === 0;
+  // A product is unavailable if its stock is explicitly 0, OR the signed-in
+  // customer's assigned staff is out of stock on it (they can still contact staff).
+  const staffOutOfStock = unavailableIds?.has?.(product.product_id);
+  const isOutOfStock = stockLevel === 0 || !!staffOutOfStock;
   const isPreorder = product.is_preorder;
 
   const handleAdd = (e) => {
@@ -96,10 +99,18 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
   // Determine card state
   const cardState = isPreorder ? 'preorder' : isOutOfStock ? 'oos' : 'available';
 
+  // Out-of-stock cards are visually dimmed and can't be opened/purchased, but
+  // the "contact staff" button must still work — so instead of disabling all
+  // pointer events on the card, we just block the navigation click for OOS.
+  const blockNav = (e) => {
+    if (cardState === 'oos') { e.preventDefault(); e.stopPropagation(); }
+  };
+
   return (
     <Link
       to={`/product/${product.product_id}`}
-      className={`product-card-white group block relative ${cardState === 'oos' ? 'opacity-60 pointer-events-none' : cardState !== 'available' ? 'opacity-90' : ''}`}
+      onClick={blockNav}
+      className={`product-card-white group block relative ${cardState === 'oos' ? 'opacity-60 cursor-default' : cardState !== 'available' ? 'opacity-90' : ''}`}
       data-testid={`product-card-${product.product_id}`}
     >
       {/* Flash sale badge */}
@@ -207,10 +218,9 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
           )}
           {cardState === 'oos' && (
             <button onClick={handleOutOfStock}
-              style={{ pointerEvents: 'all' }}
-              className="flex items-center gap-1.5 bg-[#333] text-white/70 px-3 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer hover:bg-[#ff007f] hover:text-white"
+              className="flex items-center gap-1.5 bg-[#333] text-white/70 px-3 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer hover:bg-[#25d366] hover:text-white"
               data-testid={`product-card-oos-btn-${product.product_id}`}>
-              <FaWhatsapp size={13} /> {staffName !== 'Boss' ? staffName : 'Contact Boss'}
+              <FaWhatsapp size={13} /> {staffName !== 'Boss' ? `Ask ${staffName}` : 'Contact Boss'}
             </button>
           )}
           {cardState === 'available' && (
@@ -233,6 +243,15 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
                 className="text-[10px] text-[#25d366] font-bold hover:underline">
                 {staffName !== 'Boss' ? staffName : `+${staffWa.replace(/\D/g, '')}`}
               </a>
+            </div>
+          </div>
+        )}
+
+        {/* Out-of-stock note — can't buy here, but can arrange via staff */}
+        {cardState === 'oos' && (
+          <div className="mt-3 bg-white/5 rounded-lg px-3 py-2 border border-white/10 space-y-1">
+            <div className="text-[10px] text-white/50">
+              Out of stock online — message {staffName !== 'Boss' ? staffName : 'your staff'} on WhatsApp to arrange it{staffReferral ? ` (code ${staffReferral})` : ''}.
             </div>
           </div>
         )}

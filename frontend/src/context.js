@@ -30,10 +30,26 @@ applyToken(localStorage.getItem(TOKEN_KEY));
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Set of product IDs the customer's assigned staff is out of stock on.
+  const [unavailableIds, setUnavailableIds] = useState(() => new Set());
 
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Whenever the user changes, refresh which products their staff can't supply.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!user || user.role !== 'customer') { setUnavailableIds(new Set()); return; }
+      try {
+        const r = await axios.get(`${API}/my-unavailable-products`, { withCredentials: true });
+        if (!cancelled) setUnavailableIds(new Set(r.data?.unavailable || []));
+      } catch { if (!cancelled) setUnavailableIds(new Set()); }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [user]);
 
   const checkAuth = async () => {
     try {
@@ -81,7 +97,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, checkAuth, setUserDirect }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, checkAuth, setUserDirect, unavailableIds }}>
       {children}
     </AuthContext.Provider>
   );
