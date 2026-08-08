@@ -244,6 +244,11 @@ async def get_products(
         order_col = _popularity.desc()
     elif sort == "newest":
         order_col = Product.created_at.desc()
+    elif sort == "random":
+        # Temporary: shuffle results (used on the homepage rows until there's
+        # enough real popularity data to rank by). Swap the callers back to
+        # 'popular' / 'newest' to return to the real algorithm.
+        order_col = func.random()
     elif search:
         order_col = Product.name
     else:
@@ -259,9 +264,12 @@ async def get_products(
     offset = (page - 1) * limit
 
     cache_key = f"products:page:{category}:{search}:{page}:{limit}:{min_price}:{max_price}:{sort}"
-    cached = _cache_get(cache_key)
-    if cached is not None:
-        return cached
+    # random sort must never be cached, or the first shuffle would be frozen.
+    _use_cache = sort != "random"
+    if _use_cache:
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
 
     # NOTE: these must run sequentially — a single AsyncSession cannot execute
     # two queries concurrently ("concurrent operations are not permitted").
@@ -277,7 +285,8 @@ async def get_products(
         "limit": limit,
         "pages": -(-total // limit) if limit else 0,
     }
-    _cache_set(cache_key, out, ttl=300)
+    if _use_cache:
+        _cache_set(cache_key, out, ttl=300)
     return out
 
 @api_router.get("/products/all-names")

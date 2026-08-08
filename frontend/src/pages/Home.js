@@ -301,15 +301,17 @@ const Home = () => {
     });
 
     // ── Priority 2: products + flash sales — load independently, don't block hero ──
-    // Crowd Favourites = most viewed & bought (popular sort).
-    safe(axios.get(API + '/products', { params: { page: 1, limit: 12, sort: 'popular' } })).then(productsRes => {
+    // NOTE: using sort:'random' for now so these rows feel fresh while there's no
+    // real popularity data yet. To switch back to the real algorithm later:
+    //   Crowd Favourites → sort:'popular'   New Arrivals → sort:'newest'
+    // Pull a larger random pool so the two rows don't overlap much.
+    safe(axios.get(API + '/products', { params: { page: 1, limit: 24, sort: 'random' } })).then(productsRes => {
       if (productsRes?.data) {
         const all = productsRes.data?.products || (Array.isArray(productsRes.data) ? productsRes.data : []);
         setProducts(all.slice(0, 12));
       }
     });
-    // New Arrivals = newest first.
-    safe(axios.get(API + '/products', { params: { page: 1, limit: 8, sort: 'newest' } })).then(naRes => {
+    safe(axios.get(API + '/products', { params: { page: 1, limit: 24, sort: 'random' } })).then(naRes => {
       if (naRes?.data) {
         const all = naRes.data?.products || (Array.isArray(naRes.data) ? naRes.data : []);
         setNewArrivals(all.slice(0, 8));
