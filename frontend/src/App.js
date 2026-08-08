@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ChatWidget from './components/ChatWidget';
 import SignInPrompt from './components/SignInPrompt';
+import AgeGate from './components/AgeGate';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import Products from './pages/Products';
@@ -61,6 +62,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#050505] overflow-x-hidden">
+      <AgeGate />
       <ScrollToTop />
       <AnnouncementBar />
       <Navbar />
