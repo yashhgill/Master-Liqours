@@ -111,6 +111,8 @@ class Product(Base):
     created_at = Column(DateTime, default=utcnow)
     staff_id = Column(String(36), ForeignKey('staff.staff_id'), nullable=True, index=True)
     sales_count = Column(Integer, default=0, nullable=False)
+    view_count = Column(Integer, default=0, nullable=False)
+    cart_count = Column(Integer, default=0, nullable=False)
 
     staff = relationship('Staff', back_populates='products')
     stock = relationship('Stock', back_populates='product', cascade='all, delete-orphan')

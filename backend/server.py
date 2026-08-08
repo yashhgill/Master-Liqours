@@ -225,6 +225,12 @@ async def get_products(
         base_query = base_query.where(Product.price <= max_price)
 
     # Ordering
+    # Popularity score: purchases weigh most, then cart-adds, then views.
+    _popularity = (
+        (func.coalesce(Product.sales_count, 0) * 4)
+        + (func.coalesce(Product.cart_count, 0) * 2)
+        + func.coalesce(Product.view_count, 0)
+    )
     if sort == "price_asc":
         order_col = Product.price.asc()
     elif sort == "price_desc":
@@ -233,10 +239,19 @@ async def get_products(
         order_col = Product.name.asc()
     elif sort == "name_desc":
         order_col = Product.name.desc()
+    elif sort in ("popular", "trending", "best_sellers"):
+        # Most bought & viewed first, newest as a tie-breaker.
+        order_col = _popularity.desc()
+    elif sort == "newest":
+        order_col = Product.created_at.desc()
     elif search:
         order_col = Product.name
     else:
-        order_col = Product.created_at.desc()
+        # Default: popularity so the front of the catalogue reflects real demand,
+        # then newest for products with no signal yet.
+        order_col = _popularity.desc()
+
+    _tiebreak = Product.created_at.desc()
 
     # Always return the paginated envelope. A missing `page` just means page 1,
     # so there is no code path that dumps the entire catalogue in one response.
@@ -252,7 +267,7 @@ async def get_products(
     # two queries concurrently ("concurrent operations are not permitted").
     count_result = await db.execute(select(func.count()).select_from(base_query.subquery()))
     total = count_result.scalar() or 0
-    data_result = await db.execute(base_query.order_by(order_col).offset(offset).limit(limit))
+    data_result = await db.execute(base_query.order_by(order_col, _tiebreak).offset(offset).limit(limit))
     products = data_result.scalars().all()
 
     out = {
@@ -282,6 +297,36 @@ async def get_all_product_names(db: AsyncSession = Depends(get_db)):
     _cache_set(cache_key, out, ttl=60)
     return out
 
+
+@api_router.post("/products/track")
+async def track_product_event(
+    product_id: str,
+    event_type: str = "view",
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Record a lightweight popularity signal for a product. Called (fire-and-forget)
+    by the storefront when a product page is viewed or added to cart. Purchases
+    are tracked separately via sales_count at checkout.
+
+    event_type: "view" | "add_to_cart" | "search"
+    """
+    # Map event → column. Unknown events are ignored quietly.
+    col = {"view": "view_count", "search": "view_count", "add_to_cart": "cart_count"}.get(event_type)
+    if not col:
+        return {"ok": False}
+    from sqlalchemy import update as _update
+    try:
+        await db.execute(
+            _update(Product)
+            .where(Product.product_id == product_id)
+            .values({col: getattr(Product, col) + 1})
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        return {"ok": False}
+    return {"ok": True}
 
 @api_router.get("/products/{product_id}", response_model=ProductResponse)
 async def get_product(product_id: str, db: AsyncSession = Depends(get_db)):
@@ -403,6 +448,9 @@ async def get_active_flash_sales(db: AsyncSession = Depends(get_db)):
                     "created_at": prod.created_at.isoformat() if prod.created_at else None,
                 },
             })
+    # Randomise the order each request so it's not always the same bottle first.
+    import random as _random
+    _random.shuffle(out)
     return out
 
 @api_router.get("/users/{user_id}/rewards")
@@ -452,6 +500,8 @@ async def startup():
             from sqlalchemy import text as _text
             _migrations = [
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS sales_count INTEGER DEFAULT 0 NOT NULL",
+                "ALTER TABLE products ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0 NOT NULL",
+                "ALTER TABLE products ADD COLUMN IF NOT EXISTS cart_count INTEGER DEFAULT 0 NOT NULL",
                 "ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code_used VARCHAR(50)",
                 "ALTER TABLE discount_codes ADD COLUMN IF NOT EXISTS is_first_order_only BOOLEAN DEFAULT FALSE",
             ]

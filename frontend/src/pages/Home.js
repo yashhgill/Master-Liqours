@@ -301,10 +301,17 @@ const Home = () => {
     });
 
     // ── Priority 2: products + flash sales — load independently, don't block hero ──
-    safe(axios.get(API + '/products', { params: { page: 1, limit: 12 } })).then(productsRes => {
+    // Crowd Favourites = most viewed & bought (popular sort).
+    safe(axios.get(API + '/products', { params: { page: 1, limit: 12, sort: 'popular' } })).then(productsRes => {
       if (productsRes?.data) {
         const all = productsRes.data?.products || (Array.isArray(productsRes.data) ? productsRes.data : []);
         setProducts(all.slice(0, 12));
+      }
+    });
+    // New Arrivals = newest first.
+    safe(axios.get(API + '/products', { params: { page: 1, limit: 8, sort: 'newest' } })).then(naRes => {
+      if (naRes?.data) {
+        const all = naRes.data?.products || (Array.isArray(naRes.data) ? naRes.data : []);
         setNewArrivals(all.slice(0, 8));
       }
     });

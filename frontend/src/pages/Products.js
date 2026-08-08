@@ -142,7 +142,9 @@ const Products = () => {
         if (pr.min > 0) params.min_price = pr.min;
         if (pr.max !== Infinity) params.max_price = pr.max;
       }
-      if (sort && sort !== 'trending') params.sort = sort;
+      // 'trending' now maps to a real server-side popularity sort (bought+viewed),
+      // so send it — ranking is global across the catalogue, not per page.
+      if (sort) params.sort = sort === 'trending' ? 'popular' : sort;
       const res = await axios.get(`${API}/products`, { params });
       const data = res.data?.products || res.data || [];
       const total = res.data?.total ?? data.length;
@@ -186,14 +188,11 @@ const Products = () => {
     fetchProducts({ reset: true });
   }, [priceRange, sort]); // eslint-disable-line
 
-  // 'trending' has no SQL equivalent (sales_count ordering) — sort the page locally.
+  // Server returns products already ordered (popularity, price, name…), so just
+  // mirror what it sent — no client-side re-sort needed.
   useEffect(() => {
-    if (sort === 'trending') {
-      setProducts([...allProducts].sort((a, b) => (b.sales_count || 0) - (a.sales_count || 0)));
-    } else {
-      setProducts(allProducts);
-    }
-  }, [allProducts, sort]); // eslint-disable-line
+    setProducts(allProducts);
+  }, [allProducts]); // eslint-disable-line
 
   const setCat = (c) => {
     setSelected(c);
