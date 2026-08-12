@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { FaCheck, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
+import { FaCheck, FaVolumeUp, FaVolumeMute, FaArrowRight } from 'react-icons/fa';
 
 /**
- * Age verification gate with cinematic vault videos — mobile-first.
+ * Age verification gate with cinematic vault videos — mobile-first & stall-proof.
  *
- * Mobile autoplay rules are strict, so this is built defensively:
- *  - Background/looping videos are MUTED and get their muted attribute set on the
- *    DOM node directly (React's `muted` prop is unreliable on iOS Safari), plus
- *    playsInline / webkit-playsinline so they don't force fullscreen.
- *  - The "accepted" reveal video's play() is triggered SYNCHRONOUSLY inside the
- *    tap handler (iOS only grants sound to play() calls made within a user
- *    gesture). It's pre-mounted hidden so the ref exists at tap time.
- *  - Every video has a poster and a graceful fallback: if a clip can't autoplay,
- *    the poster shows and the flow still works (buttons/timeouts carry it).
+ * Key robustness rules (learned the hard way on mobile):
+ *  - Verification is saved the MOMENT the user taps "Yes", not after the video.
+ *    So even if the clip stalls, the gate never reappears and the user is never
+ *    trapped.
+ *  - During the reveal, tapping ANYWHERE enters the site, plus a big Enter button.
+ *  - Video stall / error / a 4s safety timeout all auto-advance into the site.
+ *  - Muted loop autoplay is forced via the DOM node (React's muted prop is
+ *    unreliable on iOS); reveal playback is triggered synchronously in the tap.
  */
 
 const STORAGE_KEY = 'ml_age_verified';
@@ -32,15 +31,16 @@ const isVerified = () => {
   } catch { return false; }
 };
 
+const markVerified = () => { try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch {} };
+
 const AgeGate = () => {
   const [status, setStatus] = useState('checking'); // checking | ask | accepting | denied | passed
   const [muted, setMuted] = useState(false);
   const revealRef = useRef(null);
   const bgRef = useRef(null);
+  const enterTimer = useRef(null);
 
-  useEffect(() => {
-    setStatus(isVerified() ? 'passed' : 'ask');
-  }, []);
+  useEffect(() => { setStatus(isVerified() ? 'passed' : 'ask'); }, []);
 
   // Lock scroll while gate is up.
   useEffect(() => {
@@ -49,52 +49,47 @@ const AgeGate = () => {
     return () => { document.body.style.overflow = ''; };
   }, [status]);
 
-  // Force the background loop to actually autoplay on mobile: set muted on the
-  // real DOM node and call play() (autoplay attribute alone is unreliable).
+  // Force the muted background loop to autoplay on mobile.
   useEffect(() => {
     const v = bgRef.current;
     if (v && (status === 'ask' || status === 'denied')) {
-      v.muted = true;
-      v.setAttribute('muted', '');
-      const p = v.play();
-      if (p && p.catch) p.catch(() => {}); // poster stays if blocked — fine
+      v.muted = true; v.setAttribute('muted', '');
+      const p = v.play(); if (p && p.catch) p.catch(() => {});
     }
   }, [status]);
 
+  const clearTimer = () => { if (enterTimer.current) { clearTimeout(enterTimer.current); enterTimer.current = null; } };
+
   const enterSite = useCallback(() => {
-    try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch {}
+    clearTimer();
+    markVerified();                    // idempotent — safe to call again
     document.body.style.overflow = '';
     setStatus('passed');
   }, []);
 
   const onYes = () => {
-    // Trigger the reveal video's playback SYNCHRONOUSLY here so iOS grants it
-    // (and its audio) as part of this tap gesture.
+    // Save verification IMMEDIATELY so the gate can never reappear or trap the
+    // user, regardless of what the video does next.
+    markVerified();
+    // Kick off the reveal video synchronously (needed for iOS sound).
     const v = revealRef.current;
     if (v) {
-      try {
-        v.muted = muted;
-        v.currentTime = 0;
-        const p = v.play();
-        if (p && p.catch) p.catch(() => {});
-      } catch {}
+      try { v.muted = muted; v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch {}
     }
     setStatus('accepting');
-    // Safety net: enter even if the clip can't play or 'ended' never fires.
-    window.__ageGateTimer = setTimeout(enterSite, 7000);
+    // Hard safety: enter within 4s no matter what (stall, buffering, no 'ended').
+    clearTimer();
+    enterTimer.current = setTimeout(enterSite, 4000);
   };
 
   const onNo = () => setStatus('denied');
 
-  const toggleMute = () => {
-    setMuted(m => {
-      const next = !m;
-      if (revealRef.current) revealRef.current.muted = next;
-      return next;
-    });
+  const toggleMute = (e) => {
+    e.stopPropagation();
+    setMuted(m => { const next = !m; if (revealRef.current) revealRef.current.muted = next; return next; });
   };
 
-  useEffect(() => () => { if (window.__ageGateTimer) clearTimeout(window.__ageGateTimer); }, []);
+  useEffect(() => () => clearTimer(), []);
 
   if (status === 'checking') return null;
 
@@ -102,13 +97,9 @@ const AgeGate = () => {
     position: 'fixed', inset: 0, zIndex: 100000, background: '#050505',
     display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   };
-  const videoBg = {
-    position: 'absolute', inset: 0, width: '100%', height: '100%',
-    objectFit: 'cover', objectPosition: 'center',
-  };
+  const videoBg = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' };
 
-  // Reveal video is ALWAYS mounted (hidden until accepting) so its ref exists
-  // at tap time — essential for iOS sound. Kept out of the DOM only once passed.
+  // Reveal video kept mounted (hidden) so its ref exists at tap time (iOS sound).
   const revealVideo = status !== 'passed' && (
     <video
       ref={revealRef}
@@ -117,25 +108,33 @@ const AgeGate = () => {
       playsInline
       webkit-playsinline="true"
       preload="auto"
+      controls={false}
+      disablePictureInPicture
       onEnded={enterSite}
+      onError={enterSite}
+      onStalled={() => { /* let the 4s timer handle it */ }}
       style={{ ...videoBg, display: status === 'accepting' ? 'block' : 'none' }}
     />
   );
 
-  // ── Reveal (accepted) ──
+  // ── Reveal (accepted): tap anywhere to enter, can't get stuck ──
   if (status === 'accepting') {
     return (
-      <div style={overlay}>
+      <div style={{ ...overlay, cursor: 'pointer' }} onClick={enterSite}>
         {revealVideo}
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 55%, rgba(5,5,5,0.55))', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 50%, rgba(5,5,5,0.75))', pointerEvents: 'none' }} />
         <button onClick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}
-          style={{ position: 'absolute', top: 20, right: 20, zIndex: 3, width: 44, height: 44, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          style={{ position: 'absolute', top: 'max(18px, env(safe-area-inset-top))', right: 18, zIndex: 4, width: 46, height: 46, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {muted ? <FaVolumeMute size={16} /> : <FaVolumeUp size={16} />}
         </button>
-        <button onClick={enterSite}
-          style={{ position: 'absolute', bottom: 'max(28px, env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)', zIndex: 3, background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', padding: '12px 28px', borderRadius: 50, fontWeight: 700, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-          Enter →
+        {/* Big, always-visible, always-clickable Enter button */}
+        <button onClick={(e) => { e.stopPropagation(); enterSite(); }} data-testid="age-gate-enter"
+          style={{ position: 'absolute', bottom: 'max(32px, calc(env(safe-area-inset-bottom) + 20px))', left: '50%', transform: 'translateX(-50%)', zIndex: 4, display: 'flex', alignItems: 'center', gap: 10, background: 'linear-gradient(135deg,#ff007f,#c8005a)', border: 'none', color: '#fff', padding: '16px 40px', borderRadius: 50, fontWeight: 800, fontSize: 15, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', boxShadow: '0 0 34px rgba(255,0,127,0.6)' }}>
+          Enter Store <FaArrowRight size={13} />
         </button>
+        <div style={{ position: 'absolute', bottom: 'max(12px, env(safe-area-inset-bottom))', left: 0, right: 0, textAlign: 'center', zIndex: 3, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em', pointerEvents: 'none' }}>
+          tap anywhere to continue
+        </div>
       </div>
     );
   }
