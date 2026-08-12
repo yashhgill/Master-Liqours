@@ -55,7 +55,7 @@ const ChatWidget = () => {
 
       {/* Chat panel */}
       {open && (
-        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 50, width: 340, maxHeight: 520, display: 'flex', flexDirection: 'column', borderRadius: 24, overflow: 'hidden', background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 24px 60px rgba(0,0,0,0.7)', animation: 'slideUp 0.3s ease' }}>
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 50, width: 'min(340px, calc(100vw - 32px))', maxHeight: 'min(520px, calc(100vh - 120px))', display: 'flex', flexDirection: 'column', borderRadius: 24, overflow: 'hidden', background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 24px 60px rgba(0,0,0,0.7)', animation: 'slideUp 0.3s ease' }}>
 
           {/* Header */}
           <div style={{ background: 'linear-gradient(135deg,#ff007f,#c8005a)', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
