@@ -33,7 +33,18 @@ const AgeGate = () => {
   const [status, setStatus] = useState('checking'); // checking | ask | denied | passed
   const bgRef = useRef(null);
 
-  useEffect(() => { setStatus(isVerified() ? 'passed' : 'ask'); }, []);
+  useEffect(() => {
+    // Escape hatch: visiting the site with ?skipage=1 (or if already verified)
+    // bypasses the gate entirely. Guarantees there is always a way in.
+    try {
+      if (new URLSearchParams(window.location.search).get('skipage') === '1') {
+        localStorage.setItem(STORAGE_KEY, String(Date.now()));
+        setStatus('passed');
+        return;
+      }
+    } catch {}
+    setStatus(isVerified() ? 'passed' : 'ask');
+  }, []);
 
   useEffect(() => {
     const active = status === 'ask' || status === 'denied';
