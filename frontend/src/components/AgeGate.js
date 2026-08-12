@@ -1,25 +1,23 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { FaCheck, FaVolumeUp, FaVolumeMute, FaArrowRight } from 'react-icons/fa';
+import React, { useState, useEffect, useRef } from 'react';
+import { FaCheck } from 'react-icons/fa';
 
 /**
- * Age verification gate with cinematic vault videos — mobile-first & stall-proof.
+ * Age verification gate.
  *
- * Key robustness rules (learned the hard way on mobile):
- *  - Verification is saved the MOMENT the user taps "Yes", not after the video.
- *    So even if the clip stalls, the gate never reappears and the user is never
- *    trapped.
- *  - During the reveal, tapping ANYWHERE enters the site, plus a big Enter button.
- *  - Video stall / error / a 4s safety timeout all auto-advance into the site.
- *  - Muted loop autoplay is forced via the DOM node (React's muted prop is
- *    unreliable on iOS); reveal playback is triggered synchronously in the tap.
+ * Simple and reliable: tapping "Yes, I'm 21+" saves verification and enters the
+ * store IMMEDIATELY — no video in the critical path, so it can never hang.
+ *
+ * The vault clip is used only as a muted, looping background behind the prompt
+ * (muted autoplay is always allowed on mobile). If it can't play, its poster
+ * shows — the flow does not depend on it in any way.
  */
 
 const STORAGE_KEY = 'ml_age_verified';
 const MAX_AGE_DAYS = 30;
-const ACCEPTED_VIDEO = '/videos/vault-accepted.mp4';
 const DENIED_VIDEO = '/videos/vault-denied.mp4';
-const ACCEPTED_POSTER = '/videos/vault-accepted-poster.jpg';
+const ACCEPTED_VIDEO = '/videos/vault-accepted.mp4';
 const DENIED_POSTER = '/videos/vault-denied-poster.jpg';
+const ACCEPTED_POSTER = '/videos/vault-accepted-poster.jpg';
 
 const isVerified = () => {
   try {
@@ -31,25 +29,19 @@ const isVerified = () => {
   } catch { return false; }
 };
 
-const markVerified = () => { try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch {} };
-
 const AgeGate = () => {
-  const [status, setStatus] = useState('checking'); // checking | ask | accepting | denied | passed
-  const [muted, setMuted] = useState(false);
-  const revealRef = useRef(null);
+  const [status, setStatus] = useState('checking'); // checking | ask | denied | passed
   const bgRef = useRef(null);
-  const enterTimer = useRef(null);
 
   useEffect(() => { setStatus(isVerified() ? 'passed' : 'ask'); }, []);
 
-  // Lock scroll while gate is up.
   useEffect(() => {
-    const active = status !== 'checking' && status !== 'passed';
+    const active = status === 'ask' || status === 'denied';
     document.body.style.overflow = active ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [status]);
 
-  // Force the muted background loop to autoplay on mobile.
+  // Force the muted background loop to autoplay on mobile (best-effort).
   useEffect(() => {
     const v = bgRef.current;
     if (v && (status === 'ask' || status === 'denied')) {
@@ -58,86 +50,21 @@ const AgeGate = () => {
     }
   }, [status]);
 
-  const clearTimer = () => { if (enterTimer.current) { clearTimeout(enterTimer.current); enterTimer.current = null; } };
-
-  const enterSite = useCallback(() => {
-    clearTimer();
-    markVerified();                    // idempotent — safe to call again
-    document.body.style.overflow = '';
-    setStatus('passed');
-  }, []);
-
   const onYes = () => {
-    // Save verification IMMEDIATELY so the gate can never reappear or trap the
-    // user, regardless of what the video does next.
-    markVerified();
-    // Kick off the reveal video synchronously (needed for iOS sound).
-    const v = revealRef.current;
-    if (v) {
-      try { v.muted = muted; v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch {}
-    }
-    setStatus('accepting');
-    // Hard safety: enter within 4s no matter what (stall, buffering, no 'ended').
-    clearTimer();
-    enterTimer.current = setTimeout(enterSite, 4000);
+    try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch {}
+    document.body.style.overflow = '';
+    setStatus('passed');            // enter the store immediately — no video wait
   };
 
   const onNo = () => setStatus('denied');
 
-  const toggleMute = (e) => {
-    e.stopPropagation();
-    setMuted(m => { const next = !m; if (revealRef.current) revealRef.current.muted = next; return next; });
-  };
-
-  useEffect(() => () => clearTimer(), []);
-
-  if (status === 'checking') return null;
+  if (status === 'checking' || status === 'passed') return null;
 
   const overlay = {
     position: 'fixed', inset: 0, zIndex: 100000, background: '#050505',
     display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   };
   const videoBg = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' };
-
-  // Reveal video kept mounted (hidden) so its ref exists at tap time (iOS sound).
-  const revealVideo = status !== 'passed' && (
-    <video
-      ref={revealRef}
-      src={ACCEPTED_VIDEO}
-      poster={ACCEPTED_POSTER}
-      playsInline
-      webkit-playsinline="true"
-      preload="auto"
-      controls={false}
-      disablePictureInPicture
-      onEnded={enterSite}
-      onError={enterSite}
-      onStalled={() => { /* let the 4s timer handle it */ }}
-      style={{ ...videoBg, display: status === 'accepting' ? 'block' : 'none' }}
-    />
-  );
-
-  // ── Reveal (accepted): tap anywhere to enter, can't get stuck ──
-  if (status === 'accepting') {
-    return (
-      <div style={{ ...overlay, cursor: 'pointer' }} onClick={enterSite}>
-        {revealVideo}
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 50%, rgba(5,5,5,0.75))', pointerEvents: 'none' }} />
-        <button onClick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}
-          style={{ position: 'absolute', top: 'max(18px, env(safe-area-inset-top))', right: 18, zIndex: 4, width: 46, height: 46, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {muted ? <FaVolumeMute size={16} /> : <FaVolumeUp size={16} />}
-        </button>
-        {/* Big, always-visible, always-clickable Enter button */}
-        <button onClick={(e) => { e.stopPropagation(); enterSite(); }} data-testid="age-gate-enter"
-          style={{ position: 'absolute', bottom: 'max(32px, calc(env(safe-area-inset-bottom) + 20px))', left: '50%', transform: 'translateX(-50%)', zIndex: 4, display: 'flex', alignItems: 'center', gap: 10, background: 'linear-gradient(135deg,#ff007f,#c8005a)', border: 'none', color: '#fff', padding: '16px 40px', borderRadius: 50, fontWeight: 800, fontSize: 15, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', boxShadow: '0 0 34px rgba(255,0,127,0.6)' }}>
-          Enter Store <FaArrowRight size={13} />
-        </button>
-        <div style={{ position: 'absolute', bottom: 'max(12px, env(safe-area-inset-bottom))', left: 0, right: 0, textAlign: 'center', zIndex: 3, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em', pointerEvents: 'none' }}>
-          tap anywhere to continue
-        </div>
-      </div>
-    );
-  }
 
   // ── Denied ──
   if (status === 'denied') {
@@ -164,8 +91,7 @@ const AgeGate = () => {
   // ── Ask ──
   return (
     <div style={overlay} role="dialog" aria-modal="true" aria-label="Age verification">
-      {revealVideo}
-      <video ref={bgRef} src={DENIED_VIDEO} poster={DENIED_POSTER} playsInline webkit-playsinline="true" loop muted preload="auto" style={{ ...videoBg, opacity: 0.42 }} />
+      <video ref={bgRef} src={ACCEPTED_VIDEO} poster={ACCEPTED_POSTER} playsInline webkit-playsinline="true" loop muted preload="auto" style={{ ...videoBg, opacity: 0.4 }} />
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 38%, rgba(255,0,127,0.13) 0%, rgba(5,5,5,0.85) 55%, rgba(5,5,5,0.96) 100%)' }} />
 
       <div style={{ position: 'relative', zIndex: 2, width: 'min(460px, 100%)', textAlign: 'center', padding: '24px 22px' }}>
