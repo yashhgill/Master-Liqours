@@ -46,7 +46,13 @@ const Navbar = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (search.trim()) navigate(`/products?search=${encodeURIComponent(search.trim())}`);
+    if (search.trim()) {
+      navigate(`/products?search=${encodeURIComponent(search.trim())}`);
+      // Clear the navbar box after launching the search — the Products page bar
+      // (driven by the URL) is now the source of truth, so the navbar shouldn't
+      // hold a stale competing value.
+      setSearch('');
+    }
     setOpen(false);
   };
 

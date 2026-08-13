@@ -166,6 +166,17 @@ const Products = () => {
   // Initial load and whenever category changes
   useEffect(() => { fetchProducts({ reset: true }); }, [selected]); // eslint-disable-line
 
+  // Keep the on-page search box in sync with the URL. The navbar search
+  // navigates to /products?search=… — when that URL param changes (or category
+  // changes via the navbar), mirror it into local state so the two search bars
+  // never show different things. The URL is the single source of truth.
+  useEffect(() => {
+    const urlSearch = urlParams.get('search') || '';
+    const urlCat = urlParams.get('category') || '';
+    setSearch(prev => (prev !== urlSearch ? urlSearch : prev));
+    setSelected(prev => (prev !== urlCat ? urlCat : prev));
+  }, [urlParams]); // eslint-disable-line
+
   // Debounced search — server-side
   useEffect(() => {
     clearTimeout(debounceRef.current);
@@ -217,7 +228,15 @@ const Products = () => {
     setWishlist(updated);
   };
 
-  const clearAll = () => { setCat(''); setPriceRange(0); setSort('trending'); setSearch(''); };
+  const clearAll = () => {
+    setPriceRange(0);
+    setSort('trending');
+    // Clear search + category via the URL so the sync effect agrees.
+    const p = new URLSearchParams(urlParams);
+    p.delete('search');
+    p.delete('category');
+    setUrlParams(p);
+  };
   const activeCount = [selected, priceRange > 0, sort && sort !== 'trending'].filter(Boolean).length;
 
   // Helper to determine if a product is out of stock from supplier
@@ -324,7 +343,7 @@ const Products = () => {
               placeholder="Search bottles boss..." className="input-dark pl-12"
               data-testid="products-search-input" />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
+              <button onClick={() => handleSearchChange('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
                 <FaTimes size={12} />
               </button>
             )}
