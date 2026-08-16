@@ -82,7 +82,7 @@ const NewsletterTab = ({ API, active }) => {
   const inp = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '11px 14px', color: '#fff', fontSize: 14, outline: 'none' };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+    <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 24 }}>
       {/* Composer */}
       <div className="surface p-6">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -857,24 +857,45 @@ const SuperAdminDashboard = () => {
       {/* Main layout: sidebar nav + content + AI */}
       <div className="flex flex-col lg:flex-row" style={{gap:0,minHeight:'70vh',background:'rgba(255,255,255,0.01)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:24,overflow:'hidden',marginBottom:40}}>
 
-        {/* LEFT NAV — Tab list */}
-        <div className="w-full lg:w-[200px] overflow-x-auto lg:overflow-visible flex-shrink-0 flex flex-row lg:flex-col gap-1 lg:gap-0" style={{flexShrink:0,borderRight:'1px solid rgba(255,255,255,0.07)',padding:'12px 0',gap:2}}>
+        {/* LEFT NAV — Tab list. On mobile: a horizontal scroll strip with
+            content-sized pills. On desktop (lg): a vertical sidebar. */}
+        <div
+          className="admin-tab-nav w-full lg:w-[200px] flex-shrink-0 flex flex-row lg:flex-col"
+          style={{ borderRight: '1px solid rgba(255,255,255,0.07)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}
+        >
           {TABS.map(t => {
             const Icon = t.icon;
+            const active = tab === t.id;
             return (
               <button key={t.id} onClick={() => setTab(t.id)}
-                style={{display:'flex',alignItems:'center',gap:10,padding:'11px 16px',background:tab===t.id?'rgba(255,0,127,0.1)':'transparent',borderLeft:tab===t.id?'2px solid #ff007f':'2px solid transparent',border:'none',cursor:'pointer',textAlign:'left',transition:'all 0.2s',width:'100%'}}>
-                <Icon size={13} style={{color:tab===t.id?'#ff007f':'rgba(255,255,255,0.35)',flexShrink:0}} />
-                <span style={{fontSize:11,fontWeight:700,letterSpacing:'0.05em',color:tab===t.id?'#fff':'rgba(255,255,255,0.5)',textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.label}</span>
+                className="admin-tab-btn"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '12px 16px',
+                  background: active ? 'rgba(255,0,127,0.12)' : 'transparent',
+                  borderBottom: active ? '2px solid #ff007f' : '2px solid transparent',
+                  borderLeft: 'none',
+                  border: 'none',
+                  cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s',
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                }}>
+                <Icon size={13} style={{ color: active ? '#ff007f' : 'rgba(255,255,255,0.35)', flexShrink: 0 }} />
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: active ? '#fff' : 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>{t.label}</span>
               </button>
             );
           })}
-          <div style={{flex:1}} />
+          <div className="hidden lg:block" style={{ flex: 1 }} />
           {/* AI Toggle */}
           <button onClick={() => setShowAI(v => !v)}
-            style={{display:'flex',alignItems:'center',gap:10,padding:'11px 16px',background:showAI?'rgba(255,0,127,0.1)':'transparent',borderLeft:showAI?'2px solid #ff007f':'2px solid transparent',border:'none',cursor:'pointer',width:'100%',marginTop:'auto'}}>
-            <FaRobot size={13} style={{color:showAI?'#ff007f':'rgba(255,255,255,0.35)'}} />
-            <span style={{fontSize:12,fontWeight:700,letterSpacing:'0.05em',color:showAI?'#fff':'rgba(255,255,255,0.5)',textTransform:'uppercase'}}>AI Chat</span>
+            className="admin-tab-btn"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px',
+              background: showAI ? 'rgba(255,0,127,0.12)' : 'transparent',
+              borderBottom: showAI ? '2px solid #ff007f' : '2px solid transparent',
+              border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+            }}>
+            <FaRobot size={13} style={{ color: showAI ? '#ff007f' : 'rgba(255,255,255,0.35)' }} />
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: showAI ? '#fff' : 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>AI Chat</span>
           </button>
         </div>
 
@@ -1065,11 +1086,11 @@ const SuperAdminDashboard = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{opacity: prodPageLoading ? 0.4 : 1, transition:'opacity 0.2s'}}>
             {filteredProducts.map((p) => (
-              <div key={p.product_id} className={`bg-[#0a0a0a] border rounded-2xl p-4 flex items-center gap-4 group transition-all ${selectedProducts.includes(p.product_id) ? 'border-[#ff007f]/50 bg-[#ff007f08]' : 'border-white/5'}`} data-testid={`admin-product-${p.product_id}`}>
+              <div key={p.product_id} className={`bg-[#0a0a0a] border rounded-2xl p-3 sm:p-4 flex items-center gap-3 sm:gap-4 group transition-all ${selectedProducts.includes(p.product_id) ? 'border-[#ff007f]/50 bg-[#ff007f08]' : 'border-white/5'}`} data-testid={`admin-product-${p.product_id}`}>
                 <input type="checkbox" className="shrink-0 w-4 h-4"
                   checked={selectedProducts.includes(p.product_id)}
                   onChange={() => toggleSelectProduct(p.product_id)} />
-                <div className="w-20 h-20 rounded-xl shrink-0 bg-white overflow-hidden relative">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl shrink-0 bg-white overflow-hidden relative">
                   {p.image_url ? (
                     <img src={resolveImageUrl(p.image_url)} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
                   ) : (
@@ -1097,14 +1118,14 @@ const SuperAdminDashboard = () => {
                     <div className="font-display text-xl neon-pink-text mt-1">RM{(p.price || 0).toFixed(2)}</div>
                   )}
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <button onClick={() => duplicateProduct(p)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#ffd700] hover:text-[#ffd700] flex items-center justify-center transition-all" title="Duplicate" data-testid={`admin-product-dup-${p.product_id}`}>
+                <div className="flex gap-1.5 sm:gap-2 shrink-0">
+                  <button onClick={() => duplicateProduct(p)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#ffd700] hover:text-[#ffd700] flex items-center justify-center transition-all" title="Duplicate" data-testid={`admin-product-dup-${p.product_id}`}>
                     <FaCopy size={11} />
                   </button>
-                  <button onClick={() => editProduct(p)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center transition-all" title="Edit" data-testid={`admin-product-edit-${p.product_id}`}>
+                  <button onClick={() => editProduct(p)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center transition-all" title="Edit" data-testid={`admin-product-edit-${p.product_id}`}>
                     <FaPen size={11} />
                   </button>
-                  <button onClick={() => delProduct(p.product_id)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center transition-all" title="Delete" data-testid={`admin-product-del-${p.product_id}`}>
+                  <button onClick={() => delProduct(p.product_id)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center transition-all" title="Delete" data-testid={`admin-product-del-${p.product_id}`}>
                     <FaTrash size={11} />
                   </button>
                 </div>

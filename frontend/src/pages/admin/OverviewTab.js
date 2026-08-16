@@ -62,7 +62,7 @@ const OverviewTab = () => {
   }, []);
 
   if (!a) return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+    <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 12 }}>
       {[1,2,3,4].map(i => <div key={i} style={{ height: 100, borderRadius: 20, background: 'rgba(255,255,255,0.04)', animation: 'pulse 1.5s ease-in-out infinite' }} />)}
     </div>
   );
@@ -75,7 +75,7 @@ const OverviewTab = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }} data-testid="admin-overview-panel">
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }} className="sm:grid-cols-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 12 }}>
         <Stat label="Total Revenue" value={`RM${(a.total_sales||0).toLocaleString('en-MY', {minimumFractionDigits:0, maximumFractionDigits:0})}`} color="#ff007f" icon={FaChartLine}
           sub={`Yesterday: RM${(a.yesterday_sales||0).toFixed(0)}`}
           trend={todayVsYest > 0 ? 'up' : todayVsYest < 0 ? 'down' : null} />
@@ -88,7 +88,7 @@ const OverviewTab = () => {
           sub={a.pending_orders > 0 ? 'Need attention boss!' : 'All clear!'} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 16 }}>
 
         {/* Revenue chart */}
         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 20, padding: '20px 24px' }}>
@@ -117,7 +117,7 @@ const OverviewTab = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 16 }}>
 
         {/* Sales by staff */}
         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 20, padding: '20px 24px' }}>

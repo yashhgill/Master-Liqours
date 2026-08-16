@@ -427,3 +427,16 @@ body::after {
 .surface:hover {
   border-color: rgba(255,255,255,0.12);
 }
+
+/* ── Admin tab nav: horizontal scroll strip on mobile, sidebar on desktop ── */
+.admin-tab-nav {
+  scrollbar-width: none;              /* Firefox */
+  -ms-overflow-style: none;           /* IE/Edge */
+}
+.admin-tab-nav::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+/* On desktop the active pill uses a LEFT border (vertical list); on mobile the
+   bottom border set inline is correct. Flip it back for lg screens. */
+@media (min-width: 1024px) {
+  .admin-tab-nav .admin-tab-btn { width: 100%; }
+}
