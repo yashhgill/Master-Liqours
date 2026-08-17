@@ -1103,22 +1103,22 @@ const SuperAdminDashboard = () => {
                   )}
                 </div>
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => editProduct(p)} title="Click to edit">
-                  <div className="font-display text-lg uppercase truncate">{p.name}</div>
-                  <div className="text-[10px] uppercase tracking-wider text-white/40 flex items-center gap-2">
+                  <div className="font-display text-base sm:text-lg uppercase truncate">{p.name}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-white/40 flex items-center gap-2 truncate">
                     {p.category}
                     {p.is_preorder && <span className="text-[#ffd700]">· Pre-order</span>}
                   </div>
                   {p.original_price ? (
-                    <div className="flex items-baseline gap-2 mt-1">
-                      <span className="text-xs text-white/40 line-through">RM{p.original_price.toFixed(2)}</span>
-                      <span className="font-display text-xl neon-pink-text">RM{(p.price || 0).toFixed(2)}</span>
+                    <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
+                      <span className="text-[11px] text-white/40 line-through">RM{p.original_price.toFixed(2)}</span>
+                      <span className="font-display text-lg sm:text-xl neon-pink-text">RM{(p.price || 0).toFixed(2)}</span>
                       <span className="text-[10px] text-[#39ff14] font-bold">-{Math.round((1 - p.price / p.original_price) * 100)}%</span>
                     </div>
                   ) : (
-                    <div className="font-display text-xl neon-pink-text mt-1">RM{(p.price || 0).toFixed(2)}</div>
+                    <div className="font-display text-lg sm:text-xl neon-pink-text mt-1">RM{(p.price || 0).toFixed(2)}</div>
                   )}
                 </div>
-                <div className="flex gap-1.5 sm:gap-2 shrink-0">
+                <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 shrink-0">
                   <button onClick={() => duplicateProduct(p)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#ffd700] hover:text-[#ffd700] flex items-center justify-center transition-all" title="Duplicate" data-testid={`admin-product-dup-${p.product_id}`}>
                     <FaCopy size={11} />
                   </button>
@@ -1196,17 +1196,19 @@ const SuperAdminDashboard = () => {
 
           <div className="space-y-3">
             {banners.map((b) => (
-              <div key={b.banner_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center gap-4">
-                <div className="w-32 h-20 rounded-xl bg-black overflow-hidden shrink-0">
+              <div key={b.banner_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
+                <div className="w-24 h-16 sm:w-32 sm:h-20 rounded-xl bg-black overflow-hidden shrink-0">
                   {b.background_image && <img src={resolveImageUrl(b.background_image)} alt="" className="w-full h-full object-cover opacity-60" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-display text-lg uppercase truncate">{b.title}</div>
+                  <div className="font-display text-base sm:text-lg uppercase truncate">{b.title}</div>
                   <div className="text-xs text-white/50 truncate">{b.subtitle}</div>
-                  <span className={`text-[10px] uppercase font-bold ${b.is_active ? 'text-[#39ff14]' : 'text-white/30'}`}>{b.is_active ? 'Active' : 'Hidden'} · pos {b.order_position}</span>
+                  <span className={`text-[10px] uppercase font-bold whitespace-nowrap ${b.is_active ? 'text-[#39ff14]' : 'text-white/30'}`}>{b.is_active ? 'Active' : 'Hidden'} · pos {b.order_position}</span>
                 </div>
-                <button onClick={() => editBanner(b)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center"><FaPen size={11} /></button>
-                <button onClick={() => delBanner(b.banner_id)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center"><FaTrash size={11} /></button>
+                <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 shrink-0">
+                  <button onClick={() => editBanner(b)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center"><FaPen size={11} /></button>
+                  <button onClick={() => delBanner(b.banner_id)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center"><FaTrash size={11} /></button>
+                </div>
               </div>
             ))}
           </div>
@@ -1669,10 +1671,10 @@ const SuperAdminDashboard = () => {
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button onClick={() => resetStaffPw(s.staff_id)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#ffd700] hover:text-[#ffd700] flex items-center justify-center" title="Reset password" data-testid={`staff-reset-${s.staff_id}`}><FaKey size={11} /></button>
-                    <button onClick={() => editStaff(s)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center" title="Edit" data-testid={`staff-edit-${s.staff_id}`}><FaPen size={11} /></button>
-                    <button onClick={() => delStaff(s.staff_id)} className="w-9 h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center" title="Delete" data-testid={`staff-del-${s.staff_id}`}><FaTrash size={11} /></button>
+                  <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 shrink-0">
+                    <button onClick={() => resetStaffPw(s.staff_id)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#ffd700] hover:text-[#ffd700] flex items-center justify-center" title="Reset password" data-testid={`staff-reset-${s.staff_id}`}><FaKey size={11} /></button>
+                    <button onClick={() => editStaff(s)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center" title="Edit" data-testid={`staff-edit-${s.staff_id}`}><FaPen size={11} /></button>
+                    <button onClick={() => delStaff(s.staff_id)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center" title="Delete" data-testid={`staff-del-${s.staff_id}`}><FaTrash size={11} /></button>
                   </div>
                 </div>
               ))}
