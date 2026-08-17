@@ -1,6 +1,21 @@
 <!doctype html>
 <html lang="en">
     <head>
+        <script>
+        /* Canonical domain: force the bare apex domain onto www.masterliqours.my
+           BEFORE anything else loads. This fixes:
+           1. Google OAuth 'redirect_uri_mismatch' — the redirect URI is built from
+              the current origin, so everyone must be on the ONE registered domain.
+           2. The www vs non-www split where a stale service worker only poisoned
+              the apex domain. Running this first means nobody stays on the apex. */
+        (function () {
+          try {
+            if (location.hostname === 'masterliqours.my') {
+              location.replace('https://www.masterliqours.my' + location.pathname + location.search + location.hash);
+            }
+          } catch (e) {}
+        })();
+        </script>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#030303" />
