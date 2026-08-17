@@ -8,7 +8,11 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 export function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch((err) => {
+      navigator.serviceWorker.register('/sw.js').then((reg) => {
+        // Force a check for the updated SW on every load so the fixed version
+        // (which no longer caches stale HTML) replaces any old broken one fast.
+        reg.update().catch(() => {});
+      }).catch((err) => {
         console.warn('Service worker registration failed:', err);
       });
     });
