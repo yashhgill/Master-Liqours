@@ -433,7 +433,7 @@ const StaffDashboard = () => {
       </div>
 
       {/* Stats row */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:28}}>
+      <div className="grid grid-cols-2 lg:grid-cols-4" style={{gap:12,marginBottom:28}}>
         {STATUS_FLOW.slice(0, 3).map(s => (
           <button key={s.id} onClick={() => setFilter(filter === s.id ? '' : s.id)}
             style={{padding:'20px 22px',textAlign:'left',border:`1px solid ${filter === s.id ? s.color+'66' : 'rgba(255,255,255,0.07)'}`,borderRadius:20,background:filter === s.id ? `${s.color}10` : 'rgba(255,255,255,0.03)',cursor:'pointer',transition:'all 0.25s'}}>
@@ -454,7 +454,7 @@ const StaffDashboard = () => {
       </div>
 
       {/* Main content + AI sidebar */}
-      <div style={{display:'flex',gap:20,alignItems:'flex-start'}}>
+      <div className="flex flex-col lg:flex-row" style={{gap:20,alignItems:'flex-start'}}>
       <div style={{flex:1,minWidth:0}}>
 
       {/* Tab switcher */}
@@ -712,7 +712,7 @@ const StaffAIChat = () => {
   );
 
   return (
-    <div style={{width:300,flexShrink:0,background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:24,overflow:'hidden',display:'flex',flexDirection:'column',maxHeight:600}}>
+    <div className="w-full lg:w-[300px]" style={{flexShrink:0,background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:24,overflow:'hidden',display:'flex',flexDirection:'column',maxHeight:600}}>
       {/* Header */}
       <div style={{background:'linear-gradient(135deg,#ff007f,#c8005a)',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
