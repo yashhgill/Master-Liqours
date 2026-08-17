@@ -62,14 +62,14 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-4 flex items-center gap-4 lg:gap-8">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 shrink-0 group" data-testid="nav-logo">
-          <div className="logo-pop w-16 h-16 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+          <div className="logo-pop w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
             <img src="/logo-m.png" alt="Masterliqours" className="w-full h-full object-contain"
               onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
             <span className="hidden w-12 h-12 rounded-full bg-gradient-to-br from-[#ffd700] to-[#b8860b] items-center justify-center text-black font-black text-xl">M</span>
           </div>
-          <div className="hidden sm:block leading-none">
-            <div className="text-[10px] uppercase tracking-[0.35em] text-[#ffd700]/80">Premium Liquor</div>
-            <div className="logo-text text-3xl">Masterliqours</div>
+          <div className="block leading-none">
+            <div className="text-[8px] sm:text-[10px] uppercase tracking-[0.25em] sm:tracking-[0.35em] text-[#ffd700]/80">Premium Liquor</div>
+            <div className="logo-text text-xl sm:text-3xl">Masterliqours</div>
           </div>
         </Link>
 

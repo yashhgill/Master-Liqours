@@ -53,6 +53,31 @@ const BrandCarousel = () => {
         </div>
       </div>
 
+      {/* MOBILE: static tappable grid (the moving marquee is impossible to tap
+          on a phone — the link slides out from under your finger). */}
+      <div className="sm:hidden max-w-7xl mx-auto px-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+          {brands.map((name, i) => (
+            <Link key={i} to={`/products?search=${encodeURIComponent(name)}`}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '16px 12px', textDecoration: 'none',
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 14, textAlign: 'center',
+              }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.04em', color: 'rgba(255,255,255,0.85)', textShadow: '0 0 14px rgba(255,0,127,0.35)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                {name}
+              </span>
+            </Link>
+          ))}
+        </div>
+        <Link to="/products" style={{ display: 'block', textAlign: 'center', marginTop: 18, fontSize: 12, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#ff007f', textDecoration: 'none' }}>
+          All Products →
+        </Link>
+      </div>
+
+      {/* DESKTOP: animated marquee (hover glow, continuous scroll). */}
+      <div className="hidden sm:block">
       {/* Row 1 — left to right */}
       <div style={{ overflow: 'hidden', marginBottom: 16 }}>
         <div style={{ display: 'flex', width: 'max-content', animation: 'brandScroll1 40s linear infinite', gap: 0 }}>
@@ -86,6 +111,7 @@ const BrandCarousel = () => {
           ))}
         </div>
       </div>
+      </div>{/* end desktop marquee */}
 
       {/* Trust bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 mt-10 flex items-center justify-center gap-8 flex-wrap">
