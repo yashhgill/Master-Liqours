@@ -49,6 +49,10 @@ class User(Base):
     created_at = Column(DateTime, default=utcnow)
     password_reset_token = Column(String(255), nullable=True)
     password_reset_expires = Column(DateTime, nullable=True)
+    # Security: brute-force lockout + account suspension
+    failed_login_attempts = Column(Integer, default=0, nullable=False)
+    locked_until = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
 
     assigned_staff = relationship('Staff', back_populates='customers', foreign_keys=[assigned_staff_id])
     orders = relationship('Order', back_populates='user', cascade='all, delete-orphan')

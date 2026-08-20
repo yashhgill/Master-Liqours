@@ -98,6 +98,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Security headers on every API response (defense in depth alongside the
+# frontend's _headers). Cheap, and closes common headers-based attacks.
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # The API returns JSON, never HTML to render, so a strict CSP is safe here.
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    return response
+
 # Explicit OPTIONS handler — CORSMiddleware can return 405 on preflight in some Starlette versions
 @app.options("/{full_path:path}", include_in_schema=False)
 async def cors_preflight(full_path: str, request: Request):
@@ -169,10 +182,37 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
 async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
+
+    # Account lockout: after 5 consecutive failures, lock for 15 minutes. This
+    # stops password brute-forcing even from rotating IPs (which the per-IP rate
+    # limit alone wouldn't catch).
+    from datetime import datetime, timedelta
+    MAX_FAILS = 5
+    LOCK_MINUTES = 15
+    if user and getattr(user, "locked_until", None):
+        if user.locked_until and user.locked_until > datetime.utcnow():
+            mins = int((user.locked_until - datetime.utcnow()).total_seconds() / 60) + 1
+            raise HTTPException(status_code=423, detail=f"Too many attempts. Try again in {mins} min.")
+
     if not user or not verify_password(body.password, user.password_hash):
+        # Count the failure against a real account (don't reveal which emails exist).
+        if user:
+            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+            if user.failed_login_attempts >= MAX_FAILS:
+                user.locked_until = datetime.utcnow() + timedelta(minutes=LOCK_MINUTES)
+                user.failed_login_attempts = 0
+            await db.commit()
         raise HTTPException(status_code=401, detail="Emel atau kata laluan tidak sah")
+
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Akaun anda telah digantung")
+
+    # Success — reset the failure counter and any lock.
+    if user.failed_login_attempts or getattr(user, "locked_until", None):
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        await db.commit()
+
     session_token = await create_session(db, user.user_id)
     return {"message": "Log masuk berjaya", "token": session_token, "user": UserResponse.model_validate(user, from_attributes=True)}
 
@@ -509,6 +549,9 @@ async def startup():
             from sqlalchemy import text as _text
             _migrations = [
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS sales_count INTEGER DEFAULT 0 NOT NULL",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0 NOT NULL",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE NOT NULL",
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0 NOT NULL",
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS cart_count INTEGER DEFAULT 0 NOT NULL",
                 "ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code_used VARCHAR(50)",

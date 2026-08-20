@@ -70,8 +70,9 @@ async def assign_staff_round_robin(db: AsyncSession) -> Optional[str]:
 # Session management
 async def create_session(db: AsyncSession, user_id: str) -> str:
     """Create a new session for a user"""
-    import uuid
-    session_token = f"session_{uuid.uuid4().hex}"
+    import secrets
+    # Cryptographically secure, 256 bits of entropy (vs uuid4's 122).
+    session_token = f"session_{secrets.token_urlsafe(32)}"
     expires_at = datetime.utcnow() + timedelta(days=7)
 
     session = UserSession(

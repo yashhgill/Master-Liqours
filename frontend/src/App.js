@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, CartProvider, useAuth } from './context';
 import AnnouncementBar from './components/AnnouncementBar';
@@ -21,9 +21,11 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import ChangePassword from './pages/ChangePassword';
 import UserDashboard from './pages/UserDashboard';
-import StaffDashboard from './pages/StaffDashboard';
-import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import BulkOrder from './pages/BulkOrder';
+// Heavy dashboards are code-split: only downloaded when a staff/admin actually
+// visits them, so customers get a much smaller, faster initial bundle.
+const StaffDashboard = lazy(() => import('./pages/StaffDashboard'));
+const SuperAdminDashboard = lazy(() => import('./pages/SuperAdminDashboard'));
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -67,6 +69,7 @@ function AppContent() {
       <AnnouncementBar />
       <Navbar />
       <main className="flex-grow">
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/60">Loading…</div>}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<Products />} />
@@ -87,6 +90,7 @@ function AppContent() {
           <Route path="/master" element={<Navigate to="/admin" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </main>
       <Footer />
       <ChatWidget />
