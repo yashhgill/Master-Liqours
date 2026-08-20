@@ -177,6 +177,9 @@ async def checkout(
         product_id = item_data["product_id"]
         stock_row = None
 
+        # Deduct from the order's ASSIGNED staff (or their warehouse) only.
+        # We must NOT fall back to "whoever has the most stock" — that deducts
+        # from the wrong person and used to even reassign the order to them.
         if order.staff_id:
             assigned_staff_result = await db.execute(select(Staff).where(Staff.staff_id == order.staff_id))
             assigned_staff = assigned_staff_result.scalar_one_or_none()
@@ -192,11 +195,12 @@ async def checkout(
                     .where(and_(Stock.staff_id == order.staff_id, Stock.product_id == product_id))
                     .with_for_update()
                 )
-            preferred_row = preferred.scalar_one_or_none()
-            if preferred_row and preferred_row.quantity >= needed_qty:
-                stock_row = preferred_row
+            stock_row = preferred.scalar_one_or_none()
 
-        if stock_row is None:
+        # If there's no assigned staff at all (shouldn't happen for a customer
+        # order, but be safe), only then pick any available row — and do NOT
+        # reassign the order based on it.
+        if stock_row is None and not order.staff_id:
             fallback = await db.execute(
                 select(Stock)
                 .where(Stock.product_id == product_id, Stock.quantity >= needed_qty)
@@ -214,9 +218,9 @@ async def checkout(
                 detail=f"Sorry, not enough stock for {product_label} right now (need {needed_qty}). Please check with staff before retrying.",
             )
 
-        stock_row.quantity -= needed_qty
-        if stock_row.staff_id:
-            order.staff_id = stock_row.staff_id
+        # Deduct from the assigned staff's row (floor at 0). Never reassign the
+        # order to a different staff based on whose stock was used.
+        stock_row.quantity = max(0, stock_row.quantity - needed_qty)
 
         if stock_row.quantity <= LOW_STOCK_THRESHOLD:
             if stock_row.warehouse_id:

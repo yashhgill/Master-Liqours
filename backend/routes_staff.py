@@ -213,61 +213,6 @@ class TransferOrderPayload(BaseModel):
     reason: Optional[str] = None
 
 
-@router.post("/orders/{order_id}/transfer")
-async def transfer_order(
-    order_id: str,
-    payload: TransferOrderPayload,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Transfer an order to another staff member"""
-    try:
-        if user.role == UserRole.CUSTOMER:
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        if not payload.target_staff_id:
-            raise HTTPException(status_code=400, detail="Pick a staff to transfer to lah")
-
-        r = await db.execute(
-            select(Order).options(selectinload(Order.order_items)).where(Order.order_id == order_id)
-        )
-        order = r.scalar_one_or_none()
-        if not order:
-            raise HTTPException(status_code=404, detail="Order tak jumpa")
-
-        if user.role == UserRole.STAFF:
-            staff = await _staff_record_for(user, db)
-            if order.staff_id and order.staff_id != staff.staff_id:
-                raise HTTPException(status_code=403, detail="Order ni bukan yours to transfer")
-
-        if payload.target_staff_id == order.staff_id:
-            raise HTTPException(status_code=400, detail="Order already with this staff boss")
-
-        tr = await db.execute(select(Staff).where(Staff.staff_id == payload.target_staff_id))
-        target = tr.scalar_one_or_none()
-        if not target:
-            raise HTTPException(status_code=404, detail="Target staff tak jumpa")
-
-        if order.status in (OrderStatus.DELIVERED, OrderStatus.CANCELLED):
-            raise HTTPException(status_code=400, detail="Can't transfer a completed/cancelled order")
-
-        order.staff_id = payload.target_staff_id
-        await db.commit()
-
-        return {
-            "message": f"Order transferred to {target.name}",
-            "order_id": order_id,
-            "new_staff_id": payload.target_staff_id,
-            "new_staff_name": target.name,
-            "new_staff_whatsapp": target.whatsapp_number,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Transfer error: {str(e)}")
-
-
 @router.post("/orders/{order_id}/notify-customer")
 async def notify_customer(
     order_id: str,
@@ -572,6 +517,40 @@ async def transfer_order(
         if order.status in (OrderStatus.DELIVERED, OrderStatus.CANCELLED):
             raise HTTPException(status_code=400, detail="Can't transfer a completed/cancelled order")
 
+        # ── Move the reserved stock from the CURRENT staff to the TARGET staff ──
+        # When the order was placed, its items were deducted from the original
+        # staff's stock. Transferring hands the fulfilment (and the stock burden)
+        # to the new staff: credit each item back to the old staff, deduct it from
+        # the new one. Skip if there was no prior owner (nothing to credit back).
+        from_staff_id = order.staff_id
+        stock_notes = []
+        if from_staff_id and from_staff_id != payload.target_staff_id:
+            for it in order.order_items:
+                qty = it.quantity
+                pid = it.product_id
+                # Credit back to the old staff (their stock returns).
+                old_res = await db.execute(
+                    select(Stock).where(and_(Stock.staff_id == from_staff_id, Stock.product_id == pid)).with_for_update()
+                )
+                old_row = old_res.scalar_one_or_none()
+                if old_row:
+                    old_row.quantity += qty
+                # Deduct from the new (target) staff.
+                new_res = await db.execute(
+                    select(Stock).where(and_(Stock.staff_id == payload.target_staff_id, Stock.product_id == pid)).with_for_update()
+                )
+                new_row = new_res.scalar_one_or_none()
+                if not new_row:
+                    # Target has no row for this product yet — create one at 0 then go negative-safe.
+                    new_row = Stock(stock_id=str(uuid.uuid4()), staff_id=payload.target_staff_id, product_id=pid, quantity=0)
+                    db.add(new_row)
+                    await db.flush()
+                if new_row.quantity < qty:
+                    prod_res = await db.execute(select(Product).where(Product.product_id == pid))
+                    prod = prod_res.scalar_one_or_none()
+                    stock_notes.append(f"{(prod.name if prod else pid)}: {target.name} only had {new_row.quantity}, needed {qty} — recount please.")
+                new_row.quantity = max(0, new_row.quantity - qty)
+
         order.staff_id = payload.target_staff_id
         await db.commit()
 
@@ -581,6 +560,7 @@ async def transfer_order(
             "new_staff_id": payload.target_staff_id,
             "new_staff_name": target.name,
             "new_staff_whatsapp": target.whatsapp_number,
+            "stock_warnings": stock_notes,
         }
     except HTTPException:
         raise
