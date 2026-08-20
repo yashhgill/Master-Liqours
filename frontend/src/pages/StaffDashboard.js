@@ -375,7 +375,10 @@ const StaffDashboard = () => {
     axios.get(`${API}/staff/my-orders`, { withCredentials: true }).then(r => setOrders(r.data)).catch(() => {});
     axios.get(`${API}/staff/my-stock`, { withCredentials: true }).then(r => setStock(r.data)).catch(() => {});
     axios.get(`${API}/staff/info`, { withCredentials: true }).then(r => setAllStaff(r.data)).catch(() => {});
-    axios.get(`${API}/products`, { withCredentials: true }).then(r => setProducts(r.data?.products || r.data || [])).catch(() => {});
+    // Use the lightweight all-names endpoint so staff can search the ENTIRE
+    // catalogue (id/name/price/category, no pagination) — the paginated
+    // /products endpoint only returned the first 60, hiding the rest.
+    axios.get(`${API}/products/all-names`, { withCredentials: true }).then(r => setProducts(r.data || [])).catch(() => {});
   };
 
   useEffect(() => { loadData(); subscribeStaffToPush(); }, []);
