@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
 from sqlalchemy.orm import noload
 from typing import Optional, List
+from pydantic import BaseModel
 from pathlib import Path
 from dotenv import load_dotenv
 import os
@@ -328,6 +329,47 @@ async def get_products(
     if _use_cache:
         _cache_set(cache_key, out, ttl=300)
     return out
+
+@api_router.get("/settings/public")
+async def get_public_settings(db: AsyncSession = Depends(get_db)):
+    """Public site settings the storefront needs (e.g. the boss WhatsApp number
+    used for pre-order 'Contact Boss' links). Safe to expose."""
+    from models import SiteSetting
+    result = await db.execute(select(SiteSetting).where(SiteSetting.key.in_(["boss_whatsapp"])))
+    rows = {r.key: r.value for r in result.scalars().all()}
+    return {
+        "boss_whatsapp": rows.get("boss_whatsapp", "60182085097"),
+    }
+
+
+class SettingUpdate(BaseModel):
+    boss_whatsapp: Optional[str] = None
+
+
+@api_router.put("/admin/settings")
+async def update_settings(
+    body: SettingUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin-only: edit site settings (currently the boss WhatsApp number)."""
+    if current_user.role not in (UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN):
+        raise HTTPException(status_code=403, detail="Admin only")
+    from models import SiteSetting
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    for key, value in updates.items():
+        # Normalise the phone: digits only, so wa.me links always work.
+        if key == "boss_whatsapp":
+            value = "".join(ch for ch in value if ch.isdigit())
+        existing = await db.execute(select(SiteSetting).where(SiteSetting.key == key))
+        row = existing.scalar_one_or_none()
+        if row:
+            row.value = value
+        else:
+            db.add(SiteSetting(key=key, value=value))
+    await db.commit()
+    return {"ok": True, "updated": list(updates.keys())}
+
 
 @api_router.get("/products/all-names")
 async def get_all_product_names(db: AsyncSession = Depends(get_db)):

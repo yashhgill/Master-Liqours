@@ -323,3 +323,12 @@ class SupplierProduct(Base):
 
     supplier = relationship('Supplier', back_populates='products')
     product = relationship('Product')
+
+
+class SiteSetting(Base):
+    """Simple key-value store for editable site settings (e.g. boss WhatsApp)."""
+    __tablename__ = 'site_settings'
+
+    key = Column(String(64), primary_key=True)
+    value = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)

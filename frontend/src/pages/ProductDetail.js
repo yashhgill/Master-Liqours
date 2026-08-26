@@ -23,7 +23,7 @@ const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { user } = useAuth();
+  const { user, bossWhatsapp } = useAuth();
   const isStaffOrAdmin = user && ['staff', 'super_admin', 'master_admin'].includes(user.role);
   const [product, setProduct] = useState(null);
   const [flashSale, setFlashSale] = useState(null);
@@ -155,9 +155,9 @@ const ProductDetail = () => {
               <div className="mb-6 p-4 bg-[#ffd70015] border border-[#ffd700]/30 rounded-2xl">
                 <div className="font-bold text-[#ffd700] mb-1">Pre-order Item — Check Boss First</div>
                 <p className="text-white/60 text-sm mb-3">This product needs to be confirmed before ordering. Price may vary.</p>
-                <a href={`https://wa.me/${BOSS_WA.replace(/\D/g,'')}?text=${encodeURIComponent(`Hi! I'm interested in pre-ordering ${product.name}. Is it available?`)}`}
+                <a href={`https://wa.me/${(bossWhatsapp||BOSS_WA).replace(/\D/g,'')}?text=${encodeURIComponent(`Hi! I'm interested in pre-ordering ${product.name}. Is it available?`)}`}
                   target="_blank" rel="noopener noreferrer" className="btn-whatsapp inline-flex">
-                  <FaWhatsapp size={16} /> Contact Boss — +{BOSS_WA.replace(/\D/g,'')}
+                  <FaWhatsapp size={16} /> Contact Boss
                 </a>
               </div>
             ) : (
@@ -209,7 +209,7 @@ const ProductDetail = () => {
                       Go to Dashboard
                     </Link>
                   )}
-                  <a href={`https://wa.me/${BOSS_WA.replace(/\D/g,'')}?text=${encodeURIComponent('Hi! I want to enquire about ' + product.name)}`}
+                  <a href={`https://wa.me/${(bossWhatsapp||BOSS_WA).replace(/\D/g,'')}?text=${encodeURIComponent('Hi! I want to enquire about ' + product.name)}`}
                     target="_blank" rel="noopener noreferrer" className="btn-ghost">
                     <FaWhatsapp size={16} /> Ask Staff
                   </a>

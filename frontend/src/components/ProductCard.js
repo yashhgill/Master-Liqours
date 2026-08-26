@@ -30,10 +30,11 @@ const pad = (n) => String(n).padStart(2, '0');
 
 const ProductCard = ({ product, flashSale, totalStock }) => {
   const { addToCart } = useCart();
-  const { user, unavailableIds } = useAuth();
+  const { user, unavailableIds, bossWhatsapp } = useAuth();
 
-  // Use customer's assigned staff WA if available, else fall back to boss number
-  const staffWa = user?.assigned_staff_whatsapp || BOSS_WA;
+  // Use customer's assigned staff WA if available, else the admin-configured boss
+  // number (from settings), else the env fallback.
+  const staffWa = user?.assigned_staff_whatsapp || bossWhatsapp || BOSS_WA;
   const staffName = user?.assigned_staff_name || 'Boss';
   const staffReferral = user?.assigned_staff_referral || '';
   const countdown = useCountdown(flashSale?.end_time);
@@ -181,7 +182,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
             <div className="text-center px-4">
               <FaHourglassHalf size={28} className="text-[#ffd700] mx-auto mb-2" />
               <p className="text-white font-bold text-sm">Pre-order — Check Boss</p>
-              <p className="text-[#25d366] text-xs mt-1 font-bold">+{staffWa.replace(/\D/g, '')}</p>
+              <p className="text-[#25d366] text-xs mt-1 font-bold">Tap to WhatsApp</p>
             </div>
           </div>
         )}
@@ -241,7 +242,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
               <span className="text-[10px] text-white/60">Boss: </span>
               <a href={`https://wa.me/${staffWa.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()}
                 className="text-[10px] text-[#25d366] font-bold hover:underline">
-                {staffName !== 'Boss' ? staffName : `+${staffWa.replace(/\D/g, '')}`}
+                {staffName !== 'Boss' ? staffName : 'Contact Boss'}
               </a>
             </div>
           </div>

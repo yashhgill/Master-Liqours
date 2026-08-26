@@ -32,9 +32,15 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   // Set of product IDs the customer's assigned staff is out of stock on.
   const [unavailableIds, setUnavailableIds] = useState(() => new Set());
+  // Editable site settings (boss WhatsApp for pre-order links).
+  const [bossWhatsapp, setBossWhatsapp] = useState('');
 
   useEffect(() => {
     checkAuth();
+    // Load public settings once (boss WhatsApp number).
+    axios.get(`${API}/settings/public`).then(r => {
+      if (r.data?.boss_whatsapp) setBossWhatsapp(String(r.data.boss_whatsapp));
+    }).catch(() => {});
   }, []);
 
   // Whenever the user changes, refresh which products their staff can't supply.
@@ -97,7 +103,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, checkAuth, setUserDirect, unavailableIds }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, checkAuth, setUserDirect, unavailableIds, bossWhatsapp }}>
       {children}
     </AuthContext.Provider>
   );

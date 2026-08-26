@@ -410,6 +410,8 @@ const SuperAdminDashboard = () => {
 
   const [banners, setBanners] = useState([]);
   const [products, setProducts] = useState([]);
+  const [bossWaInput, setBossWaInput] = useState('');
+  const [savingBossWa, setSavingBossWa] = useState(false);
   // Full lightweight catalog (id/name/price/category) for dropdowns — kept
   // separate from `products`, which only ever holds the current 60-item page.
   const [catalog, setCatalog] = useState([]);
@@ -617,10 +619,17 @@ const SuperAdminDashboard = () => {
   };
   const delProduct = async (id) => {
     if (!window.confirm('Delete product? This cannot be undone lah.')) return;
+    // Optimistic: drop it from the list instantly, delete in the background, no
+    // full reload. Restore on failure.
+    const prev = products;
+    setProducts(list => list.filter(p => p.product_id !== id));
+    setSelectedProducts(s => s.filter(x => x !== id));
     try {
       await axios.delete(`${API}/admin/products/${id}`, { withCredentials: true });
-      load();
-    } catch (e) { toast(e.response?.data?.detail || 'Delete failed', 'error'); }
+    } catch (e) {
+      setProducts(prev);
+      toast(e.response?.data?.detail || 'Delete failed', 'error');
+    }
   };
 
   const toggleSelectProduct = (id) => {
@@ -638,13 +647,39 @@ const SuperAdminDashboard = () => {
   const bulkDeleteProducts = async () => {
     if (selectedProducts.length === 0) return;
     if (!window.confirm(`Delete ${selectedProducts.length} selected product(s)? This cannot be undone lah.`)) return;
+    // Optimistic: clear them from the list instantly (one batched request), no reload.
+    const ids = selectedProducts;
+    const prev = products;
     setBulkDeleting(true);
+    setProducts(list => list.filter(p => !ids.includes(p.product_id)));
+    setSelectedProducts([]);
     try {
-      await axios.post(`${API}/admin/products/bulk-delete`, { product_ids: selectedProducts }, { withCredentials: true });
-      setSelectedProducts([]);
-      load();
-    } catch (e) { toast(e.response?.data?.detail || 'Bulk delete failed', 'error'); }
+      await axios.post(`${API}/admin/products/bulk-delete`, { product_ids: ids }, { withCredentials: true });
+    } catch (e) {
+      setProducts(prev);
+      toast(e.response?.data?.detail || 'Bulk delete failed', 'error');
+    }
     finally { setBulkDeleting(false); }
+  };
+
+  // Boss WhatsApp settings
+  useEffect(() => {
+    axios.get(`${API}/settings/public`).then(r => {
+      if (r.data?.boss_whatsapp) setBossWaInput(String(r.data.boss_whatsapp));
+    }).catch(() => {});
+  }, []);
+
+  const saveBossWa = async () => {
+    const digits = (bossWaInput || '').replace(/\D/g, '');
+    if (!digits) { toast('Enter a valid number', 'error'); return; }
+    setSavingBossWa(true);
+    try {
+      await axios.put(`${API}/admin/settings`, { boss_whatsapp: digits }, { withCredentials: true });
+      setBossWaInput(digits);
+      toast('Boss WhatsApp updated', 'success');
+    } catch (e) {
+      toast(e.response?.data?.detail || 'Failed to save', 'error');
+    } finally { setSavingBossWa(false); }
   };
 
   const csvUpload = async (file) => {
@@ -1563,7 +1598,26 @@ const SuperAdminDashboard = () => {
       )}
       {/* === STAFF === */}
       {tab === 'staff' && (
-        <div className="surface p-6" data-testid="admin-staff-panel">
+        <div className="space-y-6" data-testid="admin-staff-panel">
+          {/* Boss WhatsApp — shown to customers only as 'Contact Boss'; number stays hidden */}
+          <div className="surface p-6">
+            <h2 className="display-md mb-1">Boss WhatsApp</h2>
+            <p className="text-xs text-white/50 mb-4">Used for pre-order "Contact Boss" links. Customers never see the number — only a "Contact Boss" button that opens WhatsApp to it.</p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-[10px] uppercase tracking-wider text-white/40">WhatsApp number (with country code)</label>
+                <input value={bossWaInput} onChange={e => setBossWaInput(e.target.value)}
+                  placeholder="60182085097"
+                  className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#ff007f]" />
+              </div>
+              <button onClick={saveBossWa} disabled={savingBossWa}
+                className="btn-pink" style={{ opacity: savingBossWa ? 0.6 : 1 }}>
+                {savingBossWa ? 'Saving…' : 'Save Number'}
+              </button>
+            </div>
+          </div>
+
+          <div className="surface p-6">
           <div className="flex justify-between mb-6 flex-wrap gap-3">
             <div>
               <h2 className="display-md">Staff Team ({staff.length})</h2>
@@ -1680,6 +1734,7 @@ const SuperAdminDashboard = () => {
               ))}
             </div>
           )}
+        </div>
         </div>
       )}
         </div>{/* end main content */}
