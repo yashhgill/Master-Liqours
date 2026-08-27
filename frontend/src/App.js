@@ -4,6 +4,7 @@ import { AuthProvider, CartProvider, useAuth } from './context';
 import AnnouncementBar from './components/AnnouncementBar';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import BottomNav from './components/BottomNav';
 import ChatWidget from './components/ChatWidget';
 import SignInPrompt from './components/SignInPrompt';
 import AgeGate from './components/AgeGate';
@@ -68,7 +69,7 @@ function AppContent() {
       <ScrollToTop />
       <AnnouncementBar />
       <Navbar />
-      <main className="flex-grow">
+      <main className="flex-grow pb-16 lg:pb-0">
         <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/60">Loading…</div>}>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -95,6 +96,7 @@ function AppContent() {
       <Footer />
       <ChatWidget />
       <SignInPrompt />
+      <BottomNav />
     </div>
   );
 }

@@ -339,7 +339,7 @@ const Home = () => {
         /* ---- IMAGE POSTER MODE: container locks to the image's own shape ---- */
         <section
           ref={heroRef}
-          className="relative overflow-hidden bg-[#030303]"
+          className="relative overflow-hidden bg-[#030303] px-3 sm:px-6 lg:px-12 pt-4 pb-2"
           style={{ cursor: 'grab' }}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
@@ -352,13 +352,15 @@ const Home = () => {
             ever kicks in, the blurred fill (below) covers the small side margins.
           */}
           <div
-            className="relative w-full mx-auto"
+            className="relative w-full mx-auto rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden ring-1 ring-white/10"
             style={{
               aspectRatio: String(posterRatio),
               maxHeight: '90vh',
               // Keep width proportional to the locked ratio for portrait posters
               // so the box stays centred rather than stretching full-width.
               maxWidth: posterRatio < 1 ? `calc(90vh * ${posterRatio})` : '100%',
+              // "Pop": a soft pink glow lifts the poster off the black page.
+              boxShadow: '0 20px 60px -15px rgba(255,0,127,0.35), 0 8px 24px -8px rgba(0,0,0,0.8)',
             }}
           >
             {/* Blurred same-image fill — covers any sliver of margin when a

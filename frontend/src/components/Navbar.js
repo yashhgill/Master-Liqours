@@ -60,6 +60,13 @@ const Navbar = () => {
     <header className="sticky top-0 z-40 bg-[#050505]/95 backdrop-blur-xl border-b border-white/10">
       {/* Top row */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-4 flex items-center gap-4 lg:gap-8">
+        {/* Hamburger — LEFT on mobile (like a native app drawer) */}
+        <button onClick={() => setOpen(!open)}
+          className="lg:hidden p-2.5 rounded-full border border-white/15 shrink-0 order-first"
+          data-testid="nav-mobile-toggle">
+          {open ? <FaTimes size={16} /> : <FaBars size={16} />}
+        </button>
+
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 shrink-0 group" data-testid="nav-logo">
           <div className="logo-pop w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
@@ -123,12 +130,6 @@ const Navbar = () => {
               )}
             </Link>
           )}
-
-          <button onClick={() => setOpen(!open)}
-            className="lg:hidden p-3 rounded-full border border-white/15"
-            data-testid="nav-mobile-toggle">
-            {open ? <FaTimes size={16} /> : <FaBars size={16} />}
-          </button>
         </div>
       </div>
 
