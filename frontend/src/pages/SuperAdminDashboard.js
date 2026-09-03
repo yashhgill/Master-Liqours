@@ -191,6 +191,7 @@ const SupplierTab = ({ API, active }) => {
     } catch(e) {}
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (active) load(); }, [active]);
 
   const save = async () => {
@@ -458,6 +459,7 @@ const SuperAdminDashboard = () => {
   const [csvResult, setCsvResult] = useState(null);
   const csvRef = useRef(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [tab]);
 
   const load = async () => {
