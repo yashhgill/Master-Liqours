@@ -240,6 +240,87 @@ async def ping():
     return {"ok": True}
 
 
+@api_router.post("/admin/migrate-r2")
+async def migrate_r2_images(
+    maintenance_key: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    One-shot endpoint: copies all product images from the old public R2 CDN
+    to Jojo's new R2 bucket. Also updates image_url in DB to new bucket URL.
+    Safe to re-run — skips images already migrated.
+    Protected by MAINTENANCE_KEY env var.
+    """
+    import httpx, re
+    from botocore.exceptions import ClientError as BotoClientError
+
+    expected_key = os.environ.get("MAINTENANCE_KEY", "")
+    if not expected_key or maintenance_key != expected_key:
+        raise HTTPException(status_code=403, detail="Invalid maintenance key")
+
+    new_s3 = boto3.client(
+        "s3",
+        endpoint_url=os.environ.get("R2_ENDPOINT"),
+        aws_access_key_id=os.environ.get("R2_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.environ.get("R2_SECRET_ACCESS_KEY"),
+        region_name="auto"
+    )
+    new_bucket = os.environ.get("R2_BUCKET", "masterliqours-uploads")
+    new_public = os.environ.get("R2_PUBLIC_URL", "").rstrip("/")
+
+    result = await db.execute(
+        select(Product.product_id, Product.name, Product.image_url)
+        .where(Product.image_url.isnot(None), Product.image_url != "")
+    )
+    products = result.fetchall()
+
+    def extract_key(url):
+        m = re.search(r"r2\.dev/(.+)$", url)
+        return m.group(1) if m else None
+
+    def already_in_new(key):
+        try:
+            new_s3.head_object(Bucket=new_bucket, Key=key)
+            return True
+        except BotoClientError:
+            return False
+
+    ok = skip = fail = 0
+    failed_names = []
+
+    async with httpx.AsyncClient(timeout=20) as http:
+        for pid, name, url in products:
+            if new_public and url.startswith(new_public):
+                skip += 1
+                continue
+            key = extract_key(url)
+            if not key:
+                skip += 1
+                continue
+            try:
+                if already_in_new(key):
+                    new_url = f"{new_public}/{key}"
+                    await db.execute(text("UPDATE products SET image_url = :url WHERE product_id = :pid"), {"url": new_url, "pid": str(pid)})
+                    skip += 1
+                    continue
+                resp = await http.get(url)
+                if resp.status_code != 200:
+                    fail += 1
+                    failed_names.append(f"{name} ({resp.status_code})")
+                    continue
+                ct = resp.headers.get("content-type", "image/png")
+                new_s3.put_object(Bucket=new_bucket, Key=key, Body=resp.content, ContentType=ct)
+                new_url = f"{new_public}/{key}"
+                await db.execute(text("UPDATE products SET image_url = :url WHERE product_id = :pid"), {"url": new_url, "pid": str(pid)})
+                ok += 1
+            except Exception as e:
+                fail += 1
+                failed_names.append(f"{name}: {str(e)[:50]}")
+
+    await db.commit()
+    return {"migrated": ok, "skipped": skip, "failed": fail, "failed_list": failed_names[:20]}
+
+
 @api_router.get("/products")
 async def get_products(
     category: Optional[str] = None,
