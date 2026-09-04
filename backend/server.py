@@ -251,7 +251,7 @@ async def migrate_r2_images(
     Safe to re-run — skips images already migrated.
     Protected by MAINTENANCE_KEY env var.
     """
-    import httpx, re
+    import httpx, re, boto3
     from botocore.exceptions import ClientError as BotoClientError
 
     expected_key = os.environ.get("MAINTENANCE_KEY", "")
