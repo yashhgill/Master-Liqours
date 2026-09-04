@@ -253,6 +253,7 @@ async def migrate_r2_images(
     """
     import httpx, re, boto3
     from botocore.exceptions import ClientError as BotoClientError
+    from sqlalchemy import text
 
     expected_key = os.environ.get("MAINTENANCE_KEY", "")
     if not expected_key or maintenance_key != expected_key:
