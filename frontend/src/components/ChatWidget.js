@@ -35,7 +35,11 @@ const ChatWidget = () => {
       }, { withCredentials: true });
       setMessages(m => [...m, { role: 'assistant', content: res.data.response }]);
     } catch {
-      setMessages(m => [...m, { role: 'assistant', content: 'Sorry boss, AI cannot respond now. Try WhatsApp our staff lah!' }]);
+      if (!user) {
+        setMessages(m => [...m, { role: 'assistant', content: "You need to sign in first lah! 😅 Create a free account or login to chat with me 👉" }]);
+      } else {
+        setMessages(m => [...m, { role: 'assistant', content: 'KiLi taking a quick nap... Try again in a bit or WhatsApp our staff lah! 🍹' }]);
+      }
     } finally { setLoading(false); }
   };
 

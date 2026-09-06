@@ -428,7 +428,7 @@ const Products = () => {
         {/* Product grid / list */}
         <div ref={gridTopRef} />
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5" style={{ minHeight: '60vh' }}>
             {Array(8).fill(0).map((_, i) => <div key={i} className="bg-white/5 rounded-3xl aspect-[3/4] animate-pulse" />)}
           </div>
         ) : products.length === 0 ? (

@@ -42,14 +42,24 @@ const SignInPrompt = () => {
       aria-label="Sign up"
       style={{
         position: 'fixed',
-        bottom: 92,
-        right: 16,
+        inset: 0,
         zIndex: 1000,
-        width: 'min(340px, calc(100vw - 32px))',
-        opacity: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        pointerEvents: 'none',
+        background: 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(4px)',
       }}
-    >
-      <div style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 24, overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,0.6)' }}>
+      onClick={(e) => { if (e.target === e.currentTarget) dismiss(); }}>
+      <div style={{
+        width: '100%',
+        maxWidth: 380,
+        pointerEvents: 'auto',
+        animation: 'slideUp 0.3s ease',
+      }}>
+        <div style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 24, overflow: 'hidden', boxShadow: '0 32px 64px rgba(0,0,0,0.8)' }}>
         <div style={{ background: 'linear-gradient(135deg,#ff007f,#c8005a)', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#fff' }}>Join the family lah</div>
           <button onClick={dismiss} aria-label="Close" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', padding: 4 }}><FaTimes size={14} /></button>
@@ -68,6 +78,7 @@ const SignInPrompt = () => {
               Sign In
             </Link>
           </div>
+        </div>
         </div>
       </div>
     </div>
