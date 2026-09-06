@@ -53,8 +53,8 @@ const Login = () => {
     <div className="ml-auth-grid" style={{ minHeight: '100vh', display: 'grid', background: '#030303' }}>
       <style>{`
         /* Mobile-first: single column so form fills full width */
-        .ml-auth-grid { grid-template-columns: 1fr; }
-        @media (min-width: 1024px) { .ml-auth-grid { grid-template-columns: 1fr 1fr; } }
+        .ml-auth-grid { grid-template-columns: 1fr; justify-items: center; }
+        @media (min-width: 1024px) { .ml-auth-grid { grid-template-columns: 1fr 1fr; justify-items: stretch; } }
 
         .ml-auth-right { padding: 28px 20px; }
         @media (min-width: 480px)  { .ml-auth-right { padding: 40px 32px; } }
@@ -100,7 +100,7 @@ const Login = () => {
         className="ml-auth-right"
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}
       >
-        <div style={{ width: '100%', maxWidth: 420 }}>
+        <div style={{ width: '100%', maxWidth: 440, margin: '0 auto' }}>
 
           {/* Header */}
           <div style={{ marginBottom: 28 }}>

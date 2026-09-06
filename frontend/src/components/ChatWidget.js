@@ -9,7 +9,7 @@ const ChatWidget = () => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Hi boss! Ask me anything about our drinks — prices, recommendations, what\'s in stock lah.' }
+    { role: 'assistant', content: "Hey! I'm KiLi 🍹 your Masterliqours AI buddy. Tell me what you're looking for — occasion, budget, or just vibes — and I'll find the perfect drink for you lah!" }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -46,7 +46,7 @@ const ChatWidget = () => {
       {/* Toggle button */}
       {!open && (
         <button onClick={() => setOpen(true)} data-testid="chat-open-btn"
-          style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 40, width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#ff007f,#c8005a)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 30px rgba(255,0,127,0.5)', transition: 'all 0.3s' }}
+          className="chat-fab" style={{ position: 'fixed', bottom: 88, right: 20, zIndex: 40, width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#ff007f,#c8005a)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 30px rgba(255,0,127,0.5)', transition: 'all 0.3s' }}
           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
           onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
           <FaComments size={20} />
@@ -55,14 +55,14 @@ const ChatWidget = () => {
 
       {/* Chat panel */}
       {open && (
-        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 50, width: 'min(340px, calc(100vw - 32px))', maxHeight: 'min(520px, calc(100vh - 120px))', display: 'flex', flexDirection: 'column', borderRadius: 24, overflow: 'hidden', background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 24px 60px rgba(0,0,0,0.7)', animation: 'slideUp 0.3s ease' }}>
+        <div style={{ position: 'fixed', bottom: 88, right: 20, zIndex: 50, width: 'min(340px, calc(100vw - 32px))', maxHeight: 'min(520px, calc(100vh - 120px))', display: 'flex', flexDirection: 'column', borderRadius: 24, overflow: 'hidden', background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 24px 60px rgba(0,0,0,0.7)', animation: 'slideUp 0.3s ease' }}>
 
           {/* Header */}
           <div style={{ background: 'linear-gradient(135deg,#ff007f,#c8005a)', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <FaRobot size={16} />
               <div>
-                <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.05em' }}>AI ASSISTANT</div>
+                <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.05em' }}>KiLi — AI Assistant 🍹</div>
                 <div style={{ fontSize: 10, opacity: 0.8 }}>Ask about products, orders lah</div>
               </div>
             </div>
