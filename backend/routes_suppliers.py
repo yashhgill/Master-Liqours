@@ -119,7 +119,7 @@ async def list_suppliers(
             })
         return out
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"List suppliers failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="List suppliers failed: — Internal error")
 
 
 @router.post("")

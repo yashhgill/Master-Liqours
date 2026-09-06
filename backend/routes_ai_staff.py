@@ -224,4 +224,4 @@ async def staff_ai_chat(
         except httpx.TimeoutException:
             raise HTTPException(status_code=504, detail="AI request timed out â try again boss")
         except Exception as e:
-            raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+            raise HTTPException(status_code=502, detail="Service temporarily unavailable")

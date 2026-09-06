@@ -566,7 +566,7 @@ async def transfer_order(
         raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Transfer error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Transfer error: — Internal error")
 
 
 @router.post("/orders/{order_id}/notify-customer")

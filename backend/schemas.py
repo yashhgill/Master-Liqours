@@ -28,7 +28,7 @@ class UserResponse(BaseModel):
     assigned_staff_id: Optional[str]
     assigned_staff_name: Optional[str] = None
     assigned_staff_whatsapp: Optional[str] = None
-    assigned_staff_referral: Optional[str] = None
+    # assigned_staff_referral excluded — internal field not needed by browser
     created_at: datetime
 
 # Product Schemas
@@ -39,11 +39,10 @@ class ProductResponse(BaseModel):
     description: Optional[str] = None
     category: str
     image_url: Optional[str] = None
-    is_active: bool
     is_preorder: Optional[bool] = False
     original_price: Optional[float] = None
-    staff_id: Optional[str] = None
-    created_at: datetime
+    # NOTE: is_active, staff_id, created_at, view_count, cart_count, sales_count
+    # are intentionally excluded — internal fields not needed by the frontend.
 
     model_config = {"from_attributes": True}
 

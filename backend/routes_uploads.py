@@ -109,7 +109,7 @@ async def upload_file(
                 CacheControl="public, max-age=31536000, immutable",
             )
         except Exception as e:  # noqa: BLE001
-            raise HTTPException(status_code=500, detail=f"R2 upload failed: {str(e)[:200]}") from e
+            raise HTTPException(status_code=500, detail="R2 upload failed: — Internal error") from e
         return {"url": f"{R2_PUBLIC_URL}/{new_name}", "filename": new_name, "size": len(body), "storage": "r2"}
 
     # Local fallback — Render's filesystem is ephemeral (wiped on every

@@ -223,7 +223,7 @@ async def create_product(
         raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Create product failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Create product failed: — Internal error")
 
 @router.patch("/products/{product_id}", response_model=ProductResponse)
 async def update_product(
@@ -257,7 +257,7 @@ async def update_product(
         raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Update product failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Update product failed: — Internal error")
 
 @router.delete("/products/{product_id}")
 async def delete_product(

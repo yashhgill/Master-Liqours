@@ -186,7 +186,7 @@ Customer: {user.name} | Tier: {user.tier} | Points: {user.points} pts"""
         return {"response": ai_response}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI error: {str(e)}")
+        raise HTTPException(status_code=500, detail="AI error: — Internal error")
 
 @router.get("/chat-history")
 async def get_chat_history(
