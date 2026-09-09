@@ -46,6 +46,24 @@ class ProductResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
+class AdminProductResponse(BaseModel):
+    """Full product response for admin panel — includes internal fields needed
+    for editing (is_active, staff_id). Never used on public-facing endpoints."""
+    product_id: str
+    name: str
+    price: float
+    description: Optional[str] = None
+    category: str
+    image_url: Optional[str] = None
+    is_active: bool
+    is_preorder: Optional[bool] = False
+    original_price: Optional[float] = None
+    staff_id: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
 class ProductCreate(BaseModel):
     name: str
     price: float

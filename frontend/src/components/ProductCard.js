@@ -111,7 +111,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
     <Link
       to={`/product/${product.product_id}`}
       onClick={blockNav}
-      className={`product-card-white group block relative ${cardState === 'oos' ? 'opacity-60 cursor-default' : cardState !== 'available' ? 'opacity-90' : ''}`}
+      className={`product-card-white group flex flex-col relative ${cardState === 'oos' ? 'opacity-60 cursor-default' : cardState !== 'available' ? 'opacity-90' : ''}`}
       data-testid={`product-card-${product.product_id}`}
     >
       {/* Flash sale badge */}
@@ -188,14 +188,14 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
         )}
       </div>
 
-      {/* Card body */}
-      <div className="p-5">
+      {/* Card body — fixed height via flex so all cards in a row are the same size */}
+      <div className="p-5 flex flex-col" style={{ minHeight: 140 }}>
         <div className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-2">{product.category}</div>
-        <h3 className="font-display text-2xl uppercase leading-none mb-3 line-clamp-2 group-hover:text-[#ff007f] transition-colors">
+        <h3 className="font-display text-xl uppercase leading-tight mb-3 line-clamp-2 group-hover:text-[#ff007f] transition-colors flex-1">
           {product.name}
         </h3>
 
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex items-end justify-between gap-3 mt-auto">
           <div>
             {hasDiscount && cardState === 'available' && (
               <div className="text-xs text-gray-400 line-through">RM{(originalPrice || product.price).toFixed(2)}</div>

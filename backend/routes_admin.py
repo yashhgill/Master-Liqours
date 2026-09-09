@@ -11,7 +11,7 @@ from models import (
     User, Product, Order, Staff, FlashSale, DiscountCode,
     UserRole, HeroBanner
 )
-from schemas import ProductCreate, ProductResponse
+from schemas import ProductCreate, ProductResponse, AdminProductResponse
 from auth_utils import get_current_user, require_role
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -178,7 +178,7 @@ async def _sync_flash_sale_from_discount(product: Product, data: ProductCreate, 
         db.add(new_sale)
 
 
-@router.post("/products", response_model=ProductResponse)
+@router.post("/products", response_model=AdminProductResponse)
 async def create_product(
     data: ProductCreate,
     user: User = Depends(get_current_user),
@@ -225,7 +225,7 @@ async def create_product(
         await db.rollback()
         raise HTTPException(status_code=500, detail="Create product failed: — Internal error")
 
-@router.patch("/products/{product_id}", response_model=ProductResponse)
+@router.patch("/products/{product_id}", response_model=AdminProductResponse)
 async def update_product(
     product_id: str,
     data: ProductCreate,
