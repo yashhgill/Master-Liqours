@@ -240,6 +240,21 @@ async def ping():
     return {"ok": True}
 
 
+@api_router.post("/admin/clear-descriptions")
+async def clear_all_descriptions(
+    maintenance_key: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Set description to NULL for all products. Protected by MAINTENANCE_KEY."""
+    from sqlalchemy import text as sa_text
+    expected = os.environ.get("MAINTENANCE_KEY", "")
+    if not expected or maintenance_key != expected:
+        raise HTTPException(status_code=403, detail="Invalid maintenance key")
+    result = await db.execute(sa_text("UPDATE products SET description = NULL"))
+    await db.commit()
+    return {"updated": result.rowcount, "message": "All product descriptions cleared"}
+
+
 @api_router.post("/admin/bulk-preorder")
 async def bulk_set_preorder(
     maintenance_key: str,
