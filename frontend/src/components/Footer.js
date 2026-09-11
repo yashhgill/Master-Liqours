@@ -153,6 +153,14 @@ const Footer = () => {
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)' }}>
             © {new Date().getFullYear()} Masterliqours · masterliqours.my · All Rights Reserved · Drink Responsibly
           </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <span>© 2026 Masterliqours by HarNova Technology · For ages 21+</span>
+            {[['Privacy Policy','/legal/privacy'],['Terms & Conditions','/legal/terms'],['Cookie Policy','/legal/cookies'],['Refund Policy','/legal/refund']].map(([label,href]) => (
+              <a key={href} href={href} style={{ color: 'rgba(255,255,255,0.35)', textDecoration: 'none', transition: 'color 0.2s' }}
+                onMouseEnter={e => e.target.style.color='#ff007f'}
+                onMouseLeave={e => e.target.style.color='rgba(255,255,255,0.35)'}>{label}</a>
+            ))}
+          </div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', gap: 5 }}>
             Built with <FaHeart size={10} style={{ color: '#ff007f' }} /> by{' '}
             <a href="https://harnova.my" target="_blank" rel="noopener noreferrer"

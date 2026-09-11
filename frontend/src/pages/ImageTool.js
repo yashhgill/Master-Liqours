@@ -7,6 +7,30 @@ import { useNavigate } from 'react-router-dom';
 const API = process.env.REACT_APP_BACKEND_URL || 'https://master-liqours.onrender.com';
 const MKEY = 'warehouse2026fix';
 
+function BulkDescBtn({ API, MKEY }) {
+  const [running, setRunning] = React.useState(false);
+  const [result, setResult] = React.useState('');
+  const run = async () => {
+    setRunning(true); setResult('');
+    try {
+      const r = await fetch(`${API}/api/admin/bulk-generate-descriptions?maintenance_key=${MKEY}&limit=20`, { method: 'POST' });
+      const d = await r.json();
+      setResult(`✅ ${d.generated} descriptions written`);
+      setTimeout(() => setResult(''), 4000);
+    } catch { setResult('Failed'); }
+    setRunning(false);
+  };
+  return (
+    <div className="flex items-center gap-2">
+      {result && <span className="text-[10px] text-[#39ff14]">{result}</span>}
+      <button onClick={run} disabled={running}
+        className="px-3 py-1.5 bg-[#00f0ff]/10 border border-[#00f0ff]/30 rounded-xl text-[11px] font-bold text-[#00f0ff] hover:bg-[#00f0ff]/20 transition-all disabled:opacity-40 whitespace-nowrap">
+        {running ? '✨ Writing 20...' : '✨ Bulk AI Descriptions (20)'}
+      </button>
+    </div>
+  );
+}
+
 export default function ImageTool() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -67,6 +91,7 @@ export default function ImageTool() {
       (p.category || '').toLowerCase().includes(search.toLowerCase());
     if (filter === 'missing') return m && !hasImage(p);
     if (filter === 'has') return m && hasImage(p);
+    if (filter === 'nodesc') return m && !p.description;
     return m;
   });
 
@@ -225,7 +250,17 @@ export default function ImageTool() {
         input = await r.blob();
       }
       setStatus('Compositing...');
-      const objUrl = input instanceof Blob ? URL.createObjectURL(input) : input;
+      // Always convert to blob URL to avoid canvas CORS taint
+      let objUrl;
+      if (input instanceof Blob) {
+        objUrl = URL.createObjectURL(input);
+      } else {
+        // Proxy through backend to get a same-origin blob
+        const proxyResp = await fetch(`${API}/api/admin/proxy-image?url=${encodeURIComponent(input)}&maintenance_key=warehouse2026fix`);
+        if (!proxyResp.ok) throw new Error('Could not fetch image — try uploading directly');
+        const blob = await proxyResp.blob();
+        objUrl = URL.createObjectURL(blob);
+      }
       const img = new Image();
       await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = objUrl; });
       bottleImgRef.current = img;
@@ -290,9 +325,14 @@ export default function ImageTool() {
         <button onClick={() => navigate(-1)} className="text-white/40 hover:text-white p-1"><FaArrowLeft /></button>
         <div>
           <h1 className="font-display text-2xl neon-pink-text leading-none">IMAGE TOOL</h1>
-          <p className="text-[10px] text-white/30">{products.length} products · <span className="text-[#ff007f]">{missingCount} missing</span></p>
+          <p className="text-[10px] text-white/30">
+            {products.length} products ·{' '}
+            <span className="text-[#ff007f]">{missingCount} missing images</span> ·{' '}
+            <span className="text-[#ffd700]">{products.filter(p => !p.description).length} missing descriptions</span>
+          </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <BulkDescBtn API={API} MKEY={MKEY} />
           <input type="password" placeholder="remove.bg key (optional)"
             value={removeBgKey}
             onChange={e => { setRemoveBgKey(e.target.value); localStorage.setItem('removebg_key', e.target.value); }}
@@ -311,7 +351,7 @@ export default function ImageTool() {
                 className="w-full bg-white/5 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-[#ff007f]" />
             </div>
             <div className="flex gap-1">
-              {[['all','All'],['missing','Missing'],['has','Has img']].map(([f,l]) => (
+              {[['all','All'],['missing','No image'],['has','Has img'],['nodesc','No desc']].map(([f,l]) => (
                 <button key={f} onClick={() => setFilter(f)}
                   className={`flex-1 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${filter===f?'bg-[#ff007f] text-white':'bg-white/5 text-white/40 hover:bg-white/10'}`}>{l}</button>
               ))}
@@ -331,7 +371,8 @@ export default function ImageTool() {
                   <div className="text-[9px] text-white/30 truncate">{p.category}</div>
                   <div className="text-[11px] font-semibold truncate leading-tight">{p.name}</div>
                 </div>
-                {hasImage(p)&&<div className="w-1.5 h-1.5 rounded-full bg-[#39ff14] flex-shrink-0"/>}
+                {hasImage(p) && p.description && <div className="w-1.5 h-1.5 rounded-full bg-[#39ff14] flex-shrink-0" title="Image + description done" />}
+                {hasImage(p) && !p.description && <div className="w-1.5 h-1.5 rounded-full bg-[#ffd700] flex-shrink-0" title="Has image, no description" />}
               </button>
             ))}
             {!loading&&filtered.length===0&&<div className="text-center py-10 text-white/20 text-xs">No products</div>}

@@ -280,7 +280,7 @@ async def generate_product_description(
     try:
         client = groq_lib.Groq(api_key=os.environ.get("GROQ_API_KEY"))
         completion = client.chat.completions.create(
-            model="groq/compound",
+            model="llama-3.1-8b-instant",
             messages=[{
                 "role": "user",
                 "content": f"""Write a short, punchy product description for {product_name} ({category}) for a Malaysian premium liquor delivery site called Masterliqours.
@@ -302,6 +302,111 @@ Product: {product_name}"""
         return {"description": description}
     except Exception as e:
         raise HTTPException(status_code=500, detail="Description generation failed")
+
+
+@api_router.post("/admin/reset-users")
+async def reset_users(
+    maintenance_key: str,
+    keep_email: str = "jojo@montageevents.my",
+    db: AsyncSession = Depends(get_db)
+):
+    """DANGER: Delete ALL users except keep_email. Set that user to master_admin."""
+    from sqlalchemy import text as sat, delete as sa_delete
+    expected = os.environ.get("MAINTENANCE_KEY", "")
+    if not expected or maintenance_key != expected:
+        raise HTTPException(status_code=403, detail="Invalid key")
+
+    # Find the keeper
+    result = await db.execute(select(User).where(User.email == keep_email))
+    keeper = result.scalar_one_or_none()
+
+    # Count users before
+    count_r = await db.execute(sat("SELECT COUNT(*) FROM users"))
+    total_before = count_r.scalar()
+
+    if keeper:
+        keeper_id = str(keeper.user_id)
+        # Delete all sessions except keeper
+        await db.execute(sat(f"DELETE FROM user_sessions WHERE user_id != '{keeper_id}'"))
+        # Delete all users except keeper
+        await db.execute(sat(f"DELETE FROM users WHERE user_id != '{keeper_id}'"))
+        # Elevate keeper to master_admin
+        await db.execute(sat(f"UPDATE users SET role = 'master_admin', is_active = true WHERE user_id = '{keeper_id}'"))
+    else:
+        # keeper doesn't exist — delete everyone
+        await db.execute(sat("DELETE FROM user_sessions"))
+        await db.execute(sat("DELETE FROM users"))
+        # Create Jojo as master_admin
+        import secrets, hashlib
+        new_user = User(
+            email=keep_email,
+            name="Jojo",
+            password_hash="OAUTH_ONLY",
+            role="master_admin",
+            is_active=True,
+            points=0,
+        )
+        db.add(new_user)
+
+    await db.commit()
+
+    count_r2 = await db.execute(sat("SELECT COUNT(*) FROM users"))
+    total_after = count_r2.scalar()
+    return {"deleted": total_before - total_after, "remaining": total_after, "keeper": keep_email}
+
+
+@api_router.get("/admin/list-users")
+async def list_users(
+    maintenance_key: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """List all users for audit."""
+    expected = os.environ.get("MAINTENANCE_KEY", "")
+    if not expected or maintenance_key != expected:
+        raise HTTPException(status_code=403, detail="Invalid key")
+    result = await db.execute(select(User).order_by(User.created_at.desc()))
+    users = result.scalars().all()
+    return [{"email": u.email, "name": u.name, "role": u.role, "created_at": str(u.created_at)} for u in users]
+
+
+@api_router.post("/admin/bulk-generate-descriptions")
+async def bulk_generate_descriptions(
+    maintenance_key: str,
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db)
+):
+    """Generate AI descriptions for all products missing one. Processes in small batches."""
+    import groq as groq_lib, asyncio
+    expected = os.environ.get("MAINTENANCE_KEY", "")
+    if not expected or maintenance_key != expected:
+        raise HTTPException(status_code=403, detail="Invalid maintenance key")
+    
+    result = await db.execute(
+        select(Product).where(Product.is_active == True, 
+                              or_(Product.description == None, Product.description == ""))
+        .limit(limit)
+    )
+    products = result.scalars().all()
+    
+    client = groq_lib.Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    ok = fail = 0
+    
+    for product in products:
+        try:
+            completion = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": f"Write a 2-sentence premium product description for {product.name} ({product.category or 'Spirits'}) for a Malaysian liquor delivery service. Mention taste profile and occasion. No price. Plain text only."}],
+                max_tokens=120, temperature=0.8
+            )
+            desc = completion.choices[0].message.content.strip()
+            product.description = desc
+            ok += 1
+            await asyncio.sleep(0.3)  # respect rate limits
+        except Exception:
+            fail += 1
+    
+    await db.commit()
+    return {"generated": ok, "failed": fail, "total_processed": len(products)}
 
 
 @api_router.post("/admin/clear-descriptions")
