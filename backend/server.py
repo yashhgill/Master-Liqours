@@ -240,6 +240,31 @@ async def ping():
     return {"ok": True}
 
 
+@api_router.get("/admin/proxy-image")
+async def proxy_image(url: str, maintenance_key: str):
+    """Proxy an external image through the backend to bypass browser CORS restrictions."""
+    import httpx
+    expected = os.environ.get("MAINTENANCE_KEY", "")
+    if not expected or maintenance_key != expected:
+        raise HTTPException(status_code=403, detail="Invalid key")
+    try:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+            if resp.status_code != 200:
+                raise HTTPException(status_code=400, detail="Could not fetch image")
+            content_type = resp.headers.get("content-type", "image/jpeg")
+            from fastapi.responses import Response
+            return Response(
+                content=resp.content,
+                media_type=content_type,
+                headers={"Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=86400"}
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=408, detail="Image URL timed out")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not fetch image")
+
+
 @api_router.post("/admin/generate-description")
 async def generate_product_description(
     maintenance_key: str,

@@ -177,17 +177,17 @@ export default function ImageTool() {
     }
     setLoadingBackdrop(true);
     try {
-      // Fetch as blob to avoid canvas CORS taint issues
-      let objectUrl = url;
-      if (url.startsWith('http')) {
-        try {
-          const resp = await fetch(url, { mode: 'cors' });
-          const blob = await resp.blob();
-          objectUrl = URL.createObjectURL(blob);
-        } catch {
-          // If CORS fetch fails, try loading directly (works for same-origin or already blob URLs)
-          objectUrl = url;
-        }
+      // Fetch through backend proxy to bypass browser CORS restrictions
+      let objectUrl;
+      if (url.startsWith('blob:')) {
+        // Already a local blob (file upload) — use directly
+        objectUrl = url;
+      } else {
+        const proxyUrl = `${API}/api/admin/proxy-image?url=${encodeURIComponent(url)}&maintenance_key=warehouse2026fix`;
+        const resp = await fetch(proxyUrl);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        objectUrl = URL.createObjectURL(blob);
       }
       const img = new Image();
       await new Promise((res, rej) => {
@@ -198,10 +198,9 @@ export default function ImageTool() {
       setBackdropImg(img);
       setBackdropName(name || 'Custom');
       localStorage.setItem('backdrop_name', name || 'Custom');
-      // Only save http URLs (not blob: URLs which are session-only)
-      if (url.startsWith('http')) localStorage.setItem('backdrop_url', url);
-    } catch {
-      setStatus('Could not load backdrop — try uploading a file instead');
+      if (!url.startsWith('blob:')) localStorage.setItem('backdrop_url', url);
+    } catch (e) {
+      setStatus(`Could not load backdrop: ${e.message} — try uploading a file instead`);
     }
     setLoadingBackdrop(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
