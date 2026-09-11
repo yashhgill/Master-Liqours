@@ -240,6 +240,25 @@ async def ping():
     return {"ok": True}
 
 
+@api_router.post("/admin/bulk-preorder")
+async def bulk_set_preorder(
+    maintenance_key: str,
+    is_preorder: bool = True,
+    db: AsyncSession = Depends(get_db)
+):
+    """Set ALL active products to preorder (or clear preorder). Protected by MAINTENANCE_KEY."""
+    from sqlalchemy import text as sa_text
+    expected = os.environ.get("MAINTENANCE_KEY", "")
+    if not expected or maintenance_key != expected:
+        raise HTTPException(status_code=403, detail="Invalid maintenance key")
+    result = await db.execute(
+        sa_text("UPDATE products SET is_preorder = :v WHERE is_active = true"),
+        {"v": is_preorder}
+    )
+    await db.commit()
+    return {"updated": result.rowcount, "is_preorder": is_preorder}
+
+
 @api_router.post("/admin/migrate-r2")
 async def migrate_r2_images(
     maintenance_key: str,
