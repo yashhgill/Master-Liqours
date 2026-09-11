@@ -27,6 +27,7 @@ import BulkOrder from './pages/BulkOrder';
 // visits them, so customers get a much smaller, faster initial bundle.
 const StaffDashboard = lazy(() => import('./pages/StaffDashboard'));
 const SuperAdminDashboard = lazy(() => import('./pages/SuperAdminDashboard'));
+const ImageTool = lazy(() => import('./pages/ImageTool'));
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -87,6 +88,7 @@ function AppContent() {
           <Route path="/dashboard" element={<ProtectedRoute roles={['customer']}><UserDashboard /></ProtectedRoute>} />
           <Route path="/staff" element={<ProtectedRoute roles={['staff', 'super_admin', 'master_admin']}><StaffDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute roles={['super_admin', 'master_admin']}><SuperAdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/image-tool" element={<ProtectedRoute roles={['super_admin', 'master_admin']}><ImageTool /></ProtectedRoute>} />
           <Route path="/bulk-order" element={<BulkOrder />} />
           <Route path="/master" element={<Navigate to="/admin" replace />} />
           <Route path="*" element={<NotFound />} />

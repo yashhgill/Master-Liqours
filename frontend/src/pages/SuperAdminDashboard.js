@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context';
+import { Link } from 'react-router-dom';
 import {
   FaPlus, FaTrash, FaBolt, FaImage, FaBoxOpen, FaWineGlass,
   FaArrowUp, FaArrowDown, FaPen, FaFileCsv, FaDownload, FaSpinner,
@@ -889,6 +890,12 @@ const SuperAdminDashboard = () => {
           Manage <span style={{color:'#ff007f',textShadow:'0 0 30px rgba(255,0,127,0.4)'}}>Everything</span>
         </h1>
         <p style={{color:'rgba(255,255,255,0.4)',fontSize:14}}>Welcome {user?.name}. Drag-drop images, bulk import via CSV, edit anything boss.</p>
+        <div style={{marginTop:12}}>
+          <Link to="/admin/image-tool"
+            style={{display:'inline-flex',alignItems:'center',gap:8,padding:'8px 18px',background:'linear-gradient(135deg,#ff007f,#c8005a)',borderRadius:50,fontWeight:800,fontSize:13,color:'#fff',textDecoration:'none',boxShadow:'0 0 20px rgba(255,0,127,0.3)',letterSpacing:'0.05em'}}>
+            🖼️ IMAGE TOOL — Process &amp; upload bottle photos
+          </Link>
+        </div>
       </div>
 
       {/* Main layout: sidebar nav + content + AI */}
