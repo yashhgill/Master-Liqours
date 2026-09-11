@@ -240,6 +240,45 @@ async def ping():
     return {"ok": True}
 
 
+@api_router.post("/admin/generate-description")
+async def generate_product_description(
+    maintenance_key: str,
+    product_name: str,
+    category: str = "Spirits",
+    db: AsyncSession = Depends(get_db)
+):
+    """Generate a product description using AI. Protected by MAINTENANCE_KEY."""
+    import groq as groq_lib
+    expected = os.environ.get("MAINTENANCE_KEY", "")
+    if not expected or maintenance_key != expected:
+        raise HTTPException(status_code=403, detail="Invalid maintenance key")
+    try:
+        client = groq_lib.Groq(api_key=os.environ.get("GROQ_API_KEY"))
+        completion = client.chat.completions.create(
+            model="groq/compound",
+            messages=[{
+                "role": "user",
+                "content": f"""Write a short, punchy product description for {product_name} ({category}) for a Malaysian premium liquor delivery site called Masterliqours.
+
+Rules:
+- 2-3 sentences max
+- Mention the taste profile, occasion, or pairing
+- Sound premium but approachable
+- No price mention
+- English only, no Manglish
+- No markdown, just plain text
+
+Product: {product_name}"""
+            }],
+            max_tokens=150,
+            temperature=0.8
+        )
+        description = completion.choices[0].message.content.strip()
+        return {"description": description}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Description generation failed")
+
+
 @api_router.post("/admin/clear-descriptions")
 async def clear_all_descriptions(
     maintenance_key: str,

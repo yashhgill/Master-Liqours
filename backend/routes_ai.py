@@ -166,7 +166,7 @@ Customer: {user.name} | Tier: {user.tier} | Points: {user.points} pts"""
     # Get AI response
     try:
         completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="groq/compound",
             messages=messages,
             temperature=0.7,
             max_tokens=500
@@ -186,7 +186,7 @@ Customer: {user.name} | Tier: {user.tier} | Points: {user.points} pts"""
         return {"response": ai_response}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI error: {type(e).__name__}: {str(e)[:200]}")
+        raise HTTPException(status_code=500, detail="AI temporarily unavailable")
 
 @router.get("/chat-history")
 async def get_chat_history(

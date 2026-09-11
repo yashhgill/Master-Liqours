@@ -22,6 +22,8 @@ export default function ImageTool() {
   const [bottleSize, setBottleSize] = useState(75);
   const [bottleY, setBottleY] = useState(50);
   const [removeBgKey, setRemoveBgKey] = useState(() => localStorage.getItem('removebg_key') || '');
+  const [description, setDescription] = useState('');
+  const [genDesc, setGenDesc] = useState(false);
   const canvasRef = useRef(null);
   const fileRef = useRef(null);
   const currentImgRef = useRef(null);
@@ -181,6 +183,30 @@ export default function ImageTool() {
     setUploading(false);
   };
 
+  const generateDescription = async () => {
+    if (!selected) return;
+    setGenDesc(true);
+    try {
+      const resp = await fetch(
+        `${API}/api/admin/generate-description?maintenance_key=warehouse2026fix&product_name=${encodeURIComponent(selected.name)}&category=${encodeURIComponent(selected.category || 'Spirits')}`,
+        { method: 'POST' }
+      );
+      const data = await resp.json();
+      if (data.description) setDescription(data.description);
+    } catch {}
+    setGenDesc(false);
+  };
+
+  const saveDescription = async () => {
+    if (!selected || !description.trim()) return;
+    try {
+      await axios.patch(`${API}/api/admin/products/${selected.product_id}`,
+        { name: selected.name, price: selected.price, category: selected.category || 'Whiskey', description: description.trim(), is_active: true },
+        { withCredentials: true });
+      setStatus(prev => prev.startsWith('✅') ? '✅ Image + description saved!' : '✅ Description saved!');
+    } catch {}
+  };
+
   if (!user || !['master_admin', 'super_admin'].includes(user.role))
     return <div className="min-h-screen flex items-center justify-center text-white/50">Admin only</div>;
 
@@ -226,7 +252,7 @@ export default function ImageTool() {
             {loading ? <div className="flex items-center justify-center h-32 text-white/20 text-xs">Loading...</div>
               : filtered.map(p => (
               <button key={p.product_id}
-                onClick={() => { setSelected(p); setPreviewUrl(null); setStatus(''); setSourceUrl(''); currentImgRef.current = null; }}
+                onClick={() => { setSelected(p); setPreviewUrl(null); setStatus(''); setSourceUrl(''); setDescription(''); currentImgRef.current = null; }}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 border-b border-white/5 text-left hover:bg-white/5 transition-all ${selected?.product_id === p.product_id ? 'bg-white/8 border-l-2 !border-l-[#ff007f]' : ''}`}>
                 <div className="w-9 h-9 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
                   {hasImage(p) ? <img src={p.image_url} alt="" className="w-full h-full object-cover" />
@@ -356,6 +382,30 @@ export default function ImageTool() {
                     {uploading ? <><FaSpinner className="animate-spin" /> Saving...</> : <><FaCheck /> Save to product</>}
                   </button>
                 )}
+
+                {/* AI Description Generator */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-white/40 uppercase tracking-wider font-bold">AI Description</p>
+                    <button onClick={generateDescription} disabled={genDesc || !selected}
+                      className="px-3 py-1.5 bg-[#00f0ff]/10 border border-[#00f0ff]/30 rounded-xl text-xs font-bold text-[#00f0ff] hover:bg-[#00f0ff]/20 transition-all disabled:opacity-40 flex items-center gap-1.5">
+                      {genDesc ? '✨ Writing...' : '✨ Generate'}
+                    </button>
+                  </div>
+                  <textarea
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="AI will write a description here, or type your own..."
+                    rows={3}
+                    className="w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#00f0ff] resize-none"
+                  />
+                  {description.trim() && (
+                    <button onClick={saveDescription}
+                      className="w-full py-2 bg-[#00f0ff]/15 border border-[#00f0ff]/30 rounded-xl text-sm font-bold text-[#00f0ff] hover:bg-[#00f0ff]/25 transition-all">
+                      Save description to product
+                    </button>
+                  )}
+                </div>
 
                 <div className="text-xs text-white/20 leading-relaxed border border-white/5 rounded-xl p-3">
                   <p className="font-bold text-white/30 mb-1">Tips:</p>
