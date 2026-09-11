@@ -24,16 +24,39 @@ export default function ImageTool() {
   const [removeBgKey, setRemoveBgKey] = useState(() => localStorage.getItem('removebg_key') || '');
   const [description, setDescription] = useState('');
   const [genDesc, setGenDesc] = useState(false);
+  const [backdropImg, setBackdropImg] = useState(null);        // loaded Image element
+  const [backdropName, setBackdropName] = useState(() => localStorage.getItem('backdrop_name') || 'Dark Gradient');
+  const [backdropUrl, setBackdropUrl] = useState('');
+  const [loadingBackdrop, setLoadingBackdrop] = useState(false);
+  const backdropFileRef = useRef(null);
   const canvasRef = useRef(null);
   const fileRef = useRef(null);
   const currentImgRef = useRef(null);
 
+  // Preset backdrops — public CDN images that work cross-origin
+  const PRESETS = [
+    { name: 'Dark Gradient', url: null },  // null = use generated canvas gradient
+    { name: 'Dark Shelf', url: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=800&q=80' },
+    { name: 'Bar Counter', url: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&q=80' },
+    { name: 'Marble Surface', url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80' },
+    { name: 'Night Lights', url: 'https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=800&q=80' },
+    { name: 'Wood Table', url: 'https://images.unsplash.com/photo-1541519227354-08fa5d50c820?w=800&q=80' },
+  ];
+
   useEffect(() => { loadProducts(); }, []);
+
+  // Restore saved custom backdrop on mount
+  useEffect(() => {
+    const savedUrl = localStorage.getItem('backdrop_url');
+    const savedName = localStorage.getItem('backdrop_name') || 'Dark Gradient';
+    if (savedUrl) loadBackdrop(savedUrl, savedName);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (currentImgRef.current) composite(currentImgRef.current);
-  }, [bottleSize, bottleY]);
+  }, [bottleSize, bottleY, backdropImg]);
 
   const loadProducts = async () => {
     setLoading(true);
@@ -62,29 +85,49 @@ export default function ImageTool() {
     const S = 800;
     canvas.width = S; canvas.height = S;
 
-    // Dark backdrop
-    ctx.fillStyle = '#050505';
-    ctx.fillRect(0, 0, S, S);
+    // === BACKDROP ===
+    if (backdropImg) {
+      // Draw photo backdrop — cover the full canvas
+      const bw = backdropImg.naturalWidth || backdropImg.width;
+      const bh = backdropImg.naturalHeight || backdropImg.height;
+      const scale = Math.max(S / bw, S / bh);
+      const dw = bw * scale, dh = bh * scale;
+      const dx = (S - dw) / 2, dy = (S - dh) / 2;
+      ctx.drawImage(backdropImg, dx, dy, dw, dh);
 
-    // Pink radial glow
-    const glow = ctx.createRadialGradient(S/2, S*0.7, 0, S/2, S*0.6, S*0.55);
-    glow.addColorStop(0, 'rgba(255,0,127,0.18)');
-    glow.addColorStop(0.6, 'rgba(120,0,60,0.07)');
-    glow.addColorStop(1, 'transparent');
-    ctx.fillStyle = glow; ctx.fillRect(0, 0, S, S);
+      // Dark overlay so bottle pops — semi-transparent
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(0, 0, S, S);
 
-    // Shelf lines
-    ctx.strokeStyle = 'rgba(255,0,127,0.055)'; ctx.lineWidth = 1;
-    for (let y = S*0.28; y < S; y += S*0.12) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(S, y); ctx.stroke();
+      // Subtle pink glow still
+      const glow = ctx.createRadialGradient(S/2, S*0.7, 0, S/2, S*0.6, S*0.45);
+      glow.addColorStop(0, 'rgba(255,0,127,0.12)');
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow; ctx.fillRect(0, 0, S, S);
+    } else {
+      // Generated gradient backdrop (original)
+      ctx.fillStyle = '#050505';
+      ctx.fillRect(0, 0, S, S);
+
+      const glow = ctx.createRadialGradient(S/2, S*0.7, 0, S/2, S*0.6, S*0.55);
+      glow.addColorStop(0, 'rgba(255,0,127,0.18)');
+      glow.addColorStop(0.6, 'rgba(120,0,60,0.07)');
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow; ctx.fillRect(0, 0, S, S);
+
+      // Shelf lines
+      ctx.strokeStyle = 'rgba(255,0,127,0.055)'; ctx.lineWidth = 1;
+      for (let y = S*0.28; y < S; y += S*0.12) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(S, y); ctx.stroke();
+      }
+
+      // M watermark
+      ctx.save();
+      ctx.font = `bold ${S*0.52}px serif`;
+      ctx.fillStyle = 'rgba(255,0,127,0.03)';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('M', S/2, S*0.52); ctx.restore();
     }
-
-    // M watermark
-    ctx.save();
-    ctx.font = `bold ${S*0.52}px serif`;
-    ctx.fillStyle = 'rgba(255,0,127,0.03)';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('M', S/2, S*0.52); ctx.restore();
 
     // Bottle sizing
     const maxH = S * (bottleSize / 100);
@@ -122,6 +165,36 @@ export default function ImageTool() {
       setPreviewUrl(prev => { if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev); return url; });
     }, 'image/jpeg', 0.92);
   }, [bottleSize, bottleY]);
+
+  const loadBackdrop = useCallback(async (url, name) => {
+    if (!url) {
+      // Dark gradient preset
+      setBackdropImg(null);
+      setBackdropName('Dark Gradient');
+      localStorage.setItem('backdrop_name', 'Dark Gradient');
+      localStorage.removeItem('backdrop_url');
+      if (currentImgRef.current) composite(currentImgRef.current);
+      return;
+    }
+    setLoadingBackdrop(true);
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+        img.src = url + (url.includes('?') ? '&' : '?') + 'cb=' + Date.now();
+      });
+      setBackdropImg(img);
+      setBackdropName(name || 'Custom');
+      localStorage.setItem('backdrop_name', name || 'Custom');
+      localStorage.setItem('backdrop_url', url);
+    } catch {
+      setStatus('Could not load backdrop image — try a different URL');
+    }
+    setLoadingBackdrop(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadAndComposite = async (source) => {
     setProcessing(true);
@@ -331,6 +404,59 @@ export default function ImageTool() {
                   <h2 className="font-display text-3xl uppercase leading-tight mb-1">{selected.name}</h2>
                   <div className="text-[#ffd700] font-bold text-lg">RM{selected.price?.toFixed(2)}</div>
                 </div>
+
+                {/* === BACKDROP PICKER === */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-white/40 uppercase tracking-wider font-bold">Backdrop</label>
+                    <span className="text-xs text-[#ff007f] font-bold">{backdropName}</span>
+                  </div>
+
+                  {/* Preset grid */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {PRESETS.map(p => (
+                      <button key={p.name} onClick={() => loadBackdrop(p.url, p.name)}
+                        title={p.name}
+                        className={`aspect-video rounded-xl overflow-hidden border-2 transition-all relative ${backdropName === p.name ? 'border-[#ff007f] shadow-[0_0_12px_rgba(255,0,127,0.4)]' : 'border-white/10 hover:border-white/30'}`}>
+                        {p.url
+                          ? <img src={p.url} alt={p.name} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                          : <div className="w-full h-full" style={{ background: 'radial-gradient(circle at 50% 70%, rgba(255,0,127,0.3) 0%, #050505 70%)' }} />
+                        }
+                        <div className="absolute inset-0 flex items-end justify-center pb-1">
+                          <span className="text-[8px] font-bold text-white bg-black/60 px-1.5 py-0.5 rounded-full">{p.name}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Custom backdrop — upload */}
+                  <button onClick={() => backdropFileRef.current?.click()}
+                    disabled={loadingBackdrop}
+                    className="w-full py-2 border border-dashed border-white/15 rounded-xl text-xs text-white/40 hover:border-[#ff007f] hover:text-[#ff007f] transition-all flex items-center justify-center gap-2">
+                    <FaUpload size={10} /> {loadingBackdrop ? 'Loading...' : 'Upload your own backdrop photo'}
+                  </button>
+                  <input ref={backdropFileRef} type="file" accept="image/*" className="hidden"
+                    onChange={e => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      const url = URL.createObjectURL(file);
+                      loadBackdrop(url, 'Custom Upload');
+                    }} />
+
+                  {/* Custom backdrop — URL */}
+                  <div className="flex gap-2">
+                    <input type="text" value={backdropUrl} onChange={e => setBackdropUrl(e.target.value)}
+                      placeholder="Or paste backdrop image URL..."
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#ff007f]" />
+                    <button onClick={() => backdropUrl && loadBackdrop(backdropUrl, 'Custom URL')}
+                      disabled={!backdropUrl || loadingBackdrop}
+                      className="px-3 py-2 bg-white/10 rounded-xl text-xs font-bold disabled:opacity-40 hover:bg-white/20 transition-all">
+                      Use
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border-t border-white/5" />
 
                 {/* Google search */}
                 <a href={`https://www.google.com/search?q=${encodeURIComponent(selected.name + ' bottle PNG transparent')}&tbm=isch`}
