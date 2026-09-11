@@ -35,12 +35,12 @@ export default function ImageTool() {
 
   // Preset backdrops — public CDN images that work cross-origin
   const PRESETS = [
-    { name: 'Dark Gradient', url: null },  // null = use generated canvas gradient
-    { name: 'Dark Shelf', url: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=800&q=80' },
-    { name: 'Bar Counter', url: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&q=80' },
-    { name: 'Marble Surface', url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80' },
-    { name: 'Night Lights', url: 'https://images.unsplash.com/photo-1543007630-9710e4a00a20?w=800&q=80' },
-    { name: 'Wood Table', url: 'https://images.unsplash.com/photo-1541519227354-08fa5d50c820?w=800&q=80' },
+    { name: 'Dark Gradient', url: null },
+    { name: 'Dark Shelf', url: 'https://picsum.photos/seed/shelf/800/800' },
+    { name: 'Bar Counter', url: 'https://picsum.photos/seed/bar/800/800' },
+    { name: 'Marble', url: 'https://picsum.photos/seed/marble/800/800' },
+    { name: 'Night Lights', url: 'https://picsum.photos/seed/night/800/800' },
+    { name: 'Wood Table', url: 'https://picsum.photos/seed/wood/800/800' },
   ];
 
   useEffect(() => { loadProducts(); }, []);
@@ -168,7 +168,6 @@ export default function ImageTool() {
 
   const loadBackdrop = useCallback(async (url, name) => {
     if (!url) {
-      // Dark gradient preset
       setBackdropImg(null);
       setBackdropName('Dark Gradient');
       localStorage.setItem('backdrop_name', 'Dark Gradient');
@@ -178,19 +177,31 @@ export default function ImageTool() {
     }
     setLoadingBackdrop(true);
     try {
+      // Fetch as blob to avoid canvas CORS taint issues
+      let objectUrl = url;
+      if (url.startsWith('http')) {
+        try {
+          const resp = await fetch(url, { mode: 'cors' });
+          const blob = await resp.blob();
+          objectUrl = URL.createObjectURL(blob);
+        } catch {
+          // If CORS fetch fails, try loading directly (works for same-origin or already blob URLs)
+          objectUrl = url;
+        }
+      }
       const img = new Image();
-      img.crossOrigin = 'anonymous';
       await new Promise((res, rej) => {
         img.onload = res;
         img.onerror = rej;
-        img.src = url + (url.includes('?') ? '&' : '?') + 'cb=' + Date.now();
+        img.src = objectUrl;
       });
       setBackdropImg(img);
       setBackdropName(name || 'Custom');
       localStorage.setItem('backdrop_name', name || 'Custom');
-      localStorage.setItem('backdrop_url', url);
+      // Only save http URLs (not blob: URLs which are session-only)
+      if (url.startsWith('http')) localStorage.setItem('backdrop_url', url);
     } catch {
-      setStatus('Could not load backdrop image — try a different URL');
+      setStatus('Could not load backdrop — try uploading a file instead');
     }
     setLoadingBackdrop(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -241,7 +252,7 @@ export default function ImageTool() {
       const blob = await new Promise(res => canvasRef.current.toBlob(res, 'image/jpeg', 0.92));
       const form = new FormData();
       form.append('file', blob, `product-${selected.product_id}.jpg`);
-      const up = await axios.post(`${API}/api/admin/upload-image`, form,
+      const up = await axios.post(`${API}/api/admin/upload`, form,
         { withCredentials: true, headers: { 'Content-Type': 'multipart/form-data' } });
       const imageUrl = up.data.url;
       await axios.patch(`${API}/api/admin/products/${selected.product_id}`,
@@ -419,7 +430,7 @@ export default function ImageTool() {
                         title={p.name}
                         className={`aspect-video rounded-xl overflow-hidden border-2 transition-all relative ${backdropName === p.name ? 'border-[#ff007f] shadow-[0_0_12px_rgba(255,0,127,0.4)]' : 'border-white/10 hover:border-white/30'}`}>
                         {p.url
-                          ? <img src={p.url} alt={p.name} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                          ? <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
                           : <div className="w-full h-full" style={{ background: 'radial-gradient(circle at 50% 70%, rgba(255,0,127,0.3) 0%, #050505 70%)' }} />
                         }
                         <div className="absolute inset-0 flex items-end justify-center pb-1">
