@@ -280,7 +280,7 @@ async def generate_product_description(
     try:
         client = groq_lib.Groq(api_key=os.environ.get("GROQ_API_KEY"))
         completion = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="groq/compound-mini",
             messages=[{
                 "role": "user",
                 "content": f"""Write a short, punchy product description for {product_name} ({category}) for a Malaysian premium liquor delivery site called Masterliqours.
@@ -394,7 +394,7 @@ async def bulk_generate_descriptions(
     for product in products:
         try:
             completion = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="groq/compound-mini",
                 messages=[{"role": "user", "content": f"Write a 2-sentence premium product description for {product.name} ({product.category or 'Spirits'}) for a Malaysian liquor delivery service. Mention taste profile and occasion. No price. Plain text only."}],
                 max_tokens=120, temperature=0.8
             )

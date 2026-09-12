@@ -309,7 +309,7 @@ export default function ImageTool() {
       const blob = await new Promise(res => canvasRef.current.toBlob(res, 'image/jpeg', 0.92));
       const form = new FormData();
       form.append('file', blob, `product-${selected.product_id}.jpg`);
-      const up = await axios.post(`${API}/api/admin/upload`, form,
+      const up = await axios.post(`${API}/api/admin/upload?product_name=${encodeURIComponent(selected.name)}`, form,
         { withCredentials: true, headers: { 'Content-Type': 'multipart/form-data' } });
       const imageUrl = up.data.url;
       await axios.patch(`${API}/api/admin/products/${selected.product_id}`,

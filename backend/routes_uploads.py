@@ -80,6 +80,7 @@ async def _require_admin(user: User):
 async def upload_file(
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
+    product_name: str = "",
 ):
     """Upload an image. Returns {url} to embed in product/banner/brand records.
 
@@ -96,7 +97,13 @@ async def upload_file(
     if len(body) > MAX_BYTES:
         raise HTTPException(status_code=400, detail="File too big lah (max 8 MB)")
 
-    new_name = f"{uuid.uuid4().hex}{ext}"
+    # Use product name as slug in filename if provided, else random UUID
+    if product_name.strip():
+        import re as _re
+        slug = _re.sub(r"[^a-z0-9]+", "-", product_name.strip().lower()).strip("-")[:60]
+        new_name = f"{slug}-{uuid.uuid4().hex[:8]}{ext}"
+    else:
+        new_name = f"{uuid.uuid4().hex}{ext}"
 
     _, _, _, R2_BUCKET, R2_PUBLIC_URL, R2_ENABLED = _get_r2_config()
     if R2_ENABLED:
