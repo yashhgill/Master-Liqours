@@ -625,30 +625,18 @@ const Home = () => {
       )}
 
       {/* ═══ NEW ARRIVALS ═══ */}
-      <section className="py-20" style={{ background: 'linear-gradient(180deg, #030303, #050008)' }}>
-        {newArrivals.length > 0 ? (
+      {newArrivals.length > 0 && (
+        <section className="py-20" style={{ background: 'linear-gradient(180deg, #030303, #050008)' }}>
           <Slider eyebrow="Just Landed" title={<>New <span style={{ color: '#00f0ff', textShadow: '0 0 30px rgba(0,240,255,0.4)' }}>Arrivals</span></>} viewAllLink="/products" items={newArrivals} renderItem={(p) => <ProductCard product={p} />} />
-        ) : (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
-            <div className="sec-eyebrow mb-3">Just Landed</div>
-            <h2 className="sec-title mb-8">New <span style={{ color: '#00f0ff' }}>Arrivals</span></h2>
-            <div className="flex gap-5 overflow-hidden">{Array(4).fill(0).map((_, i) => <div key={i} className="shrink-0 w-64 sm:w-72 bg-white/5 rounded-3xl aspect-[3/4] animate-pulse" />)}</div>
-          </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* ═══ POPULAR DROPS ═══ */}
-      <section className="py-20" style={{ background: '#030303' }}>
-        {products.length > 0 ? (
+      {products.length > 0 && (
+        <section className="py-20" style={{ background: '#030303' }}>
           <Slider eyebrow="Most Ordered" title={<>Crowd <span style={{ color: '#00f0ff', textShadow: '0 0 30px rgba(0,240,255,0.4)' }}>Favourites</span></>} viewAllLink="/products" items={products} renderItem={(p) => <ProductCard product={p} />} />
-        ) : (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
-            <div className="sec-eyebrow mb-3">Most Ordered</div>
-            <h2 className="sec-title mb-8">Crowd <span style={{ color: '#00f0ff' }}>Favourites</span></h2>
-            <div className="flex gap-5 overflow-hidden">{Array(4).fill(0).map((_, i) => <div key={i} className="shrink-0 w-64 sm:w-72 bg-white/5 rounded-3xl aspect-[3/4] animate-pulse" />)}</div>
-          </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* ═══ REVIEWS ═══ */}
       <ReviewSection />
