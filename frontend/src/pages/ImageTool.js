@@ -75,6 +75,37 @@ export default function ImageTool() {
 
   useEffect(() => { loadProducts(); }, []);
 
+  // Global paste handler — Ctrl+V or Cmd+V anywhere on the page
+  useEffect(() => {
+    const handlePaste = async (e) => {
+      if (!selected) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      // Try image first
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const blob = item.getAsFile();
+          if (blob) {
+            setStatus('📋 Image pasted — processing...');
+            processBottle(blob);
+            return;
+          }
+        }
+      }
+      // Try text (URL)
+      const text = e.clipboardData.getData('text');
+      if (text && (text.startsWith('http://') || text.startsWith('https://'))) {
+        e.preventDefault();
+        setSourceUrl(text);
+        setStatus('📋 URL pasted — press Go or Enter');
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
+
   const loadProducts = async () => {
     setLoading(true);
     try {
@@ -473,6 +504,11 @@ export default function ImageTool() {
 
                 {/* Bottle image input */}
                 <div className="space-y-3">
+                  {/* Paste hint */}
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-[#ff007f]/8 border border-[#ff007f]/20 rounded-2xl text-xs text-[#ff007f]/80">
+                    <span className="text-base">📋</span>
+                    <span><strong>Ctrl+V / Cmd+V</strong> anywhere to paste a copied image or URL directly</span>
+                  </div>
                   <a href={`https://www.google.com/search?q=${encodeURIComponent(selected.name+' bottle PNG transparent')}&tbm=isch`}
                     target="_blank" rel="noreferrer"
                     className="flex items-center gap-2 px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-sm text-white/70 hover:bg-white/10 transition-all">
