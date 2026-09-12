@@ -23,6 +23,7 @@ const TABS = [
   { id: 'flash-sales', label: 'Flash Sales', icon: FaBolt },
   // brands tab hidden — not needed
   { id: 'staff', label: 'Staff', icon: FaUsers },
+  { id: 'warehouse-stock', label: 'Shared Stock', icon: FaBoxOpen },
   { id: 'staff-perf', label: 'Staff Performance', icon: FaTrophy },
   { id: 'mystery-drop', label: 'Mystery Drop', icon: FaWineGlass },
   { id: 'suppliers', label: 'Suppliers', icon: FaTruck },
@@ -39,7 +40,157 @@ const blankBrand = { name: '', short_name: '', subtitle: '', logo_url: '', color
 const blankFlash = { product_id: '', discount_percentage: 10, start_time: '', end_time: '' };
 const blankStaff = { name: '', email: '', whatsapp_number: '', referral_code: '', warehouse_name: '' };
 
-// ── Supplier Tab ────────────────────────────────────────────────────
+// ── Warehouse Stock Tab ──────────────────────────────────────────────────────
+const WarehouseStockTab = ({ API }) => {
+  const [warehouses, setWarehouses] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [selectedWh, setSelectedWh] = useState('');
+  const [stock, setStock] = useState([]);
+  const [addForm, setAddForm] = useState({ product_id: '', quantity: '' });
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    axios.get(`${API}/admin/warehouses`, { withCredentials: true })
+      .then(r => { setWarehouses(r.data || []); if (r.data?.[0]) setSelectedWh(r.data[0].warehouse_id); })
+      .catch(() => {});
+    axios.get(`${API}/products/all-names`, { withCredentials: true })
+      .then(r => setProducts(r.data || []))
+      .catch(() => {});
+  }, [API]);
+
+  useEffect(() => {
+    if (!selectedWh) return;
+    axios.get(`${API}/admin/warehouse-stock/${selectedWh}`, { withCredentials: true })
+      .then(r => setStock(r.data || []))
+      .catch(() => setStock([]));
+  }, [API, selectedWh]);
+
+  const addStock = async () => {
+    if (!addForm.product_id || !addForm.quantity || !selectedWh) return;
+    setLoading(true);
+    try {
+      await axios.post(`${API}/admin/warehouse-stock?warehouse_id=${selectedWh}&product_id=${addForm.product_id}&quantity=${addForm.quantity}`, {}, { withCredentials: true });
+      setMsg(`✅ Stock added!`);
+      setAddForm({ product_id: '', quantity: '' });
+      const r = await axios.get(`${API}/admin/warehouse-stock/${selectedWh}`, { withCredentials: true });
+      setStock(r.data || []);
+    } catch (e) { setMsg(`Failed: ${e.response?.data?.detail || e.message}`); }
+    setLoading(false);
+    setTimeout(() => setMsg(''), 3000);
+  };
+
+  const updateQty = async (stockId, productId, newQty) => {
+    // For shared stock, update via PATCH to the stock endpoint
+    try {
+      await axios.patch(`${API}/admin/stock/${stockId}`, { quantity: newQty }, { withCredentials: true });
+      setStock(prev => prev.map(s => s.stock_id === stockId ? { ...s, quantity: newQty } : s));
+    } catch {}
+  };
+
+  const wh = warehouses.find(w => w.warehouse_id === selectedWh);
+
+  return (
+    <div style={{ padding: 32 }}>
+      <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: '#ff007f', marginBottom: 8 }}>Shared Warehouse Stock</h2>
+      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginBottom: 24 }}>
+        Stock added here is shared across ALL staff assigned to the same warehouse. When any staff takes an order, it deducts from this shared pool automatically.
+      </p>
+
+      {/* Warehouse selector */}
+      <div style={{ marginBottom: 24 }}>
+        <label style={{ fontSize: 11, color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>Select Warehouse</label>
+        <select value={selectedWh} onChange={e => setSelectedWh(e.target.value)}
+          style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 14, minWidth: 200 }}>
+          {warehouses.map(w => <option key={w.warehouse_id} value={w.warehouse_id}>{w.name}</option>)}
+          {warehouses.length === 0 && <option value="">No warehouses — create one in Staff tab</option>}
+        </select>
+        {wh && <span style={{ marginLeft: 12, color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>Location: {wh.location || 'Not set'}</span>}
+      </div>
+
+      {/* Add stock form */}
+      <div style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: 16, padding: 20, marginBottom: 28 }}>
+        <p style={{ fontSize: 12, color: '#00f0ff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 14 }}>Add Stock to Shared Pool</p>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div>
+            <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 4 }}>Product</label>
+            <select value={addForm.product_id} onChange={e => setAddForm(f => ({ ...f, product_id: e.target.value }))}
+              style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 13, width: 280 }}>
+              <option value="">Select product...</option>
+              {products.map(p => <option key={p.product_id} value={p.product_id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 4 }}>Quantity to Add</label>
+            <input type="number" min="1" value={addForm.quantity} onChange={e => setAddForm(f => ({ ...f, quantity: e.target.value }))}
+              placeholder="e.g. 24"
+              style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 13, width: 120 }} />
+          </div>
+          <button onClick={addStock} disabled={loading || !addForm.product_id || !addForm.quantity || !selectedWh}
+            style={{ padding: '9px 22px', background: loading ? 'rgba(0,240,255,0.2)' : 'linear-gradient(135deg,#00f0ff,#0090aa)', border: 'none', borderRadius: 10, color: '#000', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: loading ? 0.6 : 1 }}>
+            {loading ? 'Adding...' : '+ Add to Pool'}
+          </button>
+          {msg && <span style={{ fontSize: 12, color: msg.startsWith('✅') ? '#39ff14' : '#ff6b6b' }}>{msg}</span>}
+        </div>
+      </div>
+
+      {/* Current shared stock */}
+      <div>
+        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>
+          Current Shared Pool — {stock.length} products
+        </p>
+        {stock.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 48, color: 'rgba(255,255,255,0.2)', fontSize: 14 }}>
+            No shared stock yet — add some above
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                {['Product', 'Shared Qty', 'Update Qty'].map(h => (
+                  <th key={h} style={{ textAlign: 'left', padding: '8px 12px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {stock.map(s => (
+                <StockRow key={s.stock_id} s={s} onUpdate={updateQty} />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const StockRow = ({ s, onUpdate }) => {
+  const [qty, setQty] = useState(s.quantity);
+  const [saving, setSaving] = useState(false);
+  return (
+    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <td style={{ padding: '10px 12px', color: '#fff', fontWeight: 600 }}>{s.product_name}</td>
+      <td style={{ padding: '10px 12px' }}>
+        <span style={{ color: s.quantity < 5 ? '#ff6b6b' : s.quantity < 20 ? '#ffd700' : '#39ff14', fontWeight: 700 }}>
+          {s.quantity} units
+        </span>
+      </td>
+      <td style={{ padding: '10px 12px' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input type="number" min="0" value={qty} onChange={e => setQty(+e.target.value)}
+            style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '4px 10px', color: '#fff', width: 80, fontSize: 13 }} />
+          <button onClick={async () => { setSaving(true); await onUpdate(s.stock_id, s.product_id, qty); setSaving(false); }}
+            disabled={saving || qty === s.quantity}
+            style={{ padding: '4px 12px', background: 'rgba(57,255,20,0.15)', border: '1px solid rgba(57,255,20,0.3)', borderRadius: 8, color: '#39ff14', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.5 : 1 }}>
+            {saving ? '...' : 'Save'}
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+};
+
+// ── Supplier Tab ──────────────────────────────────────────────────────────────
 const NewsletterTab = ({ API, active }) => {
   const [count, setCount] = useState(null);
   const [subject, setSubject] = useState('We just launched! 🥃');
@@ -1400,6 +1551,11 @@ const SuperAdminDashboard = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* === WAREHOUSE SHARED STOCK === */}
+      {tab === 'warehouse-stock' && (
+        <WarehouseStockTab API={API} />
       )}
 
       {/* === SUPPLIERS (Master Admin only) === */}

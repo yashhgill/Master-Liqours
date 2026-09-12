@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../context';
 import { FaFacebookF, FaInstagram, FaWhatsapp, FaEnvelope, FaArrowRight, FaHeart } from 'react-icons/fa';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
