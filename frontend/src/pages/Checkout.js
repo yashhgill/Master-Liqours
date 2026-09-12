@@ -95,7 +95,7 @@ const Checkout = () => {
   };
 
   if (done) {
-    const phone = (done.staff_whatsapp || '+60126884925').replace(/\D/g, '');
+    const phone = (done.staff_whatsapp || bossWa || '').replace(/\D/g, '');
     const staffName = done.staff_name || 'Staff';
     const itemsList = (done.items || []).map(i => `• ${i.quantity}x item (RM${Number(i.price).toFixed(2)})`).join('\n');
     const msg =

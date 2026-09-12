@@ -851,3 +851,49 @@ async def staff_performance(
             "total_revenue": float(u_rev or 0),
         },
     }
+
+
+# ─── SHARED WAREHOUSE STOCK ───────────────────────────────────────────────────
+
+@router.post("/warehouse-stock")
+async def add_warehouse_stock(
+    warehouse_id: str,
+    product_id: str,
+    quantity: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Add stock to warehouse shared pool (all staff in that warehouse sell from it)."""
+    require_role(user, ["super_admin", "master_admin"])
+    import uuid as _uuid
+    from models import Warehouse
+    wh = (await db.execute(select(Warehouse).where(Warehouse.warehouse_id == warehouse_id))).scalar_one_or_none()
+    if not wh:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
+    stock = (await db.execute(
+        select(Stock).where(Stock.warehouse_id == warehouse_id, Stock.product_id == product_id, Stock.staff_id == None)
+    )).scalar_one_or_none()
+    if stock:
+        stock.quantity += quantity
+    else:
+        stock = Stock(stock_id=str(_uuid.uuid4()), warehouse_id=warehouse_id, staff_id=None, product_id=product_id, quantity=quantity)
+        db.add(stock)
+    await db.commit()
+    return {"message": f"Added {quantity} to warehouse pool", "warehouse": wh.name, "total_quantity": stock.quantity}
+
+
+@router.get("/warehouse-stock/{warehouse_id}")
+async def get_warehouse_stock(
+    warehouse_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get shared stock levels for a warehouse."""
+    require_role(user, ["super_admin", "master_admin", "staff"])
+    rows = (await db.execute(
+        select(Stock, Product)
+        .join(Product, Stock.product_id == Product.product_id)
+        .where(Stock.warehouse_id == warehouse_id, Stock.staff_id == None)
+        .order_by(Product.name)
+    )).all()
+    return [{"product_id": s.product_id, "product_name": p.name, "quantity": s.quantity, "stock_id": s.stock_id} for s, p in rows]

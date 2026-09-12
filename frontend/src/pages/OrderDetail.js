@@ -83,7 +83,7 @@ const OrderDetail = () => {
   };
   const currentStep = STATUS_STEPS.findIndex(s => s.key === order.status);
   const isCancelled = order.status === 'cancelled';
-  const phone = (order.staff_whatsapp || '60126884925').replace(/\D/g, '');
+  const phone = (order.staff_whatsapp || bossWa || '').replace(/\D/g, '');
   const staffName = order.staff_name || 'Staff';
   const itemsList = (order.items || []).map(it => `${it.quantity}x ${it.product_name || 'Item'}`).join(', ');
   const waMsg = `Hi ${staffName}! Re order #${order.order_id.slice(0,8).toUpperCase()} (${itemsList}) — total RM${order.total.toFixed(2)}.`;

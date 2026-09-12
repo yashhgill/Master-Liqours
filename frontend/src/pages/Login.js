@@ -183,7 +183,7 @@ const Login = () => {
 
           {/* WhatsApp */}
           <a
-            href="https://wa.me/60126884925"
+            href="https://wa.me/${bossWa}"
             target="_blank"
             rel="noopener noreferrer"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20, fontSize: 13, color: 'rgba(37,211,102,0.7)', textDecoration: 'none' }}

@@ -184,7 +184,7 @@ const MysteryDropCard = ({ drop }) => {
 };
 
 const Home = () => {
-  const { user } = useAuth();
+  const { user, bossWhatsapp } = useAuth();
   const [products, setProducts] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
   const [flashSales, setFlashSales] = useState([]);
@@ -490,7 +490,7 @@ const Home = () => {
               <Link to={hero.cta_link || '/products'} className="btn-fire">
                 {hero.cta_text || 'Shop Now Lah'} <FaArrowRight size={13} />
               </Link>
-              <a href="https://wa.me/60126884925" target="_blank" rel="noopener noreferrer" className="btn-glass">
+              <a href="https://wa.me/${bossWa}" target="_blank" rel="noopener noreferrer" className="btn-glass">
                 <FaWhatsapp size={15} /> Chat With Us
               </a>
             </div>

@@ -1616,7 +1616,7 @@ const SuperAdminDashboard = () => {
               <div className="flex-1 min-w-[200px]">
                 <label className="text-[10px] uppercase tracking-wider text-white/40">WhatsApp number (with country code)</label>
                 <input value={bossWaInput} onChange={e => setBossWaInput(e.target.value)}
-                  placeholder="60182085097"
+                  placeholder="e.g. 60123456789"
                   className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#ff007f]" />
               </div>
               <button onClick={saveBossWa} disabled={savingBossWa}

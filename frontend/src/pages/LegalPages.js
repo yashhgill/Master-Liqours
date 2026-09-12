@@ -60,7 +60,7 @@ const PAGES = {
       { h: 'How to Request', p: `WhatsApp or email us at ${BUSINESS.email} within 24 hours of delivery. Include your order number, photos of the issue, and your preferred resolution (replacement or refund). We aim to resolve all issues within 2 business days.` },
       { h: 'Refund Method', p: 'Approved refunds are processed via the original payment method or as store credit, at your preference. Processing time is 3-5 business days.' },
       { h: 'Consumer Rights', p: 'Nothing in this policy limits your rights under the Malaysian Consumer Protection Act 1999.' },
-      { h: 'Contact', p: `Refund enquiries: ${BUSINESS.email} or WhatsApp +60182085097` },
+      { h: 'Contact', p: `Refund enquiries: ${BUSINESS.email} or WhatsApp our WhatsApp (see website footer)` },
     ],
   },
 };

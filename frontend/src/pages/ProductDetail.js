@@ -6,7 +6,7 @@ import { useCart, useAuth } from '../context';
 import ProductCard from '../components/ProductCard';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const BOSS_WA = process.env.REACT_APP_PREORDER_WHATSAPP || '60182085097';
+// Boss WA comes from context
 
 const getWishlist = () => { try { return JSON.parse(localStorage.getItem('ml_wishlist') || '[]'); } catch { return []; } };
 const setWishlistLS = (ids) => localStorage.setItem('ml_wishlist', JSON.stringify(ids));

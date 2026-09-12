@@ -19,7 +19,7 @@ const NotFound = () => (
           Browse Drops
         </Link>
       </div>
-      <a href="https://wa.me/60126884925" target="_blank" rel="noopener noreferrer"
+      <a href="https://wa.me/${bossWa}" target="_blank" rel="noopener noreferrer"
         style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 28, fontSize: 13, color: 'rgba(255,255,255,0.25)', textDecoration: 'none' }}>
         <FaWhatsapp size={14} style={{ color: '#25d366' }} /> Tell us about it on WhatsApp
       </a>

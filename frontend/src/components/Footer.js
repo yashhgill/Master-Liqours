@@ -6,6 +6,7 @@ import { FaFacebookF, FaInstagram, FaWhatsapp, FaEnvelope, FaArrowRight, FaHeart
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const Footer = () => {
+  const { bossWhatsapp } = useAuth();
   const [email, setEmail] = useState('');
   const [msg, setMsg] = useState('');
 
@@ -29,7 +30,7 @@ const Footer = () => {
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(20px,3vw,28px)', letterSpacing: '0.02em' }}>
             Settle Order? WhatsApp Us Lah.
           </div>
-          <a href="https://wa.me/60126884925?text=Hi%20Masterliqours" target="_blank" rel="noopener noreferrer"
+          <a href="https://wa.me/${bossWhatsapp}?text=Hi%20Masterliqours" target="_blank" rel="noopener noreferrer"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#030303', color: '#fff', padding: '12px 24px', borderRadius: 50, fontWeight: 800, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', transition: 'all 0.2s' }}
             data-testid="footer-whatsapp-btn">
             <FaWhatsapp size={16} /> Chat Now
@@ -60,7 +61,7 @@ const Footer = () => {
             {/* Socials */}
             <div style={{ display: 'flex', gap: 8 }}>
               {[
-                { Icon: FaWhatsapp, href: 'https://wa.me/60126884925', label: 'WhatsApp' },
+                { Icon: FaWhatsapp, href: `https://wa.me/${bossWhatsapp}`, label: 'WhatsApp' },
                 { Icon: FaEnvelope, href: 'mailto:hello@masterliqours.my', label: 'Email' },
                 { Icon: FaInstagram, href: 'https://www.instagram.com/masterliqours', label: 'Instagram' },
                 { Icon: FaFacebookF, href: 'https://www.facebook.com/masterliqours', label: 'Facebook' },
@@ -100,7 +101,7 @@ const Footer = () => {
                 ['Bulk & Event Orders', '/bulk-order'],
                 ['All Products', '/products'],
                 ['Promotions', '/products?promo=1'],
-                ['Contact Us', 'https://wa.me/60126884925'],
+                ['Contact Us', `https://wa.me/${bossWhatsapp}`],
               ].map(([label, to]) => (
                 <li key={label}>
                   {to.startsWith('http') ? (

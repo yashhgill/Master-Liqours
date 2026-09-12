@@ -6,7 +6,7 @@ import { FaShoppingBag, FaBolt, FaClock, FaWhatsapp, FaHourglassHalf } from 'rea
 import { resolveImageUrl } from '../lib/imageUrl';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const BOSS_WA = process.env.REACT_APP_PREORDER_WHATSAPP || '60182085097';
+// Boss WA comes from context (bossWhatsapp prop or useAuth)
 const BOSS_NAME = process.env.REACT_APP_BOSS_NAME || 'Boss';
 
 const useCountdown = (endTime) => {
@@ -202,7 +202,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
             )}
             <div className={`font-display text-3xl ${cardState !== 'available' ? 'text-gray-500' : 'text-[#ff007f]'}`}>
               {cardState === 'preorder' ? (
-                <span className="text-[#ffd700]">TBC</span>
+                <span className="text-[#ffd700]">RM{product.price?.toFixed(2)} <span className="text-xs font-normal opacity-70">est.</span></span>
               ) : (
                 `RM${price.toFixed(2)}`
               )}

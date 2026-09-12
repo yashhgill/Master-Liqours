@@ -5,7 +5,7 @@ import { FaSearch, FaSlidersH, FaTh, FaList, FaHeart, FaRegHeart, FaTimes, FaPho
 import ProductCard from '../components/ProductCard';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const BOSS_WHATSAPP = process.env.REACT_APP_WHATSAPP_NUMBER || '60182085097';
+// Boss WA comes from context
 const PAGE_SIZE = 60;
 
 // Build a windowed list of page numbers with ellipses, e.g.

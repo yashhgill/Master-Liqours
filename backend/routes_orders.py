@@ -184,18 +184,34 @@ async def checkout(
             assigned_staff_result = await db.execute(select(Staff).where(Staff.staff_id == order.staff_id))
             assigned_staff = assigned_staff_result.scalar_one_or_none()
             if assigned_staff and assigned_staff.warehouse_id:
-                preferred = await db.execute(
+                # SHARED POOL FIRST: warehouse stock row with staff_id=NULL
+                shared_result = await db.execute(
                     select(Stock)
-                    .where(and_(Stock.warehouse_id == assigned_staff.warehouse_id, Stock.product_id == product_id))
+                    .where(
+                        Stock.warehouse_id == assigned_staff.warehouse_id,
+                        Stock.product_id == product_id,
+                        Stock.staff_id == None,
+                        Stock.quantity >= needed_qty
+                    )
                     .with_for_update()
                 )
+                stock_row = shared_result.scalar_one_or_none()
+                # Fall back to per-staff stock inside the same warehouse
+                if stock_row is None:
+                    preferred = await db.execute(
+                        select(Stock)
+                        .where(and_(Stock.staff_id == order.staff_id, Stock.product_id == product_id))
+                        .with_for_update()
+                    )
+                    stock_row = preferred.scalar_one_or_none()
             else:
+                # No warehouse — use per-staff stock directly
                 preferred = await db.execute(
                     select(Stock)
                     .where(and_(Stock.staff_id == order.staff_id, Stock.product_id == product_id))
                     .with_for_update()
                 )
-            stock_row = preferred.scalar_one_or_none()
+                stock_row = preferred.scalar_one_or_none()
 
         # If there's no assigned staff at all (shouldn't happen for a customer
         # order, but be safe), only then pick any available row — and do NOT
