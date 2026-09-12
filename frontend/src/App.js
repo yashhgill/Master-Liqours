@@ -29,6 +29,7 @@ const StaffDashboard = lazy(() => import('./pages/StaffDashboard'));
 const SuperAdminDashboard = lazy(() => import('./pages/SuperAdminDashboard'));
 const ImageTool = lazy(() => import('./pages/ImageTool'));
 const LegalPage = lazy(() => import('./pages/LegalPages'));
+import CookieBanner from './components/CookieBanner';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();

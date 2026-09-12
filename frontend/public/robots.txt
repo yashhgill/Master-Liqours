@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /dashboard/
+Disallow: /staff/
+
+# Sitemap
+Sitemap: https://www.masterliqours.my/sitemap.xml
+
+# Crawl delay (be polite)
+Crawl-delay: 1

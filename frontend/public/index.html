@@ -48,7 +48,37 @@
         <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
         <title>Masterliqours — Premium Liquor Delivery KL & Klang Valley</title>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
-    </head>
+
+        <!-- Cloudflare Web Analytics — no cookies, GDPR/PDPA friendly -->
+        <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "REPLACE_WITH_CF_ANALYTICS_TOKEN"}'></script>
+
+        <!-- Structured data — Local Business -->
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "Store",
+          "name": "Masterliqours",
+          "url": "https://www.masterliqours.my",
+          "logo": "https://www.masterliqours.my/icons/icon-512.png",
+          "image": "https://www.masterliqours.my/icons/og-image.png",
+          "description": "Premium liquor delivery in KL & Klang Valley. 500+ bottles — Whiskey, Cognac, Wine, Gin & more. Same-day delivery.",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Kuala Lumpur",
+            "addressCountry": "MY"
+          },
+          "areaServed": ["Kuala Lumpur", "Klang Valley", "Selangor"],
+          "priceRange": "RM80 - RM2000",
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "customer service",
+            "availableLanguage": ["English", "Malay"]
+          }
+        }
+        </script>
+      <!-- Cloudflare Turnstile — bot protection for forms -->
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+      </head>
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>
         <div id="root"></div>

@@ -179,6 +179,9 @@ const Register = () => {
               data-testid="reg-referral-input"
             />
 
+            {/* Cloudflare Turnstile — bot protection (add your sitekey in Cloudflare dashboard) */}
+            <div className="cf-turnstile" data-sitekey="0x4AAAAAAA_REPLACE_SITEKEY" data-theme="dark" style={{ margin: '8px 0' }} />
+
             <button
               type="submit"
               disabled={loading}
