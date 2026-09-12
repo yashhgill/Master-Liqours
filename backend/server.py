@@ -141,6 +141,19 @@ async def root():
 @api_router.post("/register")
 @limiter.limit("5/minute")
 async def register(request: Request, body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    # Turnstile bot protection verification
+    ts_secret = os.environ.get("TURNSTILE_SECRET_KEY", "")
+    cf_token = getattr(body, 'cf_turnstile_response', None)
+    if ts_secret and cf_token:
+        import httpx as _httpx
+        async with _httpx.AsyncClient() as _client:
+            ts_resp = await _client.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data={"secret": ts_secret, "response": cf_token, "remoteip": request.client.host}
+            )
+            if not ts_resp.json().get("success"):
+                raise HTTPException(status_code=400, detail="Security check failed — please try again")
+
     result = await db.execute(select(User).where(User.email == body.email))
     existing = result.scalar_one_or_none()
     if existing:

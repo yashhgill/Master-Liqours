@@ -38,7 +38,8 @@ const Register = () => {
     }
     setError(''); setLoading(true);
     try {
-      await register(form);
+      const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value || '';
+      await register({ ...form, cf_turnstile_response: turnstileToken });
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.detail || 'Cannot register lah, try again');
@@ -180,7 +181,7 @@ const Register = () => {
             />
 
             {/* Cloudflare Turnstile — bot protection (add your sitekey in Cloudflare dashboard) */}
-            <div className="cf-turnstile" data-sitekey="0x4AAAAAAA_REPLACE_SITEKEY" data-theme="dark" style={{ margin: '8px 0' }} />
+            <div className="cf-turnstile" data-sitekey="0x4AAAAAAxwqsE-fLvmoGwW" data-theme="dark" style={{ margin: '8px 0' }} />
 
             <button
               type="submit"

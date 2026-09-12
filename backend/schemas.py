@@ -9,6 +9,7 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=6)
     name: str
     phone: Optional[str] = None
+    cf_turnstile_response: Optional[str] = None  # Cloudflare Turnstile bot protection token
     referral_code: Optional[str] = None
 
 class LoginRequest(BaseModel):
