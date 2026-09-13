@@ -34,7 +34,7 @@ const ProductDetail = () => {
   const [wishlist, setWishlistState] = useState(getWishlist());
   const [shareMsg, setShareMsg] = useState('');
 
-  useEffect(() => { load(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); window.scrollTo({ top: 0, behavior: 'instant' }); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = async () => {
     setLoading(true);

@@ -129,7 +129,10 @@ const Products = () => {
     setLoading(true);
     // Scroll to the top of the grid when changing pages (not on first mount).
     if (opts.scroll) {
-      window.scrollTo({ top: gridTopRef.current?.offsetTop ? gridTopRef.current.offsetTop - 100 : 0, behavior: 'smooth' });
+      // Use scrollIntoView on the grid anchor — reliable on all screen sizes
+      setTimeout(() => {
+        gridTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50); // small delay so DOM updates first
     }
     try {
       const params = { page: targetPage, limit: PAGE_SIZE };
@@ -164,7 +167,7 @@ const Products = () => {
   };
 
   // Initial load and whenever category changes
-  useEffect(() => { fetchProducts({ reset: true }); }, [selected]); // eslint-disable-line
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); fetchProducts({ reset: true }); }, [selected]); // eslint-disable-line
 
   // Keep the on-page search box in sync with the URL. The navbar search
   // navigates to /products?search=… — when that URL param changes (or category

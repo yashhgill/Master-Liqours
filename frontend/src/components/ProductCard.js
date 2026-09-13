@@ -188,14 +188,14 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
         )}
       </div>
 
-      {/* Card body — fixed height via flex so all cards in a row are the same size */}
-      <div className="p-5 flex flex-col" style={{ minHeight: 140 }}>
+      {/* Card body */}
+      <div className="p-5 flex flex-col flex-1">
         <div className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-2">{product.category}</div>
         <h3 className="font-display text-xl uppercase leading-tight mb-3 line-clamp-2 group-hover:text-[#ff007f] transition-colors flex-1">
           {product.name}
         </h3>
 
-        <div className="flex items-end justify-between gap-3 mt-auto">
+        <div className="flex items-end justify-between gap-2 mt-auto flex-wrap">
           <div>
             {hasDiscount && cardState === 'available' && (
               <div className="text-xs text-gray-400 line-through">RM{(originalPrice || product.price).toFixed(2)}</div>
@@ -212,16 +212,16 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
           {/* Action button */}
           {cardState === 'preorder' && (
             <button onClick={handlePreorder}
-              className="flex items-center gap-1.5 bg-[#ffd700] text-black px-3 py-2 rounded-full text-xs font-black hover:brightness-110 transition-all whitespace-nowrap"
+              className="flex items-center gap-1.5 bg-[#ffd700] text-black px-2.5 py-2 rounded-full text-[11px] font-black hover:brightness-110 transition-all shrink-0"
               data-testid={`product-card-preorder-btn-${product.product_id}`}>
-              <FaWhatsapp size={13} /> Check Boss
+              <FaWhatsapp size={12} /> <span className="hidden sm:inline">Check </span>Boss
             </button>
           )}
           {cardState === 'oos' && (
             <button onClick={handleOutOfStock}
-              className="flex items-center gap-1.5 bg-[#333] text-white/70 px-3 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer hover:bg-[#25d366] hover:text-white"
+              className="flex items-center gap-1.5 bg-[#333] text-white/70 px-2.5 py-2 rounded-full text-[11px] font-bold transition-all shrink-0 cursor-pointer hover:bg-[#25d366] hover:text-white"
               data-testid={`product-card-oos-btn-${product.product_id}`}>
-              <FaWhatsapp size={13} /> {staffName !== 'Boss' ? `Ask ${staffName}` : 'Contact Boss'}
+              <FaWhatsapp size={12} /> <span className="hidden sm:inline">{staffName !== 'Boss' ? `Ask ${staffName}` : 'Contact Boss'}</span><span className="sm:hidden">Boss</span>
             </button>
           )}
           {cardState === 'available' && (
