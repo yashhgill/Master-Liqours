@@ -853,6 +853,43 @@ async def staff_performance(
     }
 
 
+# ─── WAREHOUSES ───────────────────────────────────────────────────────────────
+
+@router.get("/warehouses")
+async def list_warehouses(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """List all warehouses."""
+    require_role(user, ["super_admin", "master_admin", "staff"])
+    from models import Warehouse as WH
+    result = await db.execute(select(WH).order_by(WH.name))
+    warehouses = result.scalars().all()
+    return [{"warehouse_id": w.warehouse_id, "name": w.name, "location": getattr(w, "location", "")} for w in warehouses]
+
+
+@router.post("/warehouses", status_code=201)
+async def create_warehouse(
+    name: str,
+    location: str = "",
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new warehouse."""
+    require_role(user, ["super_admin", "master_admin"])
+    from models import Warehouse as WH
+    import uuid as _uuid
+    existing = (await db.execute(select(WH).where(WH.name == name))).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=409, detail="Warehouse with that name already exists")
+    wh = WH(warehouse_id=str(_uuid.uuid4()), name=name)
+    if hasattr(wh, "location"):
+        wh.location = location
+    db.add(wh)
+    await db.commit()
+    return {"warehouse_id": wh.warehouse_id, "name": wh.name, "location": location}
+
+
 # ─── SHARED WAREHOUSE STOCK ───────────────────────────────────────────────────
 
 @router.post("/warehouse-stock")

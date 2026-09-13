@@ -49,14 +49,21 @@ const WarehouseStockTab = ({ API }) => {
   const [addForm, setAddForm] = useState({ product_id: '', quantity: '' });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [newWhName, setNewWhName] = useState('');
+  const [creatingWh, setCreatingWh] = useState(false);
+
+  const loadWarehouses = () => {
+    axios.get(`${API}/admin/warehouses`, { withCredentials: true })
+      .then(r => { setWarehouses(r.data || []); if (r.data?.[0] && !selectedWh) setSelectedWh(r.data[0].warehouse_id); })
+      .catch(() => {});
+  };
 
   useEffect(() => {
-    axios.get(`${API}/admin/warehouses`, { withCredentials: true })
-      .then(r => { setWarehouses(r.data || []); if (r.data?.[0]) setSelectedWh(r.data[0].warehouse_id); })
-      .catch(() => {});
+    loadWarehouses();
     axios.get(`${API}/products/all-names`, { withCredentials: true })
       .then(r => setProducts(r.data || []))
       .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API]);
 
   useEffect(() => {
@@ -65,6 +72,20 @@ const WarehouseStockTab = ({ API }) => {
       .then(r => setStock(r.data || []))
       .catch(() => setStock([]));
   }, [API, selectedWh]);
+
+  const createWarehouse = async () => {
+    if (!newWhName.trim()) return;
+    setCreatingWh(true);
+    try {
+      const r = await axios.post(`${API}/admin/warehouses?name=${encodeURIComponent(newWhName.trim())}`, {}, { withCredentials: true });
+      setNewWhName('');
+      setMsg('✅ Warehouse created!');
+      await loadWarehouses();
+      setSelectedWh(r.data.warehouse_id);
+    } catch (e) { setMsg(`Failed: ${e.response?.data?.detail || e.message}`); }
+    setCreatingWh(false);
+    setTimeout(() => setMsg(''), 3000);
+  };
 
   const addStock = async () => {
     if (!addForm.product_id || !addForm.quantity || !selectedWh) return;
@@ -81,7 +102,6 @@ const WarehouseStockTab = ({ API }) => {
   };
 
   const updateQty = async (stockId, productId, newQty) => {
-    // For shared stock, update via PATCH to the stock endpoint
     try {
       await axios.patch(`${API}/admin/stock/${stockId}`, { quantity: newQty }, { withCredentials: true });
       setStock(prev => prev.map(s => s.stock_id === stockId ? { ...s, quantity: newQty } : s));
@@ -97,15 +117,34 @@ const WarehouseStockTab = ({ API }) => {
         Stock added here is shared across ALL staff assigned to the same warehouse. When any staff takes an order, it deducts from this shared pool automatically.
       </p>
 
+      {/* Create Warehouse */}
+      <div style={{ background: 'rgba(255,0,127,0.05)', border: '1px solid rgba(255,0,127,0.15)', borderRadius: 16, padding: 16, marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <label style={{ fontSize: 11, color: '#ff007f', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>Create New Warehouse</label>
+          <input value={newWhName} onChange={e => setNewWhName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && createWarehouse()}
+            placeholder="e.g. Main Store KL"
+            style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 13, width: '100%' }} />
+        </div>
+        <button onClick={createWarehouse} disabled={creatingWh || !newWhName.trim()}
+          style={{ padding: '9px 20px', background: 'linear-gradient(135deg,#ff007f,#c8005a)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: creatingWh ? 0.6 : 1 }}>
+          {creatingWh ? 'Creating...' : '+ Create'}
+        </button>
+      </div>
+
       {/* Warehouse selector */}
       <div style={{ marginBottom: 24 }}>
         <label style={{ fontSize: 11, color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>Select Warehouse</label>
-        <select value={selectedWh} onChange={e => setSelectedWh(e.target.value)}
-          style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 14, minWidth: 200 }}>
-          {warehouses.map(w => <option key={w.warehouse_id} value={w.warehouse_id}>{w.name}</option>)}
-          {warehouses.length === 0 && <option value="">No warehouses — create one in Staff tab</option>}
-        </select>
-        {wh && <span style={{ marginLeft: 12, color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>Location: {wh.location || 'Not set'}</span>}
+        {warehouses.length === 0 ? (
+          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>No warehouses yet — create one above ↑</p>
+        ) : (
+          <select value={selectedWh} onChange={e => setSelectedWh(e.target.value)}
+            style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 14, minWidth: 200 }}>
+            {warehouses.map(w => <option key={w.warehouse_id} value={w.warehouse_id}>{w.name}</option>)}
+          </select>
+        )}
+        {wh && <span style={{ marginLeft: 12, color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>ID: {wh.warehouse_id.slice(0, 8)}...</span>}
+        {msg && <span style={{ marginLeft: 12, fontSize: 12, color: msg.startsWith('✅') ? '#39ff14' : '#ff6b6b' }}>{msg}</span>}
       </div>
 
       {/* Add stock form */}
@@ -1874,14 +1913,18 @@ const SuperAdminDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {staff.map((s) => (
                 <div key={s.staff_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-4 flex items-center gap-4" data-testid={`admin-staff-${s.staff_id}`}>
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#ff007f] to-[#00f0ff] flex items-center justify-center font-display text-xl shrink-0">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-display text-xl shrink-0 ${s.is_admin_user ? 'bg-gradient-to-br from-[#ff007f] to-[#ffd700]' : 'bg-gradient-to-br from-[#ff007f] to-[#00f0ff]'}`}>
                     {s.name?.[0]?.toUpperCase() || '?'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-display text-lg uppercase truncate">{s.name}</div>
                     <div className="text-xs text-white/50 truncate">{s.email}</div>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className="text-[10px] uppercase tracking-wider bg-[#ffd700]/15 text-[#ffd700] px-2 py-0.5 rounded-full font-bold">{s.referral_code}</span>
+                      {s.is_admin_user ? (
+                        <span className="text-[10px] uppercase tracking-wider bg-[#ff007f]/20 text-[#ff007f] px-2 py-0.5 rounded-full font-bold">{s.role === 'master_admin' ? 'Owner' : 'Admin'}</span>
+                      ) : (
+                        <span className="text-[10px] uppercase tracking-wider bg-[#ffd700]/15 text-[#ffd700] px-2 py-0.5 rounded-full font-bold">{s.referral_code}</span>
+                      )}
                       {s.warehouse_name && (
                         <span className="text-[10px] uppercase tracking-wider bg-[#00f0ff]/15 text-[#00f0ff] px-2 py-0.5 rounded-full font-bold">{s.warehouse_name}</span>
                       )}
@@ -1890,11 +1933,13 @@ const SuperAdminDashboard = () => {
                       )}
                     </div>
                   </div>
+                  {!s.is_admin_user && (
                   <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 shrink-0">
                     <button onClick={() => resetStaffPw(s.staff_id)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#ffd700] hover:text-[#ffd700] flex items-center justify-center" title="Reset password" data-testid={`staff-reset-${s.staff_id}`}><FaKey size={11} /></button>
                     <button onClick={() => editStaff(s)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center" title="Edit" data-testid={`staff-edit-${s.staff_id}`}><FaPen size={11} /></button>
                     <button onClick={() => delStaff(s.staff_id)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center" title="Delete" data-testid={`staff-del-${s.staff_id}`}><FaTrash size={11} /></button>
                   </div>
+                  )}
                 </div>
               ))}
             </div>

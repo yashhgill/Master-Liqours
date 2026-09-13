@@ -70,11 +70,34 @@ class StaffUpdate(BaseModel):
 @router.get("")
 async def list_staff(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_super(user)
+    # Staff table rows
     r = await db.execute(
         select(Staff, Warehouse.name).outerjoin(Warehouse, Staff.warehouse_id == Warehouse.warehouse_id)
         .order_by(Staff.created_at.desc())
     )
-    return [_clean(s, wh_name) for s, wh_name in r.all()]
+    staff_list = [_clean(s, wh_name) for s, wh_name in r.all()]
+    staff_emails = {s["email"] for s in staff_list}
+
+    # Also include master_admin / super_admin users who have no Staff row
+    admin_r = await db.execute(
+        select(User).where(
+            User.role.in_(["master_admin", "super_admin"]),
+            User.is_active == True,
+        )
+    )
+    for admin in admin_r.scalars().all():
+        if admin.email not in staff_emails:
+            staff_list.append({
+                "staff_id": str(admin.user_id),
+                "name": admin.name,
+                "email": admin.email,
+                "phone": admin.phone or "",
+                "role": admin.role,
+                "warehouse_id": None,
+                "warehouse_name": None,
+                "is_admin_user": True,  # flag so frontend can style differently
+            })
+    return staff_list
 
 
 @router.post("", status_code=201)
