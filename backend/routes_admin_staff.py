@@ -109,12 +109,14 @@ async def create_staff(
     await _require_super(user)
 
     # Uniqueness checks
-    existing = await db.execute(select(Staff).where(Staff.email == data.email))
-    if existing.scalar_one_or_none():
+    existing_staff = await db.execute(select(Staff).where(Staff.email == data.email))
+    if existing_staff.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Staff dengan email ni dah wujud")
 
-    existing_user = await db.execute(select(User).where(User.email == data.email))
-    if existing_user.scalar_one_or_none():
+    existing_user_row = await db.execute(select(User).where(User.email == data.email))
+    existing_user = existing_user_row.scalar_one_or_none()
+    # Allow if the existing user is an admin — we just create the Staff row, no new User needed
+    if existing_user and existing_user.role not in ("master_admin", "super_admin"):
         raise HTTPException(status_code=409, detail="User dengan email ni dah wujud")
 
     explicit = bool(data.referral_code)
@@ -143,24 +145,27 @@ async def create_staff(
     )
     db.add(staff)
 
-    # Create the linked User account (role=STAFF) with a generated password
-    temp_password = _gen_password()
-    staff_user = User(
-        email=data.email,
-        name=data.name,
-        role=UserRole.STAFF,
-        phone=data.whatsapp_number,
-        password_hash=hash_password(temp_password),
-    )
-    db.add(staff_user)
+    # Only create a linked User account if one doesn't already exist
+    # (admin users like master_admin already have a User row — skip for them)
+    temp_password = None
+    if not existing_user:
+        temp_password = _gen_password()
+        staff_user = User(
+            email=data.email,
+            name=data.name,
+            role=UserRole.STAFF,
+            phone=data.whatsapp_number,
+            password_hash=hash_password(temp_password),
+        )
+        db.add(staff_user)
 
     await db.commit()
     await db.refresh(staff)
 
-    return {
-        **_clean(staff, data.warehouse_name.strip() if data.warehouse_name else None),
-        "temp_password": temp_password,  # Show ONCE — admin must share with staff
-    }
+    result = _clean(staff, data.warehouse_name.strip() if data.warehouse_name else None)
+    if temp_password:
+        result["temp_password"] = temp_password  # Show ONCE — admin must share with staff
+    return result
 
 
 @router.put("/{staff_id}")
