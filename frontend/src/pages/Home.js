@@ -13,39 +13,17 @@ import { useAuth } from '../context';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+// Default hero matches the first real banner from the API — no visible flash
+// on load since the image is the same. API response replaces this seamlessly.
 const DEFAULT_HERO = [
   {
-    eyebrow: 'KL & Klang Valley · Premium Drops',
-    title: 'SPEND &',
-    title2: 'THE NIGHT.',
-    accent: 'NIGHT.',
-    sub: 'Top quality drops, harga terbaik. Order now, settle via WhatsApp — same-day delivery across KL & Klang Valley lah.',
-    cta_text: 'Shop Now Lah',
+    bg_image: 'https://pub-7c892300de0d42388cce513eaa83b1bb.r2.dev/4fdcad27de374b33ae8725b756066526.png',
+    show_text: false,
+    cta_text: null,
     cta_link: '/products',
-    bottle: 'whiskey',
-  },
-  {
-    eyebrow: 'Limited Stock · Today Only',
-    title: 'PREMIUM',
-    title2: 'UP TO 30% OFF.',
-    accent: '30% OFF.',
-    sub: 'Limited stock boss. Once habis, habis lah. Flash drops updated daily — check now before it\'s gone.',
-    cta_text: 'See Flash Sales',
-    cta_link: '/products',
-    bottle: 'champagne',
-  },
-  {
-    eyebrow: 'Just Landed · Fresh Stock',
-    title: 'CHAMPAGNE',
-    title2: 'WEATHER.',
-    accent: 'WEATHER.',
-    sub: 'Bubbles for every occasion — birthdays, weddings, corporate events. Free delivery above RM1,250.',
-    cta_text: 'Explore Drops',
-    cta_link: '/products?category=Champagne',
-    bottle: 'cheers',
+    eyebrow: '', title: '', title2: '', sub: '',
   },
 ];
-
 const CATEGORIES = [
   { name: 'Whiskey', abbr: 'WH' },
   { name: 'Vodka', abbr: 'VK' },
