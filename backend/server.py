@@ -262,7 +262,12 @@ async def proxy_image(url: str, maintenance_key: str):
         raise HTTPException(status_code=403, detail="Invalid key")
     try:
         async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-            resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+            resp = await client.get(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Referer": "https://www.google.com/",
+            })
             if resp.status_code != 200:
                 raise HTTPException(status_code=400, detail="Could not fetch image")
             content_type = resp.headers.get("content-type", "image/jpeg")

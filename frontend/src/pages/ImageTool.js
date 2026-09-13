@@ -306,7 +306,16 @@ export default function ImageTool() {
     if (!selected || !canvasRef.current || !hasPreview) return;
     setUploading(true); setStatus('Uploading...');
     try {
-      const blob = await new Promise(res => canvasRef.current.toBlob(res, 'image/jpeg', 0.92));
+      const blob = await new Promise((res, rej) => {
+        try {
+          canvasRef.current.toBlob(b => {
+            if (!b || b.size < 100) rej(new Error('Canvas export failed — image may have a CORS issue. Try uploading the file directly from your computer instead of pasting a URL.'));
+            else res(b);
+          }, 'image/jpeg', 0.92);
+        } catch (e) {
+          rej(new Error('Canvas tainted — please upload the image file directly (drag-drop or use the upload button).'));
+        }
+      });
       const form = new FormData();
       form.append('file', blob, `product-${selected.product_id}.jpg`);
       const up = await axios.post(`${API}/api/admin/upload?product_name=${encodeURIComponent(selected.name)}`, form,
