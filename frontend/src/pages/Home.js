@@ -15,15 +15,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Default hero matches the first real banner from the API — no visible flash
 // on load since the image is the same. API response replaces this seamlessly.
-const DEFAULT_HERO = [
-  {
-    bg_image: 'https://pub-7c892300de0d42388cce513eaa83b1bb.r2.dev/4fdcad27de374b33ae8725b756066526.png',
-    show_text: false,
-    cta_text: null,
-    cta_link: '/products',
-    eyebrow: '', title: '', title2: '', sub: '',
-  },
-];
+const DEFAULT_HERO = []; // empty — show skeleton div while banners load
 const CATEGORIES = [
   { name: 'Whiskey', abbr: 'WH' },
   { name: 'Vodka', abbr: 'VK' },
@@ -167,7 +159,7 @@ const Home = () => {
   const [newArrivals, setNewArrivals] = useState([]);
   const [flashSales, setFlashSales] = useState([]);
   const [mysteryDrops, setMysteryDrops] = useState([]);
-  const [slides, setSlides] = useState(DEFAULT_HERO);
+  const [slides, setSlides] = useState([]);
   const [slide, setSlide] = useState(0);
   // One stable aspect ratio for the whole poster carousel. Locked by the first
   // poster that loads and NOT reset per slide — otherwise the container would
@@ -306,14 +298,16 @@ const Home = () => {
     });
   };
 
-  const hero = slides[slide] || DEFAULT_HERO[0];
-  const isPoster = hero.bg_image && hero.show_text === false;
+  const hero = slides[slide] || null;
+  const isPoster = hero?.bg_image && hero?.show_text === false;
 
   return (
     <div style={{ fontFamily: "'Inter', sans-serif" }}>
 
       {/* ═══ HERO ═══ */}
-      {isPoster ? (
+      {slides.length === 0 ? (
+        <div style={{ width: '100%', height: 'clamp(420px, 56vw, 640px)', background: '#0a0a0a' }} />
+      ) : isPoster ? (
         /* ---- IMAGE POSTER MODE: container locks to the image's own shape ---- */
         <section
           ref={heroRef}
