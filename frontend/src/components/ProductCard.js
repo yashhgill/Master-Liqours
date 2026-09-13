@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useCart, useAuth } from '../context';
-import { FaShoppingBag, FaBolt, FaClock, FaWhatsapp, FaHourglassHalf } from 'react-icons/fa';
+import { FaShoppingBag, FaBolt, FaClock, FaWhatsapp } from 'react-icons/fa';
 import { resolveImageUrl } from '../lib/imageUrl';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -124,10 +124,11 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
       )}
 
       {/* State badges */}
+
       {cardState === 'preorder' && (
         <div className="absolute top-4 left-4 z-10">
-          <div className="bg-[#ffd70020] border border-[#ffd700] text-[#ffd700] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5">
-            <FaHourglassHalf size={9} /> Pre-order
+          <div className="bg-[#ffd70020] border border-[#ffd700] text-[#ffd700] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
+            Pre-order
           </div>
         </div>
       )}
@@ -176,16 +177,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
           </div>
         )}
 
-        {/* Preorder overlay */}
-        {cardState === 'preorder' && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <div className="text-center px-4">
-              <FaHourglassHalf size={28} className="text-[#ffd700] mx-auto mb-2" />
-              <p className="text-white font-bold text-sm">Pre-order — Check Boss</p>
-              <p className="text-[#25d366] text-xs mt-1 font-bold">Tap to WhatsApp</p>
-            </div>
-          </div>
-        )}
+
       </div>
 
       {/* Card body */}
@@ -210,13 +202,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
           </div>
 
           {/* Action button */}
-          {cardState === 'preorder' && (
-            <button onClick={handlePreorder}
-              className="flex items-center gap-1.5 bg-[#ffd700] text-black px-2.5 py-2 rounded-full text-[11px] font-black hover:brightness-110 transition-all shrink-0"
-              data-testid={`product-card-preorder-btn-${product.product_id}`}>
-              <FaWhatsapp size={12} /> <span className="hidden sm:inline">Check </span>Boss
-            </button>
-          )}
+
           {cardState === 'oos' && (
             <button onClick={handleOutOfStock}
               className="flex items-center gap-1.5 bg-[#333] text-white/70 px-2.5 py-2 rounded-full text-[11px] font-bold transition-all shrink-0 cursor-pointer hover:bg-[#25d366] hover:text-white"
@@ -233,20 +219,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
           )}
         </div>
 
-        {/* Preorder note with boss contact */}
-        {cardState === 'preorder' && (
-          <div className="mt-3 bg-[#ffd70010] rounded-lg px-3 py-2 border border-[#ffd700]/20 space-y-1">
-            <div className="text-[10px] text-[#ffd700]/80 flex items-center gap-1"><FaHourglassHalf size={9}/> Wait first lah — check with boss before ordering.</div>
-            <div className="flex items-center gap-1.5">
-              <FaWhatsapp size={10} className="text-[#25d366]" />
-              <span className="text-[10px] text-white/60">Boss: </span>
-              <a href={`https://wa.me/${staffWa.replace(/\D/g, '')}`} onClick={e => e.stopPropagation()}
-                className="text-[10px] text-[#25d366] font-bold hover:underline">
-                {staffName !== 'Boss' ? staffName : 'Contact Boss'}
-              </a>
-            </div>
-          </div>
-        )}
+
 
         {/* Out-of-stock note — can't buy here, but can arrange via staff */}
         {cardState === 'oos' && (
