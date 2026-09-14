@@ -226,6 +226,21 @@ async def checkout(
             stock_row = fallback.scalars().first()
 
         if stock_row is None:
+            # Check if this is a preorder product (no shared warehouse stock)
+            # If so, allow the order through — no stock to deduct
+            preorder_check = await db.execute(
+                select(Stock).where(
+                    Stock.product_id == product_id,
+                    Stock.staff_id.is_(None),
+                    Stock.quantity > 0,
+                )
+            )
+            is_preorder_product = preorder_check.first() is None
+
+            if is_preorder_product:
+                # Preorder — no stock deduction, order goes through
+                continue
+
             product_result = await db.execute(select(Product).where(Product.product_id == product_id))
             product_for_error = product_result.scalar_one_or_none()
             product_label = product_for_error.name if product_for_error else product_id
