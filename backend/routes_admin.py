@@ -9,7 +9,7 @@ from database import get_db
 from cache import cache_clear as _cache_clear
 from models import (
     User, Product, Order, Staff, FlashSale, DiscountCode,
-    UserRole, HeroBanner
+    UserRole, HeroBanner, Stock, Warehouse
 )
 from schemas import ProductCreate, ProductResponse, AdminProductResponse
 from auth_utils import get_current_user, require_role
@@ -862,8 +862,7 @@ async def list_warehouses(
 ):
     """List all warehouses."""
     require_role(user, ["super_admin", "master_admin", "staff"])
-    from models import Warehouse as WH
-    result = await db.execute(select(WH).order_by(WH.name))
+    result = await db.execute(select(WH).order_by(Warehouse.name))
     warehouses = result.scalars().all()
     return [{"warehouse_id": w.warehouse_id, "name": w.name, "location": getattr(w, "location", "")} for w in warehouses]
 
@@ -877,12 +876,11 @@ async def create_warehouse(
 ):
     """Create a new warehouse."""
     require_role(user, ["super_admin", "master_admin"])
-    from models import Warehouse as WH
     import uuid as _uuid
-    existing = (await db.execute(select(WH).where(WH.name == name))).scalar_one_or_none()
+    existing = (await db.execute(select(WH).where(Warehouse.name == name))).scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=409, detail="Warehouse with that name already exists")
-    wh = WH(warehouse_id=str(_uuid.uuid4()), name=name)
+    wh = Warehouse(warehouse_id=str(_uuid.uuid4()), name=name)
     if hasattr(wh, "location"):
         wh.location = location
     db.add(wh)
