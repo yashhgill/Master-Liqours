@@ -100,6 +100,7 @@ const Products = () => {
   // Default sort: "trending" unless URL says otherwise
   const [priceRange, setPriceRange] = useState(0);
   const [sort, setSort] = useState(urlParams.get('sort') || 'trending');
+  const [availableOnly, setAvailableOnly] = useState(urlParams.get('available') === '1');
   const [viewMode, setViewMode] = useState('grid');
   const [wishlist, setWishlist] = useState(getWishlist());
   const [recentProducts, setRecentProducts] = useState([]);
@@ -148,6 +149,7 @@ const Products = () => {
       // 'trending' now maps to a real server-side popularity sort (bought+viewed),
       // so send it — ranking is global across the catalogue, not per page.
       if (sort) params.sort = sort === 'trending' ? 'popular' : sort;
+      if (availableOnly) params.available_only = true;
       const res = await axios.get(`${API}/products`, { params });
       const data = res.data?.products || res.data || [];
       const total = res.data?.total ?? data.length;
@@ -167,7 +169,7 @@ const Products = () => {
   };
 
   // Initial load and whenever category changes
-  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); fetchProducts({ reset: true }); }, [selected]); // eslint-disable-line
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); fetchProducts({ reset: true }); }, [selected, availableOnly]); // eslint-disable-line
 
   // Keep the on-page search box in sync with the URL. The navbar search
   // navigates to /products?search=… — when that URL param changes (or category
@@ -234,13 +236,14 @@ const Products = () => {
   const clearAll = () => {
     setPriceRange(0);
     setSort('trending');
+    setAvailableOnly(false);
     // Clear search + category via the URL so the sync effect agrees.
     const p = new URLSearchParams(urlParams);
     p.delete('search');
     p.delete('category');
     setUrlParams(p);
   };
-  const activeCount = [selected, priceRange > 0, sort && sort !== 'trending'].filter(Boolean).length;
+  const activeCount = [selected, priceRange > 0, sort && sort !== 'trending', availableOnly].filter(Boolean).length;
 
   // Helper to determine if a product is out of stock from supplier
   const isOutOfStock = (p) => p.available_stock !== undefined && p.available_stock !== -1 && p.available_stock === 0;
@@ -355,6 +358,11 @@ const Products = () => {
             className="input-dark sm:w-52 cursor-pointer bg-[#111]">
             {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
+          <button onClick={() => setAvailableOnly(v => !v)}
+            className={`flex items-center gap-2 px-4 h-11 rounded-xl border transition-all text-sm font-bold whitespace-nowrap ${availableOnly ? 'bg-[#39ff14] border-[#39ff14] text-black' : 'border-white/15 text-white/60 hover:border-[#39ff14] hover:text-[#39ff14]'}`}>
+            <span className="text-[10px]">●</span>
+            Available Now
+          </button>
           <div className="flex gap-2">
             <button onClick={() => setViewMode(v => v === 'grid' ? 'list' : 'grid')} title="Toggle view"
               className="w-11 h-11 rounded-xl border border-white/15 flex items-center justify-center text-white/60 hover:border-[#ff007f] hover:text-[#ff007f] transition-all">
@@ -397,8 +405,14 @@ const Products = () => {
             <div>
               <div className="eyebrow mb-3">Active Filters</div>
               <div className="flex flex-col gap-2">
-                {!selected && priceRange === 0 && (!sort || sort === 'trending') && (
+                {!selected && priceRange === 0 && (!sort || sort === 'trending') && !availableOnly && (
                   <p className="text-white/30 text-sm">No filters active</p>
+                )}
+                {availableOnly && (
+                  <div className="flex items-center justify-between px-3 py-2 bg-[#39ff14]/10 border border-[#39ff14]/30 rounded-xl text-sm">
+                    <span className="text-[#39ff14] font-bold">● Available Now</span>
+                    <button onClick={() => setAvailableOnly(false)}><FaTimes size={10} className="text-white/40 hover:text-[#39ff14]" /></button>
+                  </div>
                 )}
                 {selected && (
                   <div className="flex items-center justify-between px-3 py-2 bg-[#ff007f20] border border-[#ff007f30] rounded-xl text-sm">

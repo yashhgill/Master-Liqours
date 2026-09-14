@@ -552,6 +552,7 @@ async def get_products(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     sort: Optional[str] = None,
+    available_only: Optional[bool] = None,
     db: AsyncSession = Depends(get_db)
 ):
     limit = min(max(1, limit), 200)
@@ -561,12 +562,18 @@ async def get_products(
         base_query = base_query.where(Product.category == category)
     if search:
         base_query = base_query.where(Product.name.ilike(f"%{search}%"))
-    # Price range filtering happens in SQL so it applies to the whole catalog,
-    # not just the page already loaded in the browser.
     if min_price is not None:
         base_query = base_query.where(Product.price >= min_price)
     if max_price is not None:
         base_query = base_query.where(Product.price <= max_price)
+    if available_only:
+        # Only return products that have shared warehouse stock > 0
+        from models import Stock as StockModel
+        in_stock_subq = select(StockModel.product_id).where(
+            StockModel.staff_id.is_(None),
+            StockModel.quantity > 0,
+        ).scalar_subquery()
+        base_query = base_query.where(Product.product_id.in_(in_stock_subq))
 
     # Ordering
     # Popularity score: purchases weigh most, then cart-adds, then views.
