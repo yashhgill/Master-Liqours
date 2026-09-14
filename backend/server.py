@@ -622,15 +622,40 @@ async def get_products(
     data_result = await db.execute(base_query.order_by(order_col, _tiebreak).offset(offset).limit(limit))
     products = data_result.scalars().all()
 
+    # ── AUTO PREORDER: check shared warehouse stock ──────────────────────────
+    # Products with stock in ANY shared warehouse pool (staff_id=NULL) are
+    # shown as available (is_preorder=False). Everything else stays preorder.
+    # This means Jojo just adds stock → products flip to available automatically.
+    # One bulk query for all product IDs on this page — no N+1.
+    from models import Stock as StockModel
+    product_ids = [p.product_id for p in products]
+    if product_ids:
+        stock_result = await db.execute(
+            select(StockModel.product_id).where(
+                StockModel.product_id.in_(product_ids),
+                StockModel.staff_id.is_(None),
+                StockModel.quantity > 0,
+            ).distinct()
+        )
+        in_stock_ids = {row[0] for row in stock_result.all()}
+    else:
+        in_stock_ids = set()
+
+    def _serialise(p):
+        d = ProductResponse.model_validate(p, from_attributes=True).model_dump()
+        # Override is_preorder: available if shared stock exists, otherwise preorder
+        d["is_preorder"] = p.product_id not in in_stock_ids
+        return d
+
     out = {
-        "products": [ProductResponse.model_validate(p, from_attributes=True) for p in products],
+        "products": [_serialise(p) for p in products],
         "total": total,
         "page": page,
         "limit": limit,
         "pages": -(-total // limit) if limit else 0,
     }
     if _use_cache:
-        _cache_set(cache_key, out, ttl=300)
+        _cache_set(cache_key, out, ttl=60)  # shorter TTL since stock changes
     return out
 
 @api_router.get("/settings/public")
@@ -730,7 +755,19 @@ async def get_product(product_id: str, db: AsyncSession = Depends(get_db)):
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Produk tidak dijumpai")
-    return ProductResponse.model_validate(product, from_attributes=True)
+    # Check shared warehouse stock to auto-derive is_preorder
+    from models import Stock as StockModel
+    stock_check = await db.execute(
+        select(StockModel.product_id).where(
+            StockModel.product_id == product_id,
+            StockModel.staff_id.is_(None),
+            StockModel.quantity > 0,
+        ).limit(1)
+    )
+    has_stock = stock_check.first() is not None
+    out = ProductResponse.model_validate(product, from_attributes=True).model_dump()
+    out["is_preorder"] = not has_stock
+    return out
 
 @api_router.get("/my-unavailable-products")
 async def my_unavailable_products(
