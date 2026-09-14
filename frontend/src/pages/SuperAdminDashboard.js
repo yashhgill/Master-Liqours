@@ -151,13 +151,30 @@ const WarehouseStockTab = ({ API }) => {
       <div style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: 16, padding: 20, marginBottom: 28 }}>
         <p style={{ fontSize: 12, color: '#00f0ff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 14 }}>Add Stock to Shared Pool</p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div>
-            <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 4 }}>Product</label>
-            <select value={addForm.product_id} onChange={e => setAddForm(f => ({ ...f, product_id: e.target.value }))}
-              style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 13, width: 280 }}>
-              <option value="">Select product...</option>
-              {products.map(p => <option key={p.product_id} value={p.product_id}>{p.name}</option>)}
-            </select>
+          <div style={{ position: 'relative' }}>
+            <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 4 }}>Product (type to search)</label>
+            <input
+              type="text"
+              placeholder="Search product..."
+              value={addForm.product_search || addForm.product_name || ''}
+              onChange={e => setAddForm(f => ({ ...f, product_search: e.target.value, product_id: '', product_name: '' }))}
+              style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 13, width: 280 }}
+            />
+            {addForm.product_search && !addForm.product_id && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, maxHeight: 200, overflowY: 'auto', zIndex: 100 }}>
+                {products.filter(p => p.name.toLowerCase().includes((addForm.product_search||'').toLowerCase())).slice(0, 20).map(p => (
+                  <div key={p.product_id} onClick={() => setAddForm(f => ({ ...f, product_id: p.product_id, product_name: p.name, product_search: p.name }))}
+                    style={{ padding: '8px 14px', cursor: 'pointer', fontSize: 12, color: '#fff', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                    onMouseEnter={e => e.target.style.background = 'rgba(255,0,127,0.15)'}
+                    onMouseLeave={e => e.target.style.background = 'transparent'}>
+                    {p.name}
+                  </div>
+                ))}
+                {products.filter(p => p.name.toLowerCase().includes((addForm.product_search||'').toLowerCase())).length === 0 && (
+                  <div style={{ padding: '8px 14px', color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>No products found</div>
+                )}
+              </div>
+            )}
           </div>
           <div>
             <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 4 }}>Quantity to Add</label>

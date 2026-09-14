@@ -111,6 +111,10 @@ const OrderDetail = () => {
             #<span style={{color:"#ff007f",textShadow:"0 0 30px rgba(255,0,127,0.4)"}}>{order.order_id.slice(0,8).toUpperCase()}</span>
           </h1>
           <div className="text-white/50 text-sm mt-2">Placed {new Date(order.created_at).toLocaleString()}</div>
+          <Link to={`/receipt/${order.order_id}`}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '7px 16px', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.3)', borderRadius: 50, color: '#ffd700', fontSize: 12, fontWeight: 700, textDecoration: 'none', letterSpacing: '0.05em' }}>
+            🧾 View Receipt
+          </Link>
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border"
           style={{ borderColor: `${meta.color}66`, color: meta.color, background: `${meta.color}10` }}>

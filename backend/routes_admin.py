@@ -908,7 +908,7 @@ async def add_warehouse_stock(
     if not wh:
         raise HTTPException(status_code=404, detail="Warehouse not found")
     stock = (await db.execute(
-        select(Stock).where(Stock.warehouse_id == warehouse_id, Stock.product_id == product_id, Stock.staff_id == None)
+        select(Stock).where(Stock.warehouse_id == warehouse_id, Stock.product_id == product_id, Stock.staff_id.is_(None))
     )).scalar_one_or_none()
     if stock:
         stock.quantity += quantity
@@ -930,7 +930,7 @@ async def get_warehouse_stock(
     rows = (await db.execute(
         select(Stock, Product)
         .join(Product, Stock.product_id == Product.product_id)
-        .where(Stock.warehouse_id == warehouse_id, Stock.staff_id == None)
+        .where(Stock.warehouse_id == warehouse_id, Stock.staff_id.is_(None))
         .order_by(Product.name)
     )).all()
     return [{"product_id": s.product_id, "product_name": p.name, "quantity": s.quantity, "stock_id": s.stock_id} for s, p in rows]
