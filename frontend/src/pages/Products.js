@@ -290,7 +290,7 @@ const Products = () => {
   };
 
   return (
-    <div>
+    <div style={{ background: '#050505', minHeight: '100vh' }}>
       <div className="border-b border-white/5 bg-gradient-to-b from-black to-[#050505] py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
           <div className="eyebrow mb-3">Shop · Browse</div>

@@ -40,7 +40,7 @@ const ScrollToTop = () => {
 
 const ProtectedRoute = ({ children, roles = [] }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-white/60">Loading...</div>;
+  if (loading) return <div style={{ minHeight: '100vh', background: '#050505' }} />;
   if (!user) return <Navigate to="/login" />;
   if (roles.length > 0 && !roles.includes(user.role)) return <Navigate to="/" />;
   return children;
@@ -74,7 +74,7 @@ function AppContent() {
       <AnnouncementBar />
       <Navbar />
       <main className="flex-grow pb-16 lg:pb-0">
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/60">Loading…</div>}>
+        <Suspense fallback={<div style={{minHeight:"100vh",background:"#050505"}} />}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<Products />} />

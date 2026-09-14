@@ -84,7 +84,7 @@ const ProductDetail = () => {
     }
   };
 
-  if (loading) return <div className="max-w-7xl mx-auto px-4 py-20 text-center text-white/60">Loading...</div>;
+  if (loading) return <div style={{ minHeight: "100vh", background: "#050505" }} />;
   if (!product) return (
     <div className="max-w-7xl mx-auto px-4 py-20 text-center">
       <div className="display-lg mb-4">Product not found lah</div>
@@ -109,7 +109,7 @@ const ProductDetail = () => {
     : 0;
 
   return (
-    <div>
+    <div style={{ background: '#050505', minHeight: '100vh' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-10">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-white/60 hover:text-[#ff007f] mb-8 transition-colors">
           <FaArrowLeft size={14} /> Back
