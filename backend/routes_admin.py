@@ -862,7 +862,7 @@ async def list_warehouses(
 ):
     """List all warehouses."""
     require_role(user, ["super_admin", "master_admin", "staff"])
-    result = await db.execute(select(WH).order_by(Warehouse.name))
+    result = await db.execute(select(Warehouse).order_by(Warehouse.name))
     warehouses = result.scalars().all()
     return [{"warehouse_id": w.warehouse_id, "name": w.name, "location": getattr(w, "location", "")} for w in warehouses]
 
@@ -877,7 +877,7 @@ async def create_warehouse(
     """Create a new warehouse."""
     require_role(user, ["super_admin", "master_admin"])
     import uuid as _uuid
-    existing = (await db.execute(select(WH).where(Warehouse.name == name))).scalar_one_or_none()
+    existing = (await db.execute(select(Warehouse).where(Warehouse.name == name))).scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=409, detail="Warehouse with that name already exists")
     wh = Warehouse(warehouse_id=str(_uuid.uuid4()), name=name)
