@@ -50,7 +50,6 @@ const ImageUploader = ({ value = '', onChange, label = 'Image', aspect = '16/9',
         setStorage('r2');
       } catch (presignErr) {
         // Presign not available — fall back to backend proxy upload
-        console.warn('Presign failed, using proxy upload:', presignErr.message);
         const fd = new FormData();
         fd.append('file', file);
         const res = await axios.post(`${API}/admin/upload`, fd, {

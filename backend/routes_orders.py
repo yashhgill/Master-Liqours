@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from rate_limit import limiter
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -94,7 +95,9 @@ async def _apply_promo_code(code_str: Optional[str], subtotal: float, user: User
 # ─── CUSTOMER CHECKOUT ──────────────────────────────────────────────
 
 @router.post("/checkout", response_model=OrderResponse)
+@limiter.limit("10/minute")
 async def checkout(
+    request: Request,
     data: CheckoutRequest,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -109,6 +112,11 @@ async def checkout(
 
     subtotal = 0
     order_items_data = []
+
+    # Validate all quantities are positive
+    for item in data.items:
+        if item.quantity < 1:
+            raise HTTPException(status_code=422, detail="Quantity must be at least 1")
 
     for item in data.items:
         result = await db.execute(select(Product).where(Product.product_id == item.product_id))
@@ -190,7 +198,7 @@ async def checkout(
                     .where(
                         Stock.warehouse_id == assigned_staff.warehouse_id,
                         Stock.product_id == product_id,
-                        Stock.staff_id == None,
+                        Stock.staff_id.is_(None),
                         Stock.quantity >= needed_qty
                     )
                     .with_for_update()
@@ -658,6 +666,20 @@ async def update_order_status(
             status_code=400,
             detail=f"Can't move an order from '{order.status.value}' to '{new_status_enum.value}'.",
         )
+
+    # Restore warehouse stock if order is being cancelled
+    if new_status_enum.value == 'cancelled' and order.status.value not in ('cancelled', 'delivered'):
+        from models import Stock as _Stock
+        for item in order.items:
+            stock_row = (await db.execute(
+                select(_Stock).where(
+                    _Stock.product_id == item.product_id,
+                    _Stock.staff_id.is_(None),
+                    _Stock.quantity > 0,
+                )
+            )).scalar_one_or_none()
+            if stock_row:
+                stock_row.quantity += item.quantity
 
     order.status = new_status_enum
     await db.commit()

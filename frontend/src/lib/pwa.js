@@ -13,7 +13,6 @@ export function registerServiceWorker() {
         // (which no longer caches stale HTML) replaces any old broken one fast.
         reg.update().catch(() => {});
       }).catch((err) => {
-        console.warn('Service worker registration failed:', err);
       });
     });
   }
@@ -55,7 +54,6 @@ export async function subscribeStaffToPush() {
     await axios.post(`${API}/push/subscribe`, subscription.toJSON(), { withCredentials: true });
     return true;
   } catch (err) {
-    console.warn('Push subscription failed:', err);
     return false;
   }
 }

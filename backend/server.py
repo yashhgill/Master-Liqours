@@ -401,7 +401,7 @@ async def bulk_generate_descriptions(
     
     result = await db.execute(
         select(Product).where(Product.is_active == True, 
-                              or_(Product.description == None, Product.description == ""))
+                              or_(Product.description.is_(None), Product.description == ""))
         .limit(limit)
     )
     products = result.scalars().all()
