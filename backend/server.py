@@ -706,6 +706,55 @@ async def update_settings(
     return {"ok": True, "updated": list(updates.keys())}
 
 
+
+@api_router.post("/admin/bulk-stock-price-update")
+async def bulk_stock_price_update(
+    maintenance_key: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """One-shot: update prices and add warehouse stock for specific products."""
+    if maintenance_key != os.environ.get("MAINTENANCE_KEY", "warehouse2026fix"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    from models import Stock
+    import uuid as _uuid
+    WH = "d4a9d602-793b-445d-b734-4bf54565f763"
+    updates = [
+        ("JAMESON COLD BREW", 170, 5,  "Whiskey"),
+        ("SENJU",             145, 3,  "Whiskey"),
+        ("WILD BERRY",        120, 12, "Vodka"),
+        ("TULLIBARDINE",      160, 6,  "Whiskey"),
+        ("JOSE CUERVO",       110, 1,  "Tequila"),
+        ("GORDON PINK",       100, 3,  "Gin"),
+    ]
+    results = []
+    for kw, price, qty, cat in updates:
+        words = [w.upper() for w in kw.split()]
+        q = select(Product).where(Product.is_active == True)
+        for w in words:
+            q = q.where(Product.name.ilike(f"%{w}%"))
+        row = (await db.execute(q.limit(1))).scalar_one_or_none()
+        if not row:
+            results.append({"kw": kw, "status": "not_found"}); continue
+        # Update price
+        row.price = price
+        # Add stock
+        stock_q = select(Stock).where(
+            Stock.warehouse_id == WH,
+            Stock.product_id == row.product_id,
+            Stock.staff_id.is_(None)
+        )
+        existing = (await db.execute(stock_q)).scalar_one_or_none()
+        if existing:
+            existing.quantity += qty
+            total = existing.quantity
+        else:
+            s = Stock(stock_id=str(_uuid.uuid4()), warehouse_id=WH,
+                      product_id=row.product_id, staff_id=None, quantity=qty)
+            db.add(s); total = qty
+        results.append({"product": row.name, "new_price": price, "stock_added": qty, "total_stock": total})
+    await db.commit()
+    return {"updated": len([r for r in results if "product" in r]), "results": results}
+
 @api_router.get("/products/all-names")
 async def get_all_product_names(db: AsyncSession = Depends(get_db)):
     """Lightweight endpoint — returns id, name, price, category only. Used for admin dropdowns."""
