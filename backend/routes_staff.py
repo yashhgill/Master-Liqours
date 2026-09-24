@@ -80,6 +80,34 @@ async def get_staff_orders(
     return out
 
 
+
+@router.get("/shared-pool")
+async def get_shared_pool(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Get shared warehouse stock available for this staff to take from."""
+    staff = await _staff_record_for(user, db)
+    # Get the warehouse this staff belongs to
+    wh_id = staff.warehouse_id
+    if not wh_id:
+        return []  # staff not assigned to a warehouse
+    r = await db.execute(
+        select(Stock, Product)
+        .join(Product, Stock.product_id == Product.product_id)
+        .where(
+            Stock.warehouse_id == wh_id,
+            Stock.staff_id.is_(None),
+            Stock.quantity > 0,
+        )
+        .order_by(Product.name)
+    )
+    return [{
+        "stock_id": s.stock_id,
+        "product_id": p.product_id,
+        "product_name": p.name,
+        "category": p.category,
+        "available_qty": s.quantity,
+        "price": p.price,
+    } for s, p in r.all()]
+
 @router.get("/my-stock")
 async def get_my_stock(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Get staff's stock inventory"""
@@ -125,29 +153,23 @@ async def add_my_stock(
     if not product:
         raise HTTPException(status_code=404, detail="Product tak jumpa")
 
-    # ââ Auto-deduct from suppliers (FIFO by created_at) ââââââââââââââââââââââ
-    # Staff don't know which supplier â they just add stock and the backend handles it
-    sp_result = await db.execute(
-        select(SupplierProduct)
-        .where(
-            and_(
-                SupplierProduct.product_id == payload.product_id,
-                SupplierProduct.quantity > 0,
+    # Deduct from shared warehouse pool when staff takes stock
+    if staff.warehouse_id:
+        shared_row = (await db.execute(
+            select(Stock).where(
+                Stock.warehouse_id == staff.warehouse_id,
+                Stock.product_id == payload.product_id,
+                Stock.staff_id.is_(None),
             )
-        )
-        .order_by(SupplierProduct.created_at.asc())  # oldest supplier stock first
-    )
-    supplier_products = sp_result.scalars().all()
-
-    remaining = payload.quantity
-    for sp in supplier_products:
-        if remaining <= 0:
-            break
-        deduct = min(sp.quantity, remaining)
-        sp.quantity -= deduct
-        remaining -= deduct
-    # remaining > 0 means staff received stock not recorded in any supplier â allowed
-    # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+        )).scalar_one_or_none()
+        if shared_row is None:
+            raise HTTPException(status_code=409, detail="This product is not in the shared warehouse pool")
+        if shared_row.quantity < payload.quantity:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Only {shared_row.quantity} available in shared pool"
+            )
+        shared_row.quantity -= payload.quantity
 
     # Update or create staff's own stock entry
     existing = await db.execute(

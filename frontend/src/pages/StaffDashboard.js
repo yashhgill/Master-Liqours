@@ -288,62 +288,130 @@ const StockModal = ({ stock, onClose, onSaved }) => {
 const ADMIN_ROLES = ['staff', 'super_admin', 'master_admin'];
 
 // ── Add Stock Modal ──────────────────────────────────────────────────────────
-const AddStockModal = ({ products, existingStock, onClose, onSaved }) => {
-  const [productId, setProductId] = useState('');
+const AddStockModal = ({ existingStock, onClose, onSaved }) => {
+  const [sharedPool, setSharedPool] = useState([]);
+  const [loadingPool, setLoadingPool] = useState(true);
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState(null); // { product_id, product_name, available_qty }
   const [quantity, setQuantity] = useState(1);
   const [saving, setSaving] = useState(false);
 
-  // Filter out products already in stock
+  useEffect(() => {
+    axios.get(`${API}/staff/shared-pool`, { withCredentials: true })
+      .then(r => setSharedPool(r.data || []))
+      .catch(() => setSharedPool([]))
+      .finally(() => setLoadingPool(false));
+  }, []);
+
   const existingIds = new Set(existingStock.map(s => s.product_id));
-  const available = products.filter(p => !existingIds.has(p.product_id) && p.is_active);
+  const filtered = sharedPool
+    .filter(p => p.product_name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => a.product_name.localeCompare(b.product_name));
 
   const submit = async () => {
-    if (!productId) { toast('Select a product lah', 'error'); return; }
-    if (quantity < 0) { toast('Quantity cannot be negative', 'error'); return; }
+    if (!selected) { toast('Pick a bottle first', 'error'); return; }
+    if (quantity < 1) { toast('Quantity must be at least 1', 'error'); return; }
+    if (quantity > selected.available_qty) { toast(`Only ${selected.available_qty} available in pool`, 'error'); return; }
     setSaving(true);
     try {
-      await axios.post(`${API}/staff/my-stock`, { product_id: productId, quantity: parseInt(quantity) }, { withCredentials: true });
+      await axios.post(`${API}/staff/my-stock`, { product_id: selected.product_id, quantity }, { withCredentials: true });
+      toast(`✅ ${quantity} × ${selected.product_name} taken from pool`, 'success');
       onSaved();
       onClose();
     } catch (e) {
-      toast(e.response?.data?.detail || 'Failed to add stock', 'error');
+      toast(e.response?.data?.detail || 'Failed', 'error');
     } finally { setSaving(false); }
   };
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="surface p-6 w-full max-w-sm space-y-4">
+      <div className="surface p-6 w-full max-w-md space-y-4 max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center">
-          <h2 className="display-md">Add Stock</h2>
+          <div>
+            <h2 className="display-md">Take from Pool</h2>
+            <p className="text-white/40 text-xs mt-0.5">Pick bottles from the shared warehouse — deducts from pool immediately</p>
+          </div>
           <button onClick={onClose} className="text-white/40 hover:text-white"><FaTimes /></button>
         </div>
-        <p className="text-white/40 text-xs">Log stock received from boss for a product.</p>
 
-        {available.length === 0 ? (
-          <p className="text-white/50 text-sm text-center py-4">All products already in your stock list.</p>
+        {loadingPool ? (
+          <div className="text-center py-8 text-white/40 text-sm">Loading shared pool...</div>
+        ) : sharedPool.length === 0 ? (
+          <div className="text-center py-8 text-white/30 text-sm">No stock in shared pool yet.<br/>Ask boss to add stock first.</div>
         ) : (
           <>
-            <div>
-              <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Product</label>
-              <ProductPicker products={available} value={productId} onSelect={setProductId} />
+            {/* Search */}
+            <input type="text" placeholder="Search bottles in pool..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="input-dark" autoFocus />
+
+            {/* Pool list */}
+            <div className="flex-1 overflow-y-auto space-y-1 min-h-0" style={{ maxHeight: 280 }}>
+              {filtered.map(p => {
+                const alreadyHave = existingIds.has(p.product_id);
+                const isSelected = selected?.product_id === p.product_id;
+                return (
+                  <div key={p.product_id}
+                    onClick={() => { setSelected(p); setQuantity(1); }}
+                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${
+                      isSelected
+                        ? 'border-[#ff007f] bg-[#ff007f]/10'
+                        : 'border-white/5 hover:border-white/20 bg-[#0a0a0a]'
+                    }`}>
+                    <div>
+                      <div className="text-sm font-semibold text-white">{p.product_name}</div>
+                      <div className="text-xs text-white/40">RM{p.price} · {alreadyHave ? '📦 already in your stock' : ''}</div>
+                    </div>
+                    <div className="text-right shrink-0 ml-3">
+                      <div className={`text-lg font-display font-bold ${p.available_qty < 5 ? 'text-red-400' : p.available_qty < 10 ? 'text-yellow-400' : 'text-[#39ff14]'}`}>
+                        {p.available_qty}
+                      </div>
+                      <div className="text-[10px] text-white/30">in pool</div>
+                    </div>
+                  </div>
+                );
+              })}
+              {filtered.length === 0 && (
+                <div className="text-center py-6 text-white/30 text-sm">No matching bottles</div>
+              )}
             </div>
-            <div>
-              <label className="text-xs uppercase tracking-[0.2em] text-white/50 block mb-2">Quantity Received</label>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setQuantity(q => Math.max(0, q - 1))}
-                  className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center text-white/50 hover:border-[#ff007f] hover:text-[#ff007f] transition-all">
-                  <FaMinus size={12} />
-                </button>
-                <input type="number" min="0" className="input-dark text-center w-24 text-xl font-display"
-                  value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 0)} />
-                <button onClick={() => setQuantity(q => q + 1)}
-                  className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center text-white/50 hover:border-[#39ff14] hover:text-[#39ff14] transition-all">
-                  <FaPlus size={12} />
-                </button>
+
+            {/* Selected + Quantity */}
+            {selected && (
+              <div className="bg-[#0a0a0a] rounded-xl p-4 space-y-3 border border-[#ff007f]/20">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="text-xs text-white/40 uppercase tracking-wider">Taking from pool</div>
+                    <div className="text-sm font-bold text-white mt-0.5">{selected.product_name}</div>
+                  </div>
+                  <div className="text-xs text-white/30">{selected.available_qty} available</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                    className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center text-white/50 hover:border-[#ff007f] hover:text-[#ff007f] transition-all">
+                    <FaMinus size={12} />
+                  </button>
+                  <input type="number" min="1" max={selected.available_qty}
+                    className="input-dark text-center w-24 text-xl font-display"
+                    value={quantity} onChange={e => setQuantity(Math.min(parseInt(e.target.value) || 1, selected.available_qty))} />
+                  <button onClick={() => setQuantity(q => Math.min(q + 1, selected.available_qty))}
+                    className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center text-white/50 hover:border-[#39ff14] hover:text-[#39ff14] transition-all">
+                    <FaPlus size={12} />
+                  </button>
+                  <button onClick={() => setQuantity(selected.available_qty)}
+                    className="text-xs text-white/30 hover:text-white/60 transition-all ml-1">All</button>
+                </div>
+                {quantity > 0 && (
+                  <div className="text-xs text-white/40 text-center">
+                    Pool: {selected.available_qty} → <span className="text-white/70 font-bold">{selected.available_qty - quantity}</span> after taking
+                  </div>
+                )}
               </div>
-            </div>
-            <button onClick={submit} disabled={saving || !productId} className="btn-pink w-full disabled:opacity-50">
-              {saving ? 'Adding...' : 'Add to My Stock'}
+            )}
+
+            <button onClick={submit} disabled={saving || !selected}
+              className="btn-pink w-full disabled:opacity-50">
+              {saving ? 'Taking...' : selected ? `Take ${quantity} × ${selected.product_name.split(' ').slice(0, 3).join(' ')}` : 'Select a bottle first'}
             </button>
           </>
         )}
@@ -653,7 +721,6 @@ const StaffDashboard = () => {
       {transferOrder && <TransferModal order={transferOrder} allStaff={allStaff} onClose={() => setTransferOrder(null)} onTransferred={loadData} />}
       {showAddStock && (
         <AddStockModal
-          products={products}
           existingStock={stock}
           onClose={() => setShowAddStock(false)}
           onSaved={loadData}
