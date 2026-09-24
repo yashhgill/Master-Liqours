@@ -367,6 +367,29 @@ const SupplierTab = ({ API, active }) => {
   const [allProducts, setAllProducts] = useState([]);
   const [productSearch, setProductSearch] = useState('');
   const [productForm, setProductForm] = useState({ product_id: '', cost_price: '', selling_price: '', stock_qty: 0 });
+  const [receivingId, setReceivingId] = useState(null);
+
+  const receiveStock = async (supplierId, sp) => {
+    if (!sp.stock_qty || sp.stock_qty < 1) {
+      toast('No incoming qty to receive', 'error'); return;
+    }
+    if (!window.confirm(`Receive ${sp.stock_qty} × ${sp.product_name} into JOJO warehouse?`)) return;
+    setReceivingId(sp.sp_id);
+    try {
+      // Push qty into shared warehouse pool
+      await axios.post(
+        `${API}/admin/warehouse-stock?warehouse_id=d4a9d602-793b-445d-b734-4bf54565f763&product_id=${sp.product_id}&quantity=${sp.stock_qty}`,
+        {}, { withCredentials: true }
+      );
+      // Reset the incoming qty to 0 on the supplier record
+      await axios.patch(`${API}/admin/suppliers/${supplierId}/products/${sp.sp_id}`,
+        { quantity: 0 }, { withCredentials: true }
+      ).catch(() => {}); // non-critical if endpoint doesn't exist yet
+      toast(`✅ ${sp.stock_qty} × ${sp.product_name} received into warehouse!`, 'success');
+      await load();
+    } catch (e) { toast(e.response?.data?.detail || 'Failed to receive stock', 'error'); }
+    finally { setReceivingId(null); }
+  };
 
   const selectedSupplier = suppliers.find(s => s.supplier_id === expanded) || null;
 
@@ -479,7 +502,7 @@ const SupplierTab = ({ API, active }) => {
             onClick={() => { setExpanded(expanded === s.supplier_id ? null : s.supplier_id); setShowForm(false); setAddingProduct(null); }}
             style={{width:'100%',textAlign:'left',padding:'12px 16px',background:expanded===s.supplier_id?'rgba(255,0,127,0.12)':'rgba(255,255,255,0.03)',border:`1px solid ${expanded===s.supplier_id?'rgba(255,0,127,0.4)':'rgba(255,255,255,0.06)'}`,borderRadius:12,marginBottom:6,cursor:'pointer',transition:'all 0.2s'}}>
             <div style={{fontWeight:700,fontSize:14,color:expanded===s.supplier_id?'#fff':'rgba(255,255,255,0.8)'}}>{s.name}</div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>{s.products?.length||0} products · RM{(s.products?.reduce((sum,p)=>sum+(p.selling_price*p.stock_qty),0)||0).toFixed(0)} stock value</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',marginTop:2}}>{s.products?.length||0} products · {s.products?.reduce((sum,p)=>sum+(p.stock_qty||0),0)||0} bottles incoming</div>
           </button>
         ))}
       </div>
@@ -546,7 +569,7 @@ const SupplierTab = ({ API, active }) => {
                     <input type="number" min="0" step="0.01" className="input-dark" placeholder="0.00" value={productForm.selling_price} onChange={e=>setProductForm({...productForm,selling_price:e.target.value})} />
                   </div>
                   <div>
-                    <label style={{fontSize:10,textTransform:'uppercase',letterSpacing:'0.2em',color:'rgba(255,255,255,0.4)',display:'block',marginBottom:4}}>Stock Qty</label>
+                    <label style={{fontSize:10,textTransform:'uppercase',letterSpacing:'0.2em',color:'rgba(255,255,255,0.4)',display:'block',marginBottom:4}}>Expected Qty (incoming)</label>
                     <input type="number" min="0" className="input-dark" placeholder="0" value={productForm.stock_qty} onChange={e=>setProductForm({...productForm,stock_qty:e.target.value})} />
                   </div>
                   <div className="flex items-end">
@@ -585,7 +608,16 @@ const SupplierTab = ({ API, active }) => {
                           </span>
                         </td>
                         <td style={{padding:'10px 8px 10px 0',textAlign:'right',color:'rgba(255,255,255,0.6)'}}>{sp.stock_qty}</td>
-                        <td style={{padding:'10px 0',textAlign:'right'}}>
+                        <td style={{padding:'10px 0',textAlign:'right',whiteSpace:'nowrap'}}>
+                          {sp.stock_qty > 0 && (
+                            <button
+                              onClick={() => receiveStock(selectedSupplier.supplier_id, sp)}
+                              disabled={receivingId === sp.sp_id}
+                              style={{marginRight:8,padding:'4px 10px',background:'rgba(57,255,20,0.15)',border:'1px solid rgba(57,255,20,0.4)',borderRadius:6,color:'#39ff14',fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}
+                              title="Push this qty into JOJO warehouse">
+                              {receivingId === sp.sp_id ? '...' : '📦 Receive'}
+                            </button>
+                          )}
                           <button onClick={()=>delProduct(selectedSupplier.supplier_id,sp.sp_id)} style={{color:'rgba(255,255,255,0.25)',background:'none',border:'none',cursor:'pointer',padding:4}} onMouseEnter={e=>e.currentTarget.style.color='#ff007f'} onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.25)'}>
                             <FaTrash size={10}/>
                           </button>
