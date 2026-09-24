@@ -45,19 +45,35 @@ const WarehouseStockTab = ({ API }) => {
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
   const [selectedWh, setSelectedWh] = useState('');
+  const [stock, setStock] = useState([]);
+  const [loadingStock, setLoadingStock] = useState(false);
   const [addForm, setAddForm] = useState({ product_id: '', product_name: '', product_search: '', quantity: '' });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [newWhName, setNewWhName] = useState('');
   const [creatingWh, setCreatingWh] = useState(false);
   const [recentAdds, setRecentAdds] = useState([]);
+  const [editingQty, setEditingQty] = useState({}); // stock_id -> new qty
+
+  const loadStock = async (whId) => {
+    if (!whId) return;
+    setLoadingStock(true);
+    try {
+      const r = await axios.get(`${API}/admin/warehouse-stock/${whId}`, { withCredentials: true });
+      setStock(r.data || []);
+    } catch { setStock([]); }
+    finally { setLoadingStock(false); }
+  };
 
   const loadWarehouses = async () => {
     try {
       const r = await axios.get(`${API}/admin/warehouses`, { withCredentials: true });
       const whs = r.data || [];
       setWarehouses(whs);
-      if (whs[0] && !selectedWh) setSelectedWh(whs[0].warehouse_id);
+      if (whs[0] && !selectedWh) {
+        setSelectedWh(whs[0].warehouse_id);
+        loadStock(whs[0].warehouse_id);
+      }
     } catch {}
   };
 
@@ -67,6 +83,12 @@ const WarehouseStockTab = ({ API }) => {
       .then(r => setProducts(r.data || [])).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API]);
+
+  // Reload stock when warehouse selection changes
+  useEffect(() => {
+    if (selectedWh) loadStock(selectedWh);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWh]);
 
   const createWarehouse = async () => {
     if (!newWhName.trim()) return;
@@ -91,6 +113,7 @@ const WarehouseStockTab = ({ API }) => {
       setRecentAdds(prev => [added, ...prev].slice(0, 5));
       setMsg(`✅ ${addForm.quantity} × ${addForm.product_name} added!`);
       setAddForm({ product_id: '', product_name: '', product_search: '', quantity: '' });
+      loadStock(selectedWh); // refresh the stock table
     } catch (e) { setMsg(`Failed: ${e.response?.data?.detail || e.message}`); }
     setLoading(false); setTimeout(() => setMsg(''), 4000);
   };
@@ -226,9 +249,90 @@ const WarehouseStockTab = ({ API }) => {
             </div>
           )}
 
+          {/* Current stock in this warehouse */}
+          <div style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 20, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>
+                Current Pool — {loadingStock ? '...' : `${stock.length} products`}
+              </p>
+              <button onClick={() => loadStock(selectedWh)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: 11, padding: '2px 8px' }}>↻ Refresh</button>
+            </div>
+            {loadingStock ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: 13 }}>Loading...</div>
+            ) : stock.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: 13 }}>No stock yet — add some above</div>
+            ) : (
+              <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {['Product', 'Qty', 'Status', ''].map(h => (
+                        <th key={h} style={{ textAlign: h === 'Product' ? 'left' : 'right', padding: '8px 16px', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'rgba(255,255,255,0.25)', fontWeight: 700 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stock.map((s, i) => {
+                      const qty = s.quantity;
+                      const statusColor = qty <= 0 ? '#ff4444' : qty < 5 ? '#ff007f' : qty < 20 ? '#ffd700' : '#39ff14';
+                      const statusLabel = qty <= 0 ? 'Out' : qty < 5 ? 'Critical' : qty < 20 ? 'Low' : 'Good';
+                      const editing = editingQty[s.stock_id] !== undefined;
+                      return (
+                        <tr key={s.stock_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                          <td style={{ padding: '10px 16px', color: '#fff', fontWeight: 500, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.product_name}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                            {editing ? (
+                              <input
+                                type="number" min="0"
+                                value={editingQty[s.stock_id]}
+                                onChange={e => setEditingQty(prev => ({ ...prev, [s.stock_id]: e.target.value }))}
+                                onKeyDown={async e => {
+                                  if (e.key === 'Enter') {
+                                    const newQty = parseInt(editingQty[s.stock_id]);
+                                    if (!isNaN(newQty) && newQty >= 0) {
+                                      try {
+                                        await axios.patch(`${API}/admin/stock/${s.stock_id}`, { quantity: newQty }, { withCredentials: true });
+                                        setStock(prev => prev.map(row => row.stock_id === s.stock_id ? { ...row, quantity: newQty } : row));
+                                      } catch {}
+                                    }
+                                    setEditingQty(prev => { const n = { ...prev }; delete n[s.stock_id]; return n; });
+                                  }
+                                  if (e.key === 'Escape') setEditingQty(prev => { const n = { ...prev }; delete n[s.stock_id]; return n; });
+                                }}
+                                autoFocus
+                                style={{ width: 60, background: '#222', border: '1px solid #ff007f', borderRadius: 6, padding: '3px 8px', color: '#fff', fontSize: 13, textAlign: 'right' }}
+                              />
+                            ) : (
+                              <span
+                                style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 18, color: statusColor, cursor: 'pointer' }}
+                                title="Click to edit"
+                                onClick={() => setEditingQty(prev => ({ ...prev, [s.stock_id]: s.quantity }))}
+                              >{qty}</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, background: `${statusColor}15`, border: `1px solid ${statusColor}30`, borderRadius: 50, padding: '2px 8px' }}>{statusLabel}</span>
+                          </td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                            <button
+                              onClick={() => setEditingQty(prev => ({ ...prev, [s.stock_id]: s.quantity }))}
+                              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: 11, padding: 4 }}
+                              onMouseEnter={e => e.currentTarget.style.color = '#00f0ff'}
+                              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}
+                              title="Edit quantity">✏️</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
           {/* Warehouse badge */}
-          <p style={{ marginTop: 16, fontSize: 11, color: 'rgba(255,255,255,0.2)', textAlign: 'right' }}>
-            {wh?.name} warehouse · {msg.includes('✅') ? 'Products flip to Available within 60s' : 'Add stock → products go live automatically'}
+          <p style={{ marginTop: 12, fontSize: 11, color: 'rgba(255,255,255,0.2)', textAlign: 'right' }}>
+            {wh?.name} warehouse · Add stock → products go live automatically
           </p>
         </>
       )}
