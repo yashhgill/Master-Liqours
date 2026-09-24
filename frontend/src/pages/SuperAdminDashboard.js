@@ -45,206 +45,197 @@ const WarehouseStockTab = ({ API }) => {
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
   const [selectedWh, setSelectedWh] = useState('');
-  const [stock, setStock] = useState([]);
-  const [addForm, setAddForm] = useState({ product_id: '', quantity: '' });
+  const [addForm, setAddForm] = useState({ product_id: '', product_name: '', product_search: '', quantity: '' });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [newWhName, setNewWhName] = useState('');
   const [creatingWh, setCreatingWh] = useState(false);
+  const [recentAdds, setRecentAdds] = useState([]);
 
-  const loadWarehouses = () => {
-    axios.get(`${API}/admin/warehouses`, { withCredentials: true })
-      .then(r => { setWarehouses(r.data || []); if (r.data?.[0] && !selectedWh) setSelectedWh(r.data[0].warehouse_id); })
-      .catch(() => {});
+  const loadWarehouses = async () => {
+    try {
+      const r = await axios.get(`${API}/admin/warehouses`, { withCredentials: true });
+      const whs = r.data || [];
+      setWarehouses(whs);
+      if (whs[0] && !selectedWh) setSelectedWh(whs[0].warehouse_id);
+    } catch {}
   };
 
   useEffect(() => {
     loadWarehouses();
     axios.get(`${API}/products/all-names`, { withCredentials: true })
-      .then(r => setProducts(r.data || []))
-      .catch(() => {});
+      .then(r => setProducts(r.data || [])).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API]);
-
-  useEffect(() => {
-    if (!selectedWh) return;
-    axios.get(`${API}/admin/warehouse-stock/${selectedWh}`, { withCredentials: true })
-      .then(r => setStock(r.data || []))
-      .catch(() => setStock([]));
-  }, [API, selectedWh]);
 
   const createWarehouse = async () => {
     if (!newWhName.trim()) return;
     setCreatingWh(true);
     try {
       const r = await axios.post(`${API}/admin/warehouses?name=${encodeURIComponent(newWhName.trim())}`, {}, { withCredentials: true });
-      setNewWhName('');
-      setMsg('✅ Warehouse created!');
-      await loadWarehouses();
-      setSelectedWh(r.data.warehouse_id);
+      setNewWhName(''); setMsg('✅ Warehouse created!');
+      await loadWarehouses(); setSelectedWh(r.data.warehouse_id);
     } catch (e) { setMsg(`Failed: ${e.response?.data?.detail || e.message}`); }
-    setCreatingWh(false);
-    setTimeout(() => setMsg(''), 3000);
+    setCreatingWh(false); setTimeout(() => setMsg(''), 3000);
   };
 
   const addStock = async () => {
     if (!addForm.product_id || !addForm.quantity || !selectedWh) return;
     setLoading(true);
     try {
-      await axios.post(`${API}/admin/warehouse-stock?warehouse_id=${selectedWh}&product_id=${addForm.product_id}&quantity=${addForm.quantity}`, {}, { withCredentials: true });
-      setMsg(`✅ Stock added!`);
-      setAddForm({ product_id: '', quantity: '' });
-      const r = await axios.get(`${API}/admin/warehouse-stock/${selectedWh}`, { withCredentials: true });
-      setStock(r.data || []);
+      const r = await axios.post(
+        `${API}/admin/warehouse-stock?warehouse_id=${selectedWh}&product_id=${addForm.product_id}&quantity=${addForm.quantity}`,
+        {}, { withCredentials: true }
+      );
+      const added = { name: addForm.product_name, qty: addForm.quantity, total: r.data.total_quantity, time: new Date().toLocaleTimeString() };
+      setRecentAdds(prev => [added, ...prev].slice(0, 5));
+      setMsg(`✅ ${addForm.quantity} × ${addForm.product_name} added!`);
+      setAddForm({ product_id: '', product_name: '', product_search: '', quantity: '' });
     } catch (e) { setMsg(`Failed: ${e.response?.data?.detail || e.message}`); }
-    setLoading(false);
-    setTimeout(() => setMsg(''), 3000);
-  };
-
-  const updateQty = async (stockId, productId, newQty) => {
-    try {
-      await axios.patch(`${API}/admin/stock/${stockId}`, { quantity: newQty }, { withCredentials: true });
-      setStock(prev => prev.map(s => s.stock_id === stockId ? { ...s, quantity: newQty } : s));
-    } catch {}
+    setLoading(false); setTimeout(() => setMsg(''), 4000);
   };
 
   const wh = warehouses.find(w => w.warehouse_id === selectedWh);
+  const filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes((addForm.product_search || '').toLowerCase())
+  ).slice(0, 20);
 
   return (
-    <div style={{ padding: 32 }}>
-      <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: '#ff007f', marginBottom: 8 }}>Shared Warehouse Stock</h2>
-      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginBottom: 24 }}>
-        Stock added here is shared across ALL staff assigned to the same warehouse. When any staff takes an order, it deducts from this shared pool automatically.
+    <div style={{ padding: 32, maxWidth: 640 }}>
+      <h2 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 32, color: '#ff007f', marginBottom: 4 }}>Add Stock</h2>
+      <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, marginBottom: 28 }}>
+        Search a bottle, enter how many arrived, hit Add. Stock updates on the website automatically.
       </p>
 
-      {/* Create Warehouse */}
-      <div style={{ background: 'rgba(255,0,127,0.05)', border: '1px solid rgba(255,0,127,0.15)', borderRadius: 16, padding: 16, marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 180 }}>
-          <label style={{ fontSize: 11, color: '#ff007f', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>Create New Warehouse</label>
-          <input value={newWhName} onChange={e => setNewWhName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && createWarehouse()}
-            placeholder="e.g. Main Store KL"
-            style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 13, width: '100%' }} />
+      {/* Create Warehouse — only show if none exist */}
+      {warehouses.length === 0 && (
+        <div style={{ background: 'rgba(255,0,127,0.05)', border: '1px solid rgba(255,0,127,0.2)', borderRadius: 14, padding: 16, marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 11, color: '#ff007f', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>Create your warehouse first</label>
+            <input value={newWhName} onChange={e => setNewWhName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && createWarehouse()}
+              placeholder="e.g. JOJO Main Store"
+              style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 14px', color: '#fff', fontSize: 13, width: '100%' }} />
+          </div>
+          <button onClick={createWarehouse} disabled={creatingWh || !newWhName.trim()}
+            style={{ padding: '9px 20px', background: 'linear-gradient(135deg,#ff007f,#c8005a)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+            {creatingWh ? '...' : '+ Create'}
+          </button>
         </div>
-        <button onClick={createWarehouse} disabled={creatingWh || !newWhName.trim()}
-          style={{ padding: '9px 20px', background: 'linear-gradient(135deg,#ff007f,#c8005a)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: creatingWh ? 0.6 : 1 }}>
-          {creatingWh ? 'Creating...' : '+ Create'}
-        </button>
-      </div>
+      )}
 
-      {/* Warehouse selector */}
-      <div style={{ marginBottom: 24 }}>
-        <label style={{ fontSize: 11, color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>Select Warehouse</label>
-        {warehouses.length === 0 ? (
-          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>No warehouses yet — create one above ↑</p>
-        ) : (
-          <select value={selectedWh} onChange={e => setSelectedWh(e.target.value)}
-            style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 14, minWidth: 200 }}>
-            {warehouses.map(w => <option key={w.warehouse_id} value={w.warehouse_id}>{w.name}</option>)}
-          </select>
-        )}
-        {wh && <span style={{ marginLeft: 12, color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>ID: {wh.warehouse_id.slice(0, 8)}...</span>}
-        {msg && <span style={{ marginLeft: 12, fontSize: 12, color: msg.startsWith('✅') ? '#39ff14' : '#ff6b6b' }}>{msg}</span>}
-      </div>
+      {/* Warehouse pill selector — only show if multiple */}
+      {warehouses.length > 1 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+          {warehouses.map(w => (
+            <button key={w.warehouse_id} onClick={() => setSelectedWh(w.warehouse_id)}
+              style={{ padding: '6px 16px', borderRadius: 50, border: '1px solid', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                background: selectedWh === w.warehouse_id ? '#ff007f' : 'transparent',
+                borderColor: selectedWh === w.warehouse_id ? '#ff007f' : 'rgba(255,255,255,0.15)',
+                color: selectedWh === w.warehouse_id ? '#fff' : 'rgba(255,255,255,0.5)' }}>
+              {w.name}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Add stock form */}
-      <div style={{ background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: 16, padding: 20, marginBottom: 28 }}>
-        <p style={{ fontSize: 12, color: '#00f0ff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 14 }}>Add Stock to Shared Pool</p>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ position: 'relative' }}>
-            <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 4 }}>Product (type to search)</label>
-            <input
-              type="text"
-              placeholder="Search product..."
-              value={addForm.product_search || addForm.product_name || ''}
-              onChange={e => setAddForm(f => ({ ...f, product_search: e.target.value, product_id: '', product_name: '' }))}
-              style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 13, width: 280 }}
-            />
-            {addForm.product_search && !addForm.product_id && (
-              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, maxHeight: 200, overflowY: 'auto', zIndex: 100 }}>
-                {products.filter(p => p.name.toLowerCase().includes((addForm.product_search||'').toLowerCase())).slice(0, 20).map(p => (
-                  <div key={p.product_id} onClick={() => setAddForm(f => ({ ...f, product_id: p.product_id, product_name: p.name, product_search: p.name }))}
-                    style={{ padding: '8px 14px', cursor: 'pointer', fontSize: 12, color: '#fff', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
-                    onMouseEnter={e => e.target.style.background = 'rgba(255,0,127,0.15)'}
-                    onMouseLeave={e => e.target.style.background = 'transparent'}>
-                    {p.name}
-                  </div>
-                ))}
-                {products.filter(p => p.name.toLowerCase().includes((addForm.product_search||'').toLowerCase())).length === 0 && (
-                  <div style={{ padding: '8px 14px', color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>No products found</div>
-                )}
+      {warehouses.length > 0 && (
+        <>
+          {/* Big simple add form */}
+          <div style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 24, marginBottom: 20 }}>
+
+            {/* Product search */}
+            <div style={{ position: 'relative', marginBottom: 16 }}>
+              <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 8 }}>
+                Search bottle
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Hendricks, JW Black, Absolut..."
+                value={addForm.product_search || addForm.product_name}
+                onChange={e => setAddForm(f => ({ ...f, product_search: e.target.value, product_id: '', product_name: '' }))}
+                onKeyDown={e => { if (e.key === 'Escape') setAddForm(f => ({ ...f, product_search: '', product_id: '', product_name: '' })); }}
+                style={{ width: '100%', background: '#111', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '13px 16px', color: '#fff', fontSize: 15, boxSizing: 'border-box', outline: 'none' }}
+              />
+              {/* Dropdown results */}
+              {addForm.product_search && !addForm.product_id && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, maxHeight: 240, overflowY: 'auto', zIndex: 200, marginTop: 4 }}>
+                  {filteredProducts.length === 0 ? (
+                    <div style={{ padding: '12px 16px', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>No products found</div>
+                  ) : filteredProducts.map(p => (
+                    <div key={p.product_id}
+                      onClick={() => setAddForm(f => ({ ...f, product_id: p.product_id, product_name: p.name, product_search: '' }))}
+                      style={{ padding: '11px 16px', cursor: 'pointer', fontSize: 13, color: '#fff', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,0,127,0.12)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      <span>{p.name}</span>
+                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>RM{p.price}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Selected product pill */}
+            {addForm.product_id && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, background: 'rgba(255,0,127,0.08)', border: '1px solid rgba(255,0,127,0.2)', borderRadius: 10, padding: '8px 14px' }}>
+                <span style={{ color: '#ff007f', fontSize: 18 }}>🍾</span>
+                <span style={{ color: '#fff', fontSize: 13, fontWeight: 600, flex: 1 }}>{addForm.product_name}</span>
+                <button onClick={() => setAddForm(f => ({ ...f, product_id: '', product_name: '', product_search: '' }))}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+              </div>
+            )}
+
+            {/* Quantity + Add button */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <input
+                type="number" min="1" max="999"
+                placeholder="How many bottles?"
+                value={addForm.quantity}
+                onChange={e => setAddForm(f => ({ ...f, quantity: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && addStock()}
+                style={{ flex: 1, background: '#111', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '13px 16px', color: '#fff', fontSize: 15, outline: 'none' }}
+              />
+              <button onClick={addStock}
+                disabled={loading || !addForm.product_id || !addForm.quantity || !selectedWh}
+                style={{ padding: '13px 28px', background: (!addForm.product_id || !addForm.quantity) ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg,#ff007f,#c8005a)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', opacity: loading ? 0.6 : 1, transition: 'all 0.2s', whiteSpace: 'nowrap' }}>
+                {loading ? 'Adding...' : '+ Add Stock'}
+              </button>
+            </div>
+
+            {msg && (
+              <div style={{ marginTop: 12, fontSize: 13, color: msg.startsWith('✅') ? '#39ff14' : '#ff6b6b', fontWeight: 600 }}>
+                {msg}
               </div>
             )}
           </div>
-          <div>
-            <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 4 }}>Quantity to Add</label>
-            <input type="number" min="1" value={addForm.quantity} onChange={e => setAddForm(f => ({ ...f, quantity: e.target.value }))}
-              placeholder="e.g. 24"
-              style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 13, width: 120 }} />
-          </div>
-          <button onClick={addStock} disabled={loading || !addForm.product_id || !addForm.quantity || !selectedWh}
-            style={{ padding: '9px 22px', background: loading ? 'rgba(0,240,255,0.2)' : 'linear-gradient(135deg,#00f0ff,#0090aa)', border: 'none', borderRadius: 10, color: '#000', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: loading ? 0.6 : 1 }}>
-            {loading ? 'Adding...' : '+ Add to Pool'}
-          </button>
-          {msg && <span style={{ fontSize: 12, color: msg.startsWith('✅') ? '#39ff14' : '#ff6b6b' }}>{msg}</span>}
-        </div>
-      </div>
 
-      {/* Current shared stock */}
-      <div>
-        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>
-          Current Shared Pool — {stock.length} products
-        </p>
-        {stock.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 48, color: 'rgba(255,255,255,0.2)', fontSize: 14 }}>
-            No shared stock yet — add some above
-          </div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                {['Product', 'Shared Qty', 'Update Qty'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '8px 12px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {stock.map(s => (
-                <StockRow key={s.stock_id} s={s} onUpdate={updateQty} />
+          {/* Recent additions log */}
+          {recentAdds.length > 0 && (
+            <div style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '16px 20px' }}>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>Added this session</p>
+              {recentAdds.map((a, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: i < recentAdds.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                  <span style={{ color: '#fff', fontSize: 13 }}>{a.name}</span>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <span style={{ color: '#39ff14', fontSize: 13, fontWeight: 700 }}>+{a.qty}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 11 }}>total {a.total} · {a.time}</span>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            </div>
+          )}
+
+          {/* Warehouse badge */}
+          <p style={{ marginTop: 16, fontSize: 11, color: 'rgba(255,255,255,0.2)', textAlign: 'right' }}>
+            {wh?.name} warehouse · {msg.includes('✅') ? 'Products flip to Available within 60s' : 'Add stock → products go live automatically'}
+          </p>
+        </>
+      )}
     </div>
   );
 };
 
-const StockRow = ({ s, onUpdate }) => {
-  const [qty, setQty] = useState(s.quantity);
-  const [saving, setSaving] = useState(false);
-  return (
-    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-      <td style={{ padding: '10px 12px', color: '#fff', fontWeight: 600 }}>{s.product_name}</td>
-      <td style={{ padding: '10px 12px' }}>
-        <span style={{ color: s.quantity < 5 ? '#ff6b6b' : s.quantity < 20 ? '#ffd700' : '#39ff14', fontWeight: 700 }}>
-          {s.quantity} units
-        </span>
-      </td>
-      <td style={{ padding: '10px 12px' }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input type="number" min="0" value={qty} onChange={e => setQty(+e.target.value)}
-            style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '4px 10px', color: '#fff', width: 80, fontSize: 13 }} />
-          <button onClick={async () => { setSaving(true); await onUpdate(s.stock_id, s.product_id, qty); setSaving(false); }}
-            disabled={saving || qty === s.quantity}
-            style={{ padding: '4px 12px', background: 'rgba(57,255,20,0.15)', border: '1px solid rgba(57,255,20,0.3)', borderRadius: 8, color: '#39ff14', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.5 : 1 }}>
-            {saving ? '...' : 'Save'}
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-};
 
 // ── Supplier Tab ──────────────────────────────────────────────────────────────
 const NewsletterTab = ({ API, active }) => {
