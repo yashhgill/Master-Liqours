@@ -130,36 +130,33 @@ const WarehouseStockTab = ({ API }) => {
         Search a bottle, enter how many arrived, hit Add. Stock updates on the website automatically.
       </p>
 
-      {/* Create Warehouse — only show if none exist */}
-      {warehouses.length === 0 && (
-        <div style={{ background: 'rgba(255,0,127,0.05)', border: '1px solid rgba(255,0,127,0.2)', borderRadius: 14, padding: 16, marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 11, color: '#ff007f', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>Create your warehouse first</label>
-            <input value={newWhName} onChange={e => setNewWhName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && createWarehouse()}
-              placeholder="e.g. JOJO Main Store"
-              style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 14px', color: '#fff', fontSize: 13, width: '100%' }} />
-          </div>
+      {/* Warehouse selector + create new — always visible */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 20 }}>
+        {warehouses.map(w => (
+          <button key={w.warehouse_id} onClick={() => setSelectedWh(w.warehouse_id)}
+            style={{ padding: '8px 18px', borderRadius: 50, border: '1px solid', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+              background: selectedWh === w.warehouse_id ? '#ff007f' : 'rgba(255,255,255,0.04)',
+              borderColor: selectedWh === w.warehouse_id ? '#ff007f' : 'rgba(255,255,255,0.12)',
+              color: selectedWh === w.warehouse_id ? '#fff' : 'rgba(255,255,255,0.5)' }}>
+            🏪 {w.name}
+          </button>
+        ))}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+          <input value={newWhName} onChange={e => setNewWhName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && createWarehouse()}
+            placeholder="New warehouse name..."
+            style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '8px 14px', color: '#fff', fontSize: 13, width: 180 }} />
           <button onClick={createWarehouse} disabled={creatingWh || !newWhName.trim()}
-            style={{ padding: '9px 20px', background: 'linear-gradient(135deg,#ff007f,#c8005a)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
-            {creatingWh ? '...' : '+ Create'}
+            style={{ padding: '8px 16px', background: newWhName.trim() ? 'linear-gradient(135deg,#ff007f,#c8005a)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, color: '#fff', fontWeight: 800, fontSize: 12, cursor: newWhName.trim() ? 'pointer' : 'default', whiteSpace: 'nowrap', opacity: creatingWh ? 0.6 : 1 }}>
+            {creatingWh ? '...' : '+ New Warehouse'}
           </button>
         </div>
-      )}
+      </div>
 
-      {/* Warehouse pill selector — only show if multiple */}
-      {warehouses.length > 1 && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-          {warehouses.map(w => (
-            <button key={w.warehouse_id} onClick={() => setSelectedWh(w.warehouse_id)}
-              style={{ padding: '6px 16px', borderRadius: 50, border: '1px solid', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                background: selectedWh === w.warehouse_id ? '#ff007f' : 'transparent',
-                borderColor: selectedWh === w.warehouse_id ? '#ff007f' : 'rgba(255,255,255,0.15)',
-                color: selectedWh === w.warehouse_id ? '#fff' : 'rgba(255,255,255,0.5)' }}>
-              {w.name}
-            </button>
-          ))}
-        </div>
+      {warehouses.length === 0 && (
+        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, marginBottom: 20 }}>
+          No warehouses yet — type a name and click + New Warehouse to create your first one.
+        </p>
       )}
 
       {warehouses.length > 0 && (
