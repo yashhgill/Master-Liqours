@@ -57,7 +57,13 @@ const OrderDetail = () => {
     finally { setReviewLoading(false); }
   };
 
-  if (loading) return <div className="max-w-3xl mx-auto px-4 py-20 text-center text-white/60">Loading...</div>;
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: '#050505', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+      <div style={{ width: 48, height: 48, border: '3px solid rgba(255,0,127,0.2)', borderTopColor: '#ff007f', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>Loading your order...</p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
   if (error) return (
     <div className="max-w-2xl mx-auto px-4 py-16 text-center">
       <div className="display-lg mb-3">{error}</div>

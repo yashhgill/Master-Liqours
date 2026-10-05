@@ -88,6 +88,7 @@ const Checkout = () => {
         shipping_address: form.address.trim(),
         discount_code: promoCode.trim() || undefined,
       }, { withCredentials: true });
+      clearCart(); // clear immediately on success
       setDone(res.data);
     } catch (err) {
       toast('Checkout failed: ' + (err.response?.data?.detail || 'Try again lah'), 'error');
