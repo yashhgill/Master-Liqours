@@ -208,6 +208,10 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
             mins = int((user.locked_until - datetime.utcnow()).total_seconds() / 60) + 1
             raise HTTPException(status_code=423, detail=f"Too many attempts. Try again in {mins} min.")
 
+    # OAuth-only accounts have no password — tell them to use Google
+    if user and user.password_hash in ("OAUTH_ONLY", "", None):
+        raise HTTPException(status_code=401, detail="This account uses Google Sign-In. Please click 'Continue with Google'.")
+
     if not user or not verify_password(body.password, user.password_hash):
         # Count the failure against a real account (don't reveal which emails exist).
         if user:

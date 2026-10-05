@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context';
 import { FaTimes, FaArrowRight } from 'react-icons/fa';
 
@@ -13,11 +13,17 @@ import { FaTimes, FaArrowRight } from 'react-icons/fa';
  */
 const SignInPrompt = () => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
+  // Never show on auth pages, admin, or staff pages
+  const suppressedPaths = ['/login', '/register', '/admin', '/staff', '/reset-password', '/auth'];
+  const isSuppressed = suppressedPaths.some(p => location.pathname.startsWith(p));
+
   useEffect(() => {
     if (loading) return;                 // wait for auth to resolve
+    if (isSuppressed) { setVisible(false); return; }
     if (user) {
       // Signed in (or a stale valid token is present) — prompt intentionally hidden.
       // eslint-disable-next-line no-console
@@ -32,7 +38,7 @@ const SignInPrompt = () => {
     return () => clearTimeout(t);
   }, [user, loading, dismissed]);
 
-  if (!visible || user || dismissed) return null;
+  if (!visible || user || dismissed || isSuppressed) return null;
 
   const dismiss = () => { setVisible(false); setDismissed(true); };
 
