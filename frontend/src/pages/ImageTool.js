@@ -4,7 +4,7 @@ import { FaSearch, FaUpload, FaCheck, FaSpinner, FaArrowLeft, FaTimes } from 're
 import { useAuth } from '../context';
 import { useNavigate } from 'react-router-dom';
 
-const API = process.env.REACT_APP_BACKEND_URL || 'https://master-liqours.onrender.com';
+const API = process.env.REACT_APP_BACKEND_URL || 'https://master-liqours-sg.onrender.com';
 const MKEY = 'warehouse2026fix';
 
 function BulkDescBtn({ API, MKEY }) {

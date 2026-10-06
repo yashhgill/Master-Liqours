@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 
-const API = process.env.REACT_APP_BACKEND_URL || 'https://master-liqours.onrender.com';
+const API = process.env.REACT_APP_BACKEND_URL || 'https://master-liqours-sg.onrender.com';
 
 export default function Receipt() {
   const { orderId } = useParams();
