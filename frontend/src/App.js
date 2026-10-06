@@ -7,6 +7,7 @@ import Footer from './components/Footer';
 import BottomNav from './components/BottomNav';
 import ChatWidget from './components/ChatWidget';
 import SignInPrompt from './components/SignInPrompt';
+import ErrorBoundary from './components/ErrorBoundary';
 import AgeGate from './components/AgeGate';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
@@ -47,6 +48,7 @@ const ProtectedRoute = ({ children, roles = [] }) => {
 };
 
 function AppContent() {
+  const location = useLocation();
   // Keep-alive ping: while someone has the site open, ping the backend so a
   // free-tier Render instance doesn't spin down between their page views.
   // NOTE: this only runs in an open browser tab — it cannot keep the server
@@ -74,6 +76,7 @@ function AppContent() {
       <AnnouncementBar />
       <Navbar />
       <main className="flex-grow pb-16 lg:pb-0">
+        <ErrorBoundary resetKey={location.pathname}>
         <Suspense fallback={<div style={{minHeight:"100vh",background:"#050505"}} />}>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -87,6 +90,7 @@ function AppContent() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
           <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+          <Route path="/orders" element={<Navigate to="/dashboard" replace />} />
           <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute roles={['customer']}><UserDashboard /></ProtectedRoute>} />
           <Route path="/staff" element={<ProtectedRoute roles={['staff', 'super_admin', 'master_admin']}><StaffDashboard /></ProtectedRoute>} />
@@ -99,6 +103,7 @@ function AppContent() {
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>
+        </ErrorBoundary>
       </main>
       <Footer />
       <ChatWidget />

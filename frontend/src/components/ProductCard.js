@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { useCart, useAuth } from '../context';
+import { useCart, useAuth, DEFAULT_BOSS_WA as BOSS_WA } from '../context';
 import { FaShoppingBag, FaBolt, FaClock, FaWhatsapp } from 'react-icons/fa';
 import { resolveImageUrl } from '../lib/imageUrl';
 

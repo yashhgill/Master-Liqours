@@ -27,7 +27,8 @@ const Field = ({ label, type = 'text', value, placeholder, onChange, error, rows
 );
 
 const Checkout = () => {
-  const { user } = useAuth();
+  const { user, bossWhatsapp } = useAuth();
+  const bossWa = (bossWhatsapp || '60133446521').replace(/\D/g, '');
   const { cart, total, clearCart } = useCart();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: '', whatsapp: '', address: '' });
@@ -88,8 +89,14 @@ const Checkout = () => {
         shipping_address: form.address.trim(),
         discount_code: promoCode.trim() || undefined,
       }, { withCredentials: true });
-      clearCart(); // clear immediately on success
-      setDone(res.data);
+      // Snapshot what was ordered BEFORE clearing the cart, so the success
+      // screen and WhatsApp message show real names and the real total.
+      const snapshot = {
+        total: finalTotal,
+        items: cart.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+      };
+      clearCart();
+      setDone({ ...res.data, snapshot });
     } catch (err) {
       toast('Checkout failed: ' + (err.response?.data?.detail || 'Try again lah'), 'error');
     } finally { setLoading(false); }
@@ -98,11 +105,13 @@ const Checkout = () => {
   if (done) {
     const phone = (done.staff_whatsapp || bossWa || '').replace(/\D/g, '');
     const staffName = done.staff_name || 'Staff';
-    const itemsList = (done.items || []).map(i => `• ${i.quantity}x item (RM${Number(i.price).toFixed(2)})`).join('\n');
+    const snapTotal = done.snapshot?.total ?? done.total ?? 0;
+    const itemsList = (done.snapshot?.items || done.items || [])
+      .map(i => `• ${i.quantity}x ${i.name || i.product_name || 'item'} (RM${Number(i.price).toFixed(2)})`).join('\n');
     const msg =
       `Hi ${staffName}! New order from *${form.name}*\n` +
       `Order ID: #${done.order_id.slice(0, 8).toUpperCase()}\n` +
-      `Total: RM${finalTotal.toFixed(2)}\n\n` +
+      `Total: RM${Number(snapTotal).toFixed(2)}\n\n` +
       `Items:\n${itemsList}\n\n` +
       `Address: ${form.address}\n` +
       `Customer WA: ${form.whatsapp}`;
@@ -129,7 +138,7 @@ const Checkout = () => {
             </div>
             <div className="border-t border-white/10 pt-3">
               <div className="text-xs uppercase tracking-[0.25em] text-white/40 mb-1">Product Total</div>
-              <div className="display-lg neon-pink-text">RM{finalTotal.toFixed(2)}</div>
+              <div className="display-lg neon-pink-text">RM{Number(snapTotal).toFixed(2)}</div>
               <div className="text-xs text-white/40 mt-1">+ shipping (to be confirmed with staff)</div>
             </div>
             <div className="border-t border-white/10 pt-3">
@@ -141,7 +150,7 @@ const Checkout = () => {
           <a href={url} target="_blank" rel="noopener noreferrer" className="btn-whatsapp w-full" data-testid="checkout-whatsapp-btn">
             <FaWhatsapp size={20} /> Open WhatsApp & Confirm Order
           </a>
-          <button onClick={() => { clearCart(); navigate(`/orders/${done.order_id}`); }} className="block mt-4 text-sm text-white/50 hover:text-[#ff007f] mx-auto">
+          <button onClick={() => navigate(`/orders/${done.order_id}`)} className="block mt-4 text-sm text-white/50 hover:text-[#ff007f] mx-auto">
             View order detail →
           </button>
         </div>

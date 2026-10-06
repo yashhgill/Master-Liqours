@@ -22,7 +22,8 @@ const Register = () => {
   const [confirmError, setConfirmError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, bossWhatsapp } = useAuth();
+  const bossWa = (bossWhatsapp || '60133446521').replace(/\D/g, '');
   const navigate = useNavigate();
 
   const submit = async (e) => {
@@ -201,7 +202,7 @@ const Register = () => {
 
           {/* WhatsApp */}
           <a
-            href="https://wa.me/${bossWa}"
+            href={`https://wa.me/${bossWa}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, fontSize: 13, color: 'rgba(37,211,102,0.7)', textDecoration: 'none' }}

@@ -12,6 +12,7 @@ from sqlalchemy import and_
 from schemas import CheckoutRequest, OrderResponse, CartItem
 from auth_utils import get_current_user
 from sms_utils import send_sms, status_message
+from bg import fire_and_forget
 from email_utils import send_low_stock_alert, LOW_STOCK_THRESHOLD
 from routes_push import notify_staff_or_admins
 from datetime import datetime
@@ -271,7 +272,7 @@ async def checkout(
             product_row = product_for_alert.scalar_one_or_none()
             if product_row:
                 for staff_row in staff_rows_for_alert:
-                    send_low_stock_alert(staff_row.email, staff_row.name, product_row.name, stock_row.quantity)
+                    fire_and_forget(send_low_stock_alert, staff_row.email, staff_row.name, product_row.name, stock_row.quantity)
                 await notify_staff_or_admins(
                     db,
                     title="Low stock warning ⚠️",
@@ -693,6 +694,6 @@ async def update_order_status(
         if staff_obj:
             staff_name = staff_obj.name
     if customer and customer.phone:
-        send_sms(customer.phone, status_message(new_status, order.order_id, staff_name))
+        fire_and_forget(send_sms, customer.phone, status_message(new_status, order.order_id, staff_name))
 
     return {"message": "Status updated", "status": new_status, "order_id": order_id}

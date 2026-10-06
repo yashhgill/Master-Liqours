@@ -108,7 +108,7 @@ const UserDashboard = () => {
                   )}
                 </div>
                 <div className="text-right">
-                  <div className="font-display text-xl neon-pink-text">RM{o.total.toFixed(2)}</div>
+                  <div className="font-display text-xl neon-pink-text">RM{Number(o.total || 0).toFixed(2)}</div>
                   <span className={`inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded-full mt-1 ${
                     o.status === 'delivered' ? 'bg-[#39ff14]/20 text-[#39ff14]' :
                     o.status === 'cancelled' ? 'bg-[#ff007f]/20 text-[#ff007f]' : 'bg-[#ffd700]/20 text-[#ffd700]'

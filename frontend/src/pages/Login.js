@@ -20,7 +20,8 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, bossWhatsapp } = useAuth();
+  const bossWa = (bossWhatsapp || '60133446521').replace(/\D/g, '');
   const navigate = useNavigate();
 
   const submit = async (e) => {
@@ -183,7 +184,7 @@ const Login = () => {
 
           {/* WhatsApp */}
           <a
-            href="https://wa.me/${bossWa}"
+            href={`https://wa.me/${bossWa}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20, fontSize: 13, color: 'rgba(37,211,102,0.7)', textDecoration: 'none' }}

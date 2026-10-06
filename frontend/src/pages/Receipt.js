@@ -121,7 +121,7 @@ export default function Receipt() {
                   <td style={{ padding: '10px 0', fontSize: 13, color: '#111', fontWeight: 500 }}>{item.product_name || item.name}</td>
                   <td style={{ padding: '10px 0', fontSize: 13, color: '#666', textAlign: 'right' }}>{item.quantity}</td>
                   <td style={{ padding: '10px 0', fontSize: 13, color: '#666', textAlign: 'right' }}>RM{Number(item.price).toFixed(2)}</td>
-                  <td style={{ padding: '10px 0', fontSize: 13, color: '#111', fontWeight: 600, textAlign: 'right' }}>RM{(item.price * item.quantity).toFixed(2)}</td>
+                  <td style={{ padding: '10px 0', fontSize: 13, color: '#111', fontWeight: 600, textAlign: 'right' }}>RM{(Number(item.price || 0) * Number(item.quantity || 0)).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>

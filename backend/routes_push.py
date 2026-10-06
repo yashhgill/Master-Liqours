@@ -125,5 +125,12 @@ async def notify_staff_or_admins(db: AsyncSession, title: str, body: str, staff_
         return
 
     subs_result = await db.execute(select(PushSubscription).where(PushSubscription.user_id.in_(target_user_ids)))
-    for sub in subs_result.scalars().all():
-        _send_to_subscription(sub, title, body, url)
+    # Copy to plain objects (the DB session closes when the request ends),
+    # then send in a background thread so the caller never waits on the
+    # push services' network round-trips.
+    from types import SimpleNamespace
+    from bg import fire_and_forget
+    plain = [SimpleNamespace(endpoint=s.endpoint, p256dh=s.p256dh, auth=s.auth)
+             for s in subs_result.scalars().all()]
+    for sub in plain:
+        fire_and_forget(_send_to_subscription, sub, title, body, url)

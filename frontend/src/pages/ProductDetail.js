@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { FaShoppingBag, FaArrowLeft, FaMinus, FaPlus, FaCheckCircle, FaWhatsapp, FaHeart, FaRegHeart, FaShare, FaSearch } from 'react-icons/fa';
-import { useCart, useAuth } from '../context';
+import { useCart, useAuth, DEFAULT_BOSS_WA as BOSS_WA } from '../context';
 import ProductCard from '../components/ProductCard';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;

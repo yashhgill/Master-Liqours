@@ -1,8 +1,12 @@
 import React from 'react';
+import { useAuth } from '../context';
 import { Link } from 'react-router-dom';
 import { FaArrowRight, FaWhatsapp } from 'react-icons/fa';
 
-const NotFound = () => (
+const NotFound = () => {
+  const { bossWhatsapp } = useAuth();
+  const bossWa = (bossWhatsapp || '60133446521').replace(/\D/g, '');
+  return (
   <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', position: 'relative', overflow: 'hidden', background: '#030303' }}>
     <div style={{ position: 'absolute', width: 600, height: 600, top: '50%', left: '50%', transform: 'translate(-50%,-50%)', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,0,127,0.08), transparent 65%)', filter: 'blur(100px)', pointerEvents: 'none' }} />
     <div style={{ textAlign: 'center', position: 'relative', zIndex: 2 }}>
@@ -19,7 +23,7 @@ const NotFound = () => (
           Browse Drops
         </Link>
       </div>
-      <a href="https://wa.me/${bossWa}" target="_blank" rel="noopener noreferrer"
+      <a href={`https://wa.me/${bossWa}`} target="_blank" rel="noopener noreferrer"
         style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 28, fontSize: 13, color: 'rgba(255,255,255,0.25)', textDecoration: 'none' }}>
         <FaWhatsapp size={14} style={{ color: '#25d366' }} /> Tell us about it on WhatsApp
       </a>
@@ -27,5 +31,6 @@ const NotFound = () => (
     <style>{`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');`}</style>
   </div>
 );
+};
 
 export default NotFound;

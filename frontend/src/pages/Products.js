@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { DEFAULT_BOSS_WA as BOSS_WHATSAPP } from '../context';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FaSearch, FaSlidersH, FaTh, FaList, FaHeart, FaRegHeart, FaTimes, FaPhone, FaWhatsapp, FaChevronLeft, FaChevronRight } from 'react-icons/fa';

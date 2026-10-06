@@ -1,6 +1,9 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 
+// Fallback WhatsApp number used until /settings/public loads (and if it fails).
+export const DEFAULT_BOSS_WA = '60133446521';
+
 const AuthContext = createContext(null);
 const CartContext = createContext(null);
 
@@ -33,7 +36,7 @@ export const AuthProvider = ({ children }) => {
   // Set of product IDs the customer's assigned staff is out of stock on.
   const [unavailableIds, setUnavailableIds] = useState(() => new Set());
   // Editable site settings (boss WhatsApp for pre-order links).
-  const [bossWhatsapp, setBossWhatsapp] = useState('');
+  const [bossWhatsapp, setBossWhatsapp] = useState(DEFAULT_BOSS_WA);
 
   useEffect(() => {
     checkAuth();
@@ -161,6 +164,7 @@ export const CartProvider = ({ children }) => {
   };
 
   const clearCart = () => {
+    try { localStorage.setItem('cart', '[]'); } catch {}
     setCart([]);
   };
 

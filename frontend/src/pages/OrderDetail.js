@@ -27,7 +27,8 @@ const statusMeta = {
 const OrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, bossWhatsapp } = useAuth();
+  const bossWa = (bossWhatsapp || '60133446521').replace(/\D/g, '');
   const { addToCart } = useCart();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -92,7 +93,7 @@ const OrderDetail = () => {
   const phone = (order.staff_whatsapp || bossWa || '').replace(/\D/g, '');
   const staffName = order.staff_name || 'Staff';
   const itemsList = (order.items || []).map(it => `${it.quantity}x ${it.product_name || 'Item'}`).join(', ');
-  const waMsg = `Hi ${staffName}! Re order #${order.order_id.slice(0,8).toUpperCase()} (${itemsList}) — total RM${order.total.toFixed(2)}.`;
+  const waMsg = `Hi ${staffName}! Re order #${String(order.order_id || '').slice(0,8).toUpperCase()} (${itemsList}) — total RM${Number(order.total || 0).toFixed(2)}.`;
   const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}`;
 
   return (
@@ -105,7 +106,7 @@ const OrderDetail = () => {
       <div className="flex items-center gap-2 text-xs text-white/30 mb-6">
         <Link to="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
         <span>/</span>
-        <span className="text-white/60">Order #{order.order_id.slice(0,8).toUpperCase()}</span>
+        <span className="text-white/60">Order #{String(order.order_id || '').slice(0,8).toUpperCase()}</span>
       </div>
 
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
@@ -114,7 +115,7 @@ const OrderDetail = () => {
             <span style={{width:20,height:1,background:"#ffd700",display:"inline-block"}} /> Order Detail
           </div>
           <h1 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:"clamp(36px,5vw,64px)",letterSpacing:"0.02em",lineHeight:1}}>
-            #<span style={{color:"#ff007f",textShadow:"0 0 30px rgba(255,0,127,0.4)"}}>{order.order_id.slice(0,8).toUpperCase()}</span>
+            #<span style={{color:"#ff007f",textShadow:"0 0 30px rgba(255,0,127,0.4)"}}>{String(order.order_id || '').slice(0,8).toUpperCase()}</span>
           </h1>
           <div className="text-white/50 text-sm mt-2">Placed {new Date(order.created_at).toLocaleString()}</div>
           <Link to={`/receipt/${order.order_id}`}
@@ -199,7 +200,7 @@ const OrderDetail = () => {
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-xs text-white/40">Subtotal</div>
-                    <div className="font-display text-xl neon-pink-text">RM{(it.price * it.quantity).toFixed(2)}</div>
+                    <div className="font-display text-xl neon-pink-text">RM{(Number(it.price || 0) * Number(it.quantity || 0)).toFixed(2)}</div>
                   </div>
                 </div>
               ))}
