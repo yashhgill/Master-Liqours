@@ -668,18 +668,23 @@ async def update_order_status(
             detail=f"Can't move an order from '{order.status.value}' to '{new_status_enum.value}'.",
         )
 
-    # Restore warehouse stock if order is being cancelled
+    # Restore shared warehouse stock when an order is cancelled.
+    # Load items explicitly (async sessions can't lazy-load relationships).
+    # Restore to the product's shared row even if it is currently at 0 —
+    # otherwise cancelling the order for the last bottle would lose it.
+    # Products with no shared row were pre-orders (nothing was deducted).
     if new_status_enum.value == 'cancelled' and order.status.value not in ('cancelled', 'delivered'):
-        from models import Stock as _Stock
-        for item in order.items:
+        items = (await db.execute(
+            select(OrderItem).where(OrderItem.order_id == order.order_id)
+        )).scalars().all()
+        for item in items:
             stock_row = (await db.execute(
-                select(_Stock).where(
-                    _Stock.product_id == item.product_id,
-                    _Stock.staff_id.is_(None),
-                    _Stock.quantity > 0,
-                )
-            )).scalar_one_or_none()
-            if stock_row:
+                select(Stock).where(
+                    Stock.product_id == item.product_id,
+                    Stock.staff_id.is_(None),
+                ).order_by(Stock.warehouse_id).limit(1).with_for_update()
+            )).scalars().first()
+            if stock_row is not None:
                 stock_row.quantity += item.quantity
 
     order.status = new_status_enum
