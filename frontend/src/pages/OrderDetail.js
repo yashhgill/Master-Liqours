@@ -91,7 +91,7 @@ const OrderDetail = () => {
   const currentStep = STATUS_STEPS.findIndex(s => s.key === order.status);
   const isCancelled = order.status === 'cancelled';
   const phone = (order.staff_whatsapp || bossWa || '').replace(/\D/g, '');
-  const staffName = order.staff_name || 'Staff';
+  const staffName = order.staff_name || 'Masterliqours';
   const itemsList = (order.items || []).map(it => `${it.quantity}x ${it.product_name || 'Item'}`).join(', ');
   const waMsg = `Hi ${staffName}! Re order #${String(order.order_id || '').slice(0,8).toUpperCase()} (${itemsList}) — total RM${Number(order.total || 0).toFixed(2)}.`;
   const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}`;

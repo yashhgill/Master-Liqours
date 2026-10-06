@@ -104,7 +104,7 @@ const Checkout = () => {
 
   if (done) {
     const phone = (done.staff_whatsapp || bossWa || '').replace(/\D/g, '');
-    const staffName = done.staff_name || 'Staff';
+    const staffName = done.staff_name || 'Masterliqours';
     const snapTotal = done.snapshot?.total ?? done.total ?? 0;
     const itemsList = (done.snapshot?.items || done.items || [])
       .map(i => `• ${i.quantity}x ${i.name || i.product_name || 'item'} (RM${Number(i.price).toFixed(2)})`).join('\n');
@@ -142,7 +142,7 @@ const Checkout = () => {
               <div className="text-xs text-white/40 mt-1">+ shipping (to be confirmed with staff)</div>
             </div>
             <div className="border-t border-white/10 pt-3">
-              <div className="text-xs uppercase tracking-[0.25em] text-white/40 mb-1">Your Assigned Staff</div>
+              <div className="text-xs uppercase tracking-[0.25em] text-white/40 mb-1">{done.staff_name ? "Your Assigned Staff" : "Handled By"}</div>
               <div className="font-display text-xl neon-lime-text">{staffName}</div>
             </div>
           </div>
