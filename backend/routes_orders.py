@@ -235,12 +235,12 @@ async def checkout(
             stock_row = fallback.scalars().first()
 
         if stock_row is None:
-            # Check if this is a preorder product (no shared warehouse stock)
-            # If so, allow the order through — no stock to deduct
+            # Pre-order product = no stock anywhere (pool or any staff). Same
+            # rule the storefront uses, so the order goes through with nothing
+            # to deduct.
             preorder_check = await db.execute(
                 select(Stock).where(
                     Stock.product_id == product_id,
-                    Stock.staff_id.is_(None),
                     Stock.quantity > 0,
                 )
             )

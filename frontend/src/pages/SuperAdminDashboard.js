@@ -12,12 +12,14 @@ import ImageUploader from '../components/ImageUploader';
 import { resolveImageUrl } from '../lib/imageUrl';
 import OverviewTab from './admin/OverviewTab';
 import StaffPerfTab from './admin/StaffPerfTab';
+import ReportsTab from './admin/ReportsTab';
 import { toast } from '../lib/toast';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: FaChartLine },
+  { id: 'reports', label: 'Reports', icon: FaFileCsv },
   { id: 'banners', label: 'Hero Banners', icon: FaImage },
   { id: 'products', label: 'Products', icon: FaBoxOpen },
   { id: 'flash-sales', label: 'Flash Sales', icon: FaBolt },
@@ -1324,6 +1326,7 @@ const SuperAdminDashboard = () => {
 
       {/* === STAFF PERFORMANCE === */}
       {tab === 'staff-perf' && <StaffPerfTab />}
+      {tab === 'reports' && <ReportsTab />}
 
       {/* === PRODUCTS === */}
       {tab === 'products' && (
@@ -1487,7 +1490,7 @@ const SuperAdminDashboard = () => {
                 </label>
                 <div className="text-xs text-white/50 leading-relaxed border border-white/10 rounded-xl px-3 py-2">
                   <span className="text-[#39ff14] font-bold">In Stock</span> / <span className="text-[#ffd700] font-bold">Pre-order</span> is automatic:
-                  a bottle with stock in the Warehouse Stock pool shows as In Stock; at 0 it becomes Pre-order (customers WhatsApp you instead of adding to cart).
+                  a bottle with stock (shared pool or any staff's stock) shows as In Stock; at 0 everywhere it becomes Pre-order (customers WhatsApp you instead of adding to cart).
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button onClick={saveProduct} className="btn-lime" data-testid="product-form-save">{editingProduct ? 'Update Product' : 'Create Product'}</button>

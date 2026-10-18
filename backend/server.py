@@ -27,6 +27,7 @@ from routes_orders import router as orders_router
 from routes_auth import router as auth_router
 from routes_reviews import router as reviews_router
 from routes_admin import router as admin_router
+from routes_reports import router as reports_router
 from routes_newsletter import router as newsletter_router
 from routes_ai import router as ai_router
 from routes_staff import router as staff_router
@@ -449,18 +450,16 @@ async def get_products(
     if max_price is not None:
         base_query = base_query.where(Product.price <= max_price)
     if available_only:
-        # Only return products that have shared warehouse stock > 0
+        # Only products with stock > 0 anywhere (shared pool OR held by a staff member)
         from models import Stock as StockModel
         in_stock_subq = select(StockModel.product_id).where(
-            StockModel.staff_id.is_(None),
             StockModel.quantity > 0,
         ).scalar_subquery()
         base_query = base_query.where(Product.product_id.in_(in_stock_subq))
     elif preorder_only:
-        # Only products with NO shared warehouse stock (shown as pre-order)
+        # Only products with no stock anywhere (shown as pre-order)
         from models import Stock as StockModel
         in_stock_subq = select(StockModel.product_id).where(
-            StockModel.staff_id.is_(None),
             StockModel.quantity > 0,
         ).scalar_subquery()
         base_query = base_query.where(Product.product_id.not_in(in_stock_subq))
@@ -530,7 +529,6 @@ async def get_products(
         stock_result = await db.execute(
             select(StockModel.product_id).where(
                 StockModel.product_id.in_(product_ids),
-                StockModel.staff_id.is_(None),
                 StockModel.quantity > 0,
             ).distinct()
         )
@@ -679,12 +677,11 @@ async def get_product(product_id: str, db: AsyncSession = Depends(get_db)):
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Produk tidak dijumpai")
-    # Check shared warehouse stock to auto-derive is_preorder
+    # Any stock > 0 (shared pool or staff-held) means in stock; otherwise pre-order
     from models import Stock as StockModel
     stock_check = await db.execute(
         select(StockModel.product_id).where(
             StockModel.product_id == product_id,
-            StockModel.staff_id.is_(None),
             StockModel.quantity > 0,
         ).limit(1)
     )
@@ -827,6 +824,7 @@ async def get_user_rewards(user_id: str, current_user: User = Depends(get_curren
 api_router.include_router(auth_router)
 api_router.include_router(orders_router)
 api_router.include_router(admin_router)
+api_router.include_router(reports_router)
 api_router.include_router(reviews_router)
 api_router.include_router(newsletter_router)
 api_router.include_router(ai_router)
