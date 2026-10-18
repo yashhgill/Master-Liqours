@@ -169,6 +169,11 @@ class OrderItem(Base):
     quantity = Column(Integer, nullable=False)
     price = Column(Float, nullable=False)
     subtotal = Column(Float, nullable=False)
+    # Which stock row the bottles were taken from, and how many were actually
+    # taken (stock never goes below 0). Used to give back exactly that when the
+    # order is cancelled or moved to another staff.
+    stock_id = Column(String(36), nullable=True)
+    stock_deducted = Column(Integer, default=0)
 
     order = relationship('Order', back_populates='order_items')
     product = relationship('Product', back_populates='order_items')

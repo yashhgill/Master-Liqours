@@ -19,6 +19,40 @@ from datetime import datetime
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
+
+def _take_stock(order_item, stock_row, needed):
+    """Deduct `needed` from stock_row (never below 0) and remember on the order
+    line exactly which row and how many bottles were taken."""
+    taken = min(needed, max(0, stock_row.quantity or 0))
+    stock_row.quantity = max(0, (stock_row.quantity or 0) - needed)
+    order_item.stock_id = stock_row.stock_id
+    order_item.stock_deducted = taken
+    return taken
+
+
+async def _give_back_stock(db, order, item):
+    """Return an order line's bottles to the stock they came from."""
+    if item.stock_id:
+        row = (await db.execute(select(Stock).where(Stock.stock_id == item.stock_id).with_for_update())).scalar_one_or_none()
+        if row is not None:
+            row.quantity += int(item.stock_deducted or 0)
+            item.stock_deducted = 0
+            return
+    # Older orders (before we recorded the source): prefer the assigned
+    # staff's own stock, then the shared pool.
+    row = None
+    if order.staff_id:
+        row = (await db.execute(
+            select(Stock).where(Stock.staff_id == order.staff_id, Stock.product_id == item.product_id).with_for_update()
+        )).scalars().first()
+    if row is None:
+        row = (await db.execute(
+            select(Stock).where(Stock.product_id == item.product_id, Stock.staff_id.is_(None))
+            .order_by(Stock.warehouse_id).limit(1).with_for_update()
+        )).scalars().first()
+    if row is not None:
+        row.quantity += item.quantity
+
 def calculate_tier_discount(user: User, subtotal: float):
     """Platinum gets 3% product discount. No shipping calc — staff handles that."""
     if user.tier == UserTier.PLATINUM:
@@ -177,11 +211,13 @@ async def checkout(
     db.add(order)
     await db.flush()
 
+    order_item_objs = []
     for item_data in order_items_data:
         order_item = OrderItem(order_id=order.order_id, **item_data)
         db.add(order_item)
+        order_item_objs.append(order_item)
 
-    for item_data in order_items_data:
+    for idx, item_data in enumerate(order_items_data):
         needed_qty = item_data["quantity"]
         product_id = item_data["product_id"]
         stock_row = None
@@ -260,7 +296,7 @@ async def checkout(
 
         # Deduct from the assigned staff's row (floor at 0). Never reassign the
         # order to a different staff based on whose stock was used.
-        stock_row.quantity = max(0, stock_row.quantity - needed_qty)
+        _take_stock(order_item_objs[idx], stock_row, needed_qty)
 
         if stock_row.quantity <= LOW_STOCK_THRESHOLD:
             if stock_row.warehouse_id:
@@ -409,36 +445,46 @@ async def log_personal_order(
     db.add(order)
     await db.flush()
 
+    order_item_objs = []
     for item_data in order_items_data:
         order_item = OrderItem(order_id=order.order_id, **item_data)
         db.add(order_item)
+        order_item_objs.append(order_item)
 
     stock_warnings = []
     if staff:
-        for item_data in order_items_data:
+        for idx, item_data in enumerate(order_items_data):
+            need = item_data["quantity"]
+            pid = item_data["product_id"]
+            # The staff's OWN stock first (bottles they hold), then the shared
+            # pool of their warehouse.
+            own = (await db.execute(
+                select(Stock).where(Stock.staff_id == staff.staff_id, Stock.product_id == pid).with_for_update()
+            )).scalars().first()
+            pool = None
             if staff.warehouse_id:
-                cond = and_(Stock.warehouse_id == staff.warehouse_id, Stock.product_id == item_data["product_id"])
+                pool = (await db.execute(
+                    select(Stock).where(Stock.warehouse_id == staff.warehouse_id, Stock.staff_id.is_(None),
+                                        Stock.product_id == pid).with_for_update()
+                )).scalars().first()
+            if own is not None and own.quantity >= need:
+                stock_row = own
+            elif pool is not None and pool.quantity >= need:
+                stock_row = pool
             else:
-                cond = and_(Stock.staff_id == staff.staff_id, Stock.product_id == item_data["product_id"])
-            sr = await db.execute(select(Stock).where(cond).with_for_update())
-            stock_row = sr.scalar_one_or_none()
-            if not stock_row:
-                stock_row = Stock(
-                    staff_id=None if staff.warehouse_id else staff.staff_id,
-                    warehouse_id=staff.warehouse_id,
-                    product_id=item_data["product_id"],
-                    quantity=0,
-                )
+                stock_row = own or pool
+            if stock_row is None:
+                stock_row = Stock(staff_id=staff.staff_id, warehouse_id=None, product_id=pid, quantity=0)
                 db.add(stock_row)
                 await db.flush()
-            if stock_row.quantity < item_data["quantity"]:
-                prod_res = await db.execute(select(Product).where(Product.product_id == item_data["product_id"]))
+            if stock_row.quantity < need:
+                prod_res = await db.execute(select(Product).where(Product.product_id == pid))
                 prod = prod_res.scalar_one_or_none()
                 stock_warnings.append(
-                    f"{(prod.name if prod else item_data['product_id'])}: recorded stock was only "
-                    f"{stock_row.quantity}, logged sale of {item_data['quantity']} anyway — please recount this item."
+                    f"{(prod.name if prod else pid)}: recorded stock was only "
+                    f"{stock_row.quantity}, logged sale of {need} anyway — please recount this item."
                 )
-            stock_row.quantity = max(0, stock_row.quantity - item_data["quantity"])
+            _take_stock(order_item_objs[idx], stock_row, need)
 
     await db.commit()
     await db.refresh(order)
@@ -678,14 +724,7 @@ async def update_order_status(
             select(OrderItem).where(OrderItem.order_id == order.order_id)
         )).scalars().all()
         for item in items:
-            stock_row = (await db.execute(
-                select(Stock).where(
-                    Stock.product_id == item.product_id,
-                    Stock.staff_id.is_(None),
-                ).order_by(Stock.warehouse_id).limit(1).with_for_update()
-            )).scalars().first()
-            if stock_row is not None:
-                stock_row.quantity += item.quantity
+            await _give_back_stock(db, order, item)
 
     order.status = new_status_enum
     await db.commit()

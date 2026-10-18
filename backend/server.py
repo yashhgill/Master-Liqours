@@ -859,6 +859,8 @@ async def startup():
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0 NOT NULL",
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS cart_count INTEGER DEFAULT 0 NOT NULL",
                 "ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code_used VARCHAR(50)",
+                "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS stock_id VARCHAR(36)",
+                "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS stock_deducted INTEGER DEFAULT 0",
                 "ALTER TABLE discount_codes ADD COLUMN IF NOT EXISTS is_first_order_only BOOLEAN DEFAULT FALSE",
             ]
             for _sql in _migrations:

@@ -340,23 +340,18 @@ async def transfer_order(
         from_staff_id = order.staff_id
         stock_notes = []
         if from_staff_id and from_staff_id != payload.target_staff_id:
+            from routes_orders import _give_back_stock, _take_stock
             for it in order.order_items:
                 qty = it.quantity
                 pid = it.product_id
-                # Credit back to the old staff (their stock returns).
-                old_res = await db.execute(
-                    select(Stock).where(and_(Stock.staff_id == from_staff_id, Stock.product_id == pid)).with_for_update()
-                )
-                old_row = old_res.scalar_one_or_none()
-                if old_row:
-                    old_row.quantity += qty
-                # Deduct from the new (target) staff.
+                # Give the bottles back to wherever they were taken from.
+                await _give_back_stock(db, order, it)
+                # Take them from the new (target) staff's own stock.
                 new_res = await db.execute(
                     select(Stock).where(and_(Stock.staff_id == payload.target_staff_id, Stock.product_id == pid)).with_for_update()
                 )
-                new_row = new_res.scalar_one_or_none()
+                new_row = new_res.scalars().first()
                 if not new_row:
-                    # Target has no row for this product yet — create one at 0 then go negative-safe.
                     new_row = Stock(stock_id=str(uuid.uuid4()), staff_id=payload.target_staff_id, product_id=pid, quantity=0)
                     db.add(new_row)
                     await db.flush()
@@ -364,7 +359,7 @@ async def transfer_order(
                     prod_res = await db.execute(select(Product).where(Product.product_id == pid))
                     prod = prod_res.scalar_one_or_none()
                     stock_notes.append(f"{(prod.name if prod else pid)}: {target.name} only had {new_row.quantity}, needed {qty} — recount please.")
-                new_row.quantity = max(0, new_row.quantity - qty)
+                _take_stock(it, new_row, qty)
 
         order.staff_id = payload.target_staff_id
         await db.commit()
