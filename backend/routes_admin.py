@@ -141,8 +141,10 @@ async def _sync_flash_sale_from_discount(product: Product, data: ProductCreate, 
             product.original_price = None
         return
 
-    # Calculate discount percentage from prices
-    discount_pct = round((1 - (data.discount_price / product.price)) * 100, 2)
+    # Calculate discount percentage from prices. Keep FULL precision: rounding
+    # the percentage (it used to be rounded to 2dp) makes the sale price drift
+    # when it is recomputed — e.g. RM260 -> RM135 came back as RM134.99.
+    discount_pct = (1 - (data.discount_price / product.price)) * 100
     if discount_pct <= 0 or discount_pct >= 100:
         return
 
