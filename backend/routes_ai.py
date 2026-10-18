@@ -166,10 +166,11 @@ Customer: {user.name} | Tier: {user.tier} | Points: {user.points} pts"""
     # Get AI response
     try:
         completion = groq_client.chat.completions.create(
-            model="groq/compound",
+            model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"),
             messages=messages,
             temperature=0.7,
-            max_tokens=500
+            max_tokens=1200,  # includes the model's internal reasoning tokens
+            extra_body={"reasoning_effort": "low"}
         )
 
         ai_response = completion.choices[0].message.content

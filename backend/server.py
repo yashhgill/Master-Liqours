@@ -348,7 +348,7 @@ async def generate_product_description(
     try:
         client = groq_lib.Groq(api_key=os.environ.get("GROQ_API_KEY"))
         completion = client.chat.completions.create(
-            model="groq/compound-mini",
+            model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"),
             messages=[{
                 "role": "user",
                 "content": f"""Write a short, punchy product description for {product_name} ({category}) for a Malaysian premium liquor delivery site called Masterliqours.
@@ -363,8 +363,9 @@ Rules:
 
 Product: {product_name}"""
             }],
-            max_tokens=150,
-            temperature=0.8
+            max_tokens=600,  # includes the model's internal reasoning tokens
+            temperature=0.8,
+            extra_body={"reasoning_effort": "low"}
         )
         description = completion.choices[0].message.content.strip()
         return {"description": description}
@@ -407,9 +408,10 @@ async def bulk_generate_descriptions(
     for product in products:
         try:
             completion = client.chat.completions.create(
-                model="groq/compound-mini",
+                model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"),
                 messages=[{"role": "user", "content": f"Write a 2-sentence premium product description for {product.name} ({product.category or 'Spirits'}) for a Malaysian liquor delivery service. Mention taste profile and occasion. No price. Plain text only."}],
-                max_tokens=120, temperature=0.8
+                max_tokens=600, temperature=0.8,
+                extra_body={"reasoning_effort": "low"}
             )
             desc = completion.choices[0].message.content.strip()
             product.description = desc

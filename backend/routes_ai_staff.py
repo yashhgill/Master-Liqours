@@ -21,7 +21,7 @@ from auth_utils import get_current_user
 router = APIRouter(prefix="/ai-staff", tags=["AI Staff Assistant"])
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-GROQ_MODEL = "llama-3.1-70b-versatile"
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 
 
 # ââ Pydantic ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -206,8 +206,9 @@ async def staff_ai_chat(
                 json={
                     "model": GROQ_MODEL,
                     "messages": messages,
-                    "max_tokens": 700,
+                    "max_tokens": 1500,  # includes internal reasoning tokens
                     "temperature": 0.65,
+                    "reasoning_effort": "low",
                 },
             )
             resp.raise_for_status()
