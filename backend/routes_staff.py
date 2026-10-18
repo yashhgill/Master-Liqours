@@ -344,7 +344,8 @@ async def transfer_order(
             for it in order.order_items:
                 qty = it.quantity
                 pid = it.product_id
-                # Give the bottles back to wherever they were taken from.
+                # Give the bottles back to wherever they were taken from (if
+                # anything was taken), then take them from the new staff.
                 await _give_back_stock(db, order, it)
                 # Take them from the new (target) staff's own stock.
                 new_res = await db.execute(

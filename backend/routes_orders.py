@@ -31,27 +31,19 @@ def _take_stock(order_item, stock_row, needed):
 
 
 async def _give_back_stock(db, order, item):
-    """Return an order line's bottles to the stock they came from."""
-    if item.stock_id:
-        row = (await db.execute(select(Stock).where(Stock.stock_id == item.stock_id).with_for_update())).scalar_one_or_none()
-        if row is not None:
-            row.quantity += int(item.stock_deducted or 0)
-            item.stock_deducted = 0
-            return
-    # Older orders (before we recorded the source): prefer the assigned
-    # staff's own stock, then the shared pool.
-    row = None
-    if order.staff_id:
-        row = (await db.execute(
-            select(Stock).where(Stock.staff_id == order.staff_id, Stock.product_id == item.product_id).with_for_update()
-        )).scalars().first()
+    """Return an order line's bottles to the exact stock row they came from.
+    Lines that never took stock (pre-orders) have no stock_id, so nothing is
+    added back — that would create bottles that don't exist."""
+    if not item.stock_id or not item.stock_deducted:
+        return 0
+    row = (await db.execute(select(Stock).where(Stock.stock_id == item.stock_id).with_for_update())).scalar_one_or_none()
     if row is None:
-        row = (await db.execute(
-            select(Stock).where(Stock.product_id == item.product_id, Stock.staff_id.is_(None))
-            .order_by(Stock.warehouse_id).limit(1).with_for_update()
-        )).scalars().first()
-    if row is not None:
-        row.quantity += item.quantity
+        return 0
+    given = int(item.stock_deducted or 0)
+    row.quantity += given
+    item.stock_deducted = 0
+    item.stock_id = None
+    return given
 
 def calculate_tier_discount(user: User, subtotal: float):
     """Platinum gets 3% product discount. No shipping calc — staff handles that."""
@@ -228,35 +220,30 @@ async def checkout(
         if order.staff_id:
             assigned_staff_result = await db.execute(select(Staff).where(Staff.staff_id == order.staff_id))
             assigned_staff = assigned_staff_result.scalar_one_or_none()
+            # The assigned staff's OWN stock first (the bottles they hold and
+            # will deliver), then the shared pool of their warehouse. Same
+            # order as staff-logged personal sales.
+            own = (await db.execute(
+                select(Stock).where(and_(Stock.staff_id == order.staff_id, Stock.product_id == product_id))
+                .with_for_update()
+            )).scalars().first()
+            pool = None
             if assigned_staff and assigned_staff.warehouse_id:
-                # SHARED POOL FIRST: warehouse stock row with staff_id=NULL
-                shared_result = await db.execute(
-                    select(Stock)
-                    .where(
+                pool = (await db.execute(
+                    select(Stock).where(
                         Stock.warehouse_id == assigned_staff.warehouse_id,
                         Stock.product_id == product_id,
                         Stock.staff_id.is_(None),
-                        Stock.quantity >= needed_qty
-                    )
-                    .with_for_update()
-                )
-                stock_row = shared_result.scalar_one_or_none()
-                # Fall back to per-staff stock inside the same warehouse
-                if stock_row is None:
-                    preferred = await db.execute(
-                        select(Stock)
-                        .where(and_(Stock.staff_id == order.staff_id, Stock.product_id == product_id))
-                        .with_for_update()
-                    )
-                    stock_row = preferred.scalar_one_or_none()
-            else:
-                # No warehouse — use per-staff stock directly
-                preferred = await db.execute(
-                    select(Stock)
-                    .where(and_(Stock.staff_id == order.staff_id, Stock.product_id == product_id))
-                    .with_for_update()
-                )
-                stock_row = preferred.scalar_one_or_none()
+                    ).with_for_update()
+                )).scalars().first()
+            if own is not None and own.quantity >= needed_qty:
+                stock_row = own
+            elif pool is not None and pool.quantity >= needed_qty:
+                stock_row = pool
+            elif own is not None and own.quantity > 0:
+                stock_row = own
+            elif pool is not None and pool.quantity > 0:
+                stock_row = pool
 
         # If there's no assigned staff at all (shouldn't happen for a customer
         # order, but be safe), only then pick any available row — and do NOT
@@ -271,28 +258,12 @@ async def checkout(
             stock_row = fallback.scalars().first()
 
         if stock_row is None:
-            # Pre-order product = no stock anywhere (pool or any staff). Same
-            # rule the storefront uses, so the order goes through with nothing
-            # to deduct.
-            preorder_check = await db.execute(
-                select(Stock).where(
-                    Stock.product_id == product_id,
-                    Stock.quantity > 0,
-                )
-            )
-            is_preorder_product = preorder_check.first() is None
-
-            if is_preorder_product:
-                # Preorder — no stock deduction, order goes through
-                continue
-
-            product_result = await db.execute(select(Product).where(Product.product_id == product_id))
-            product_for_error = product_result.scalar_one_or_none()
-            product_label = product_for_error.name if product_for_error else product_id
-            raise HTTPException(
-                status_code=409,
-                detail=f"Sorry, not enough stock for {product_label} right now (need {needed_qty}). Please check with staff before retrying.",
-            )
+            # Nothing to take: either a pre-order (no stock anywhere) or the
+            # bottle is only held by a different staff member. Let the order
+            # through without deducting; the assigned staff confirms it or
+            # transfers the order to whoever holds the bottle (the transfer
+            # then takes the stock from them).
+            continue
 
         # Deduct from the assigned staff's row (floor at 0). Never reassign the
         # order to a different staff based on whose stock was used.
