@@ -434,6 +434,7 @@ async def get_products(
     max_price: Optional[float] = None,
     sort: Optional[str] = None,
     available_only: Optional[bool] = None,
+    preorder_only: Optional[bool] = None,
     db: AsyncSession = Depends(get_db)
 ):
     limit = min(max(1, limit), 200)
@@ -455,6 +456,14 @@ async def get_products(
             StockModel.quantity > 0,
         ).scalar_subquery()
         base_query = base_query.where(Product.product_id.in_(in_stock_subq))
+    elif preorder_only:
+        # Only products with NO shared warehouse stock (shown as pre-order)
+        from models import Stock as StockModel
+        in_stock_subq = select(StockModel.product_id).where(
+            StockModel.staff_id.is_(None),
+            StockModel.quantity > 0,
+        ).scalar_subquery()
+        base_query = base_query.where(Product.product_id.not_in(in_stock_subq))
 
     # Ordering
     # Popularity score: purchases weigh most, then cart-adds, then views.
@@ -495,7 +504,7 @@ async def get_products(
     page = max(1, page or 1)
     offset = (page - 1) * limit
 
-    cache_key = f"products:page:{category}:{search}:{page}:{limit}:{min_price}:{max_price}:{sort}:{available_only}"
+    cache_key = f"products:page:{category}:{search}:{page}:{limit}:{min_price}:{max_price}:{sort}:{available_only}:{preorder_only}"
     # random sort must never be cached, or the first shuffle would be frozen.
     _use_cache = sort != "random"
     if _use_cache:

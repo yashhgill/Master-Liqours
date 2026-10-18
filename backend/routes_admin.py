@@ -152,11 +152,18 @@ async def _sync_flash_sale_from_discount(product: Product, data: ProductCreate, 
     hours = data.discount_hours or 0
     minutes = data.discount_minutes or 0
     total_seconds = days * 86400 + hours * 3600 + minutes * 60
-    if total_seconds <= 0:
-        total_seconds = 86400  # default 24h if no duration given
-
-    start_time = datetime.utcnow()
-    end_time = start_time + timedelta(seconds=total_seconds)
+    now = datetime.utcnow()
+    if total_seconds <= 0 and existing_sale and existing_sale.end_time and existing_sale.end_time > now:
+        # No new duration entered while editing (e.g. only the description or
+        # price changed): keep the sale's current timer instead of silently
+        # cutting it back to 24h.
+        start_time = existing_sale.start_time or now
+        end_time = existing_sale.end_time
+    else:
+        if total_seconds <= 0:
+            total_seconds = 86400  # default 24h for a brand-new sale with no duration
+        start_time = now
+        end_time = start_time + timedelta(seconds=total_seconds)
 
     # Set original_price so the storefront can show a strikethrough. Only capture
     # it the first time a discount is applied — otherwise re-saving an already

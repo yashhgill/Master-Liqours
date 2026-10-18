@@ -45,7 +45,7 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
     : 0;
   const price = flashSale ? (flashSale.discounted_price ?? flashSale.sale_price ?? product.price) : product.price;
   const originalPrice = flashSale ? (flashSale.original_price ?? product.price) : product.original_price;
-  const discountPct = flashSale ? flashSale.discount_percentage : derivedDiscountPct;
+  const discountPct = flashSale ? Math.round(flashSale.discount_percentage || 0) : derivedDiscountPct;
   const hasDiscount = discountPct > 0;
 
   // Stock: use explicit totalStock prop, or read available_stock from API response
@@ -125,6 +125,13 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
 
       {/* State badges */}
 
+      {cardState === 'available' && (
+        <div className="absolute top-4 left-4 z-10">
+          <div className="bg-[#39ff1420] border border-[#39ff14] text-[#39ff14] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
+            In Stock
+          </div>
+        </div>
+      )}
       {cardState === 'preorder' && (
         <div className="absolute top-4 left-4 z-10">
           <div className="bg-[#ffd70020] border border-[#ffd700] text-[#ffd700] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">

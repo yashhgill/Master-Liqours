@@ -806,6 +806,9 @@ const SuperAdminDashboard = () => {
   const productFormRef = useRef(null);
   const [prodPage, setProdPage] = useState(1);
   const [prodTotal, setProdTotal] = useState(0);
+  // Stock status filter for the product list: all | instock | preorder
+  const [prodStatus, setProdStatus] = useState('all');
+  const statusParams = (st) => st === 'instock' ? { available_only: true } : st === 'preorder' ? { preorder_only: true } : {};
   const [prodPageLoading, setProdPageLoading] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
   const [showBrand, setShowBrand] = useState(false);
@@ -828,7 +831,7 @@ const SuperAdminDashboard = () => {
       } else if (tab === 'products') {
         setProdPageLoading(true);
         try {
-          const r = await axios.get(`${API}/products`, { params: { page: 1, limit: 60 } });
+          const r = await axios.get(`${API}/products`, { params: { page: 1, limit: 60, ...statusParams(prodStatus) } });
           const data = r.data?.products || r.data || [];
           setProducts(data);
           setProdTotal(r.data?.total || data.length);
@@ -872,11 +875,11 @@ const SuperAdminDashboard = () => {
   };
 
   // === PRODUCT PAGINATION ===
-  const loadProdPage = async (page, search = productSearch) => {
+  const loadProdPage = async (page, search = productSearch, status = prodStatus) => {
     setProdPageLoading(true);
     try {
       const r = await axios.get(`${API}/products`, {
-        params: { page, limit: 60, ...(search ? { search } : {}) }
+        params: { page, limit: 60, ...(search ? { search } : {}), ...statusParams(status) }
       });
       const data = r.data?.products || r.data || [];
       setProducts(data);
@@ -1374,6 +1377,19 @@ const SuperAdminDashboard = () => {
             )}
           </div>
 
+          {/* Stock status filter — In Stock = has warehouse pool stock; Pre-order = 0 stock */}
+          <div className="flex flex-wrap gap-2 mb-4" data-testid="admin-products-status-filter">
+            {[['all','All'],['instock','In Stock'],['preorder','Pre-order']].map(([k,label]) => (
+              <button key={k} onClick={() => { setProdStatus(k); loadProdPage(1, productSearch, k); }}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border transition-all ${prodStatus === k
+                  ? (k === 'instock' ? 'bg-[#39ff14] border-[#39ff14] text-black' : k === 'preorder' ? 'bg-[#ffd700] border-[#ffd700] text-black' : 'bg-white border-white text-black')
+                  : 'border-white/15 text-white/60 hover:text-white'}`}>
+                {label}
+              </button>
+            ))}
+            <span className="text-[11px] text-white/40 self-center">{prodTotal} product{prodTotal === 1 ? '' : 's'}</span>
+          </div>
+
           {/* Bulk select bar */}
           <div className="flex items-center justify-between mb-4 px-1">
             <label className="flex items-center gap-2 text-sm text-white/60 cursor-pointer">
@@ -1469,10 +1485,10 @@ const SuperAdminDashboard = () => {
                   <input type="checkbox" checked={productForm.is_active} onChange={(e) => setProductForm({ ...productForm, is_active: e.target.checked })} />
                   <span>Active (shown to customers)</span>
                 </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={productForm.is_preorder} onChange={(e) => setProductForm({ ...productForm, is_preorder: e.target.checked })} />
-                  <span>Pre-order (Check Boss First)</span>
-                </label>
+                <div className="text-xs text-white/50 leading-relaxed border border-white/10 rounded-xl px-3 py-2">
+                  <span className="text-[#39ff14] font-bold">In Stock</span> / <span className="text-[#ffd700] font-bold">Pre-order</span> is automatic:
+                  a bottle with stock in the Warehouse Stock pool shows as In Stock; at 0 it becomes Pre-order (customers WhatsApp you instead of adding to cart).
+                </div>
                 <div className="flex gap-2 pt-2">
                   <button onClick={saveProduct} className="btn-lime" data-testid="product-form-save">{editingProduct ? 'Update Product' : 'Create Product'}</button>
                   <button onClick={() => { setShowProduct(false); setEditingProduct(null); setProductForm(blankProduct); }} className="btn-ghost">Cancel</button>
@@ -1507,7 +1523,9 @@ const SuperAdminDashboard = () => {
                   <div className="font-display text-base sm:text-lg uppercase truncate">{p.name}</div>
                   <div className="text-[10px] uppercase tracking-wider text-white/40 flex items-center gap-2 truncate">
                     {p.category}
-                    {p.is_preorder && <span className="text-[#ffd700]">· Pre-order</span>}
+                    {p.is_preorder
+                      ? <span className="px-2 py-0.5 rounded-full border border-[#ffd700] text-[#ffd700] font-bold">Pre-order</span>
+                      : <span className="px-2 py-0.5 rounded-full border border-[#39ff14] text-[#39ff14] font-bold">In Stock</span>}
                   </div>
                   {p.original_price ? (
                     <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
@@ -1664,7 +1682,7 @@ const SuperAdminDashboard = () => {
                     <div className="font-bold">{prod?.name || s.product_id?.slice(0, 8)}</div>
                     <div className="text-xs text-white/40">{new Date(s.start_time).toLocaleString()} → {new Date(s.end_time).toLocaleString()}</div>
                   </div>
-                  <div className="font-display text-xl neon-pink-text">{s.discount_percentage}% OFF</div>
+                  <div className="font-display text-xl neon-pink-text">{Math.round(s.discount_percentage)}% OFF</div>
                   <div className="flex flex-col gap-1 ml-2">
                     <button onClick={() => { setEditingFlash(s); setFlashForm({ product_id: s.product_id, discount_percentage: s.discount_percentage, start_time: new Date(s.start_time).toISOString().slice(0,16), end_time: new Date(s.end_time).toISOString().slice(0,16) }); setShowFlash(true); }}
                       className="text-xs px-2 py-1 rounded-lg border border-white/15 text-white/60 hover:border-[#00f0ff] hover:text-[#00f0ff] transition-all">Edit</button>

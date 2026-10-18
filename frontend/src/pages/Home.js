@@ -124,7 +124,7 @@ const MysteryDropCard = ({ drop }) => {
         )}
         {revealed && (
           <div className="absolute top-3 left-3 bg-[#ff007f] text-white px-3 py-1 rounded-full text-xs font-black">
-            -{drop.discount_percentage}% OFF
+            -{Math.round(drop.discount_percentage)}% OFF
           </div>
         )}
       </div>
@@ -144,7 +144,7 @@ const MysteryDropCard = ({ drop }) => {
         ) : (
           <>
             <div className="text-xs text-white/40 uppercase tracking-wider mb-1">{drop.label}</div>
-            <div className="text-lg text-white/30 mb-3">{drop.product?.category} drop — {drop.discount_percentage}% off</div>
+            <div className="text-lg text-white/30 mb-3">{drop.product?.category} drop — {Math.round(drop.discount_percentage)}% off</div>
             <button onClick={() => setRevealed(true)} className="btn-pink w-full text-sm">Reveal Drop</button>
           </>
         )}
