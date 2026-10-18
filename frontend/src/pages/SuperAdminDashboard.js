@@ -65,6 +65,26 @@ const WarehouseStockTab = ({ API }) => {
     finally { setLoadingStock(false); }
   };
 
+  // SET a shared-pool row to an exact quantity (used by -, + and the pencil).
+  const [savingRow, setSavingRow] = useState(null);
+  const setRowQty = async (row, newQty) => {
+    if (isNaN(newQty) || newQty < 0) { setMsg('Quantity must be 0 or more'); return false; }
+    setSavingRow(row.stock_id);
+    try {
+      const token = localStorage.getItem('session_token');
+      await axios.patch(`${API}/admin/warehouse-stock/${row.stock_id}`, { quantity: newQty },
+        { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      setStock(prev => prev.map(r => r.stock_id === row.stock_id ? { ...r, quantity: newQty } : r));
+      setMsg(`✅ ${row.product_name}: ${row.quantity} → ${newQty}`);
+      setTimeout(() => setMsg(''), 3000);
+      return true;
+    } catch (e) {
+      setMsg(`Failed to update: ${e.response?.data?.detail || e.message}`);
+      return false;
+    } finally { setSavingRow(null); }
+  };
+  const closeEdit = (id) => setEditingQty(prev => { const n = { ...prev }; delete n[id]; return n; });
+
   const loadWarehouses = async () => {
     try {
       const r = await axios.get(`${API}/admin/warehouses`, { withCredentials: true });
@@ -277,34 +297,40 @@ const WarehouseStockTab = ({ API }) => {
                       return (
                         <tr key={s.stock_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
                           <td style={{ padding: '10px 16px', color: '#fff', fontWeight: 500, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.product_name}</td>
-                          <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                          <td style={{ padding: '8px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                             {editing ? (
-                              <input
-                                type="number" min="0"
-                                value={editingQty[s.stock_id]}
-                                onChange={e => setEditingQty(prev => ({ ...prev, [s.stock_id]: e.target.value }))}
-                                onKeyDown={async e => {
-                                  if (e.key === 'Enter') {
-                                    const newQty = parseInt(editingQty[s.stock_id]);
-                                    if (!isNaN(newQty) && newQty >= 0) {
-                                      try {
-                                        await axios.patch(`${API}/admin/stock/${s.stock_id}`, { quantity: newQty }, { withCredentials: true });
-                                        setStock(prev => prev.map(row => row.stock_id === s.stock_id ? { ...row, quantity: newQty } : row));
-                                      } catch {}
-                                    }
-                                    setEditingQty(prev => { const n = { ...prev }; delete n[s.stock_id]; return n; });
-                                  }
-                                  if (e.key === 'Escape') setEditingQty(prev => { const n = { ...prev }; delete n[s.stock_id]; return n; });
-                                }}
-                                autoFocus
-                                style={{ width: 60, background: '#222', border: '1px solid #ff007f', borderRadius: 6, padding: '3px 8px', color: '#fff', fontSize: 13, textAlign: 'right' }}
-                              />
+                              <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                                <input
+                                  type="number" min="0" inputMode="numeric"
+                                  value={editingQty[s.stock_id]}
+                                  onChange={e => setEditingQty(prev => ({ ...prev, [s.stock_id]: e.target.value }))}
+                                  onKeyDown={async e => {
+                                    if (e.key === 'Enter') { if (await setRowQty(s, parseInt(editingQty[s.stock_id], 10))) closeEdit(s.stock_id); }
+                                    if (e.key === 'Escape') closeEdit(s.stock_id);
+                                  }}
+                                  autoFocus
+                                  style={{ width: 70, background: '#222', border: '1px solid #ff007f', borderRadius: 6, padding: '4px 8px', color: '#fff', fontSize: 14, textAlign: 'right' }}
+                                />
+                                <button title="Save" disabled={savingRow === s.stock_id}
+                                  onClick={async () => { if (await setRowQty(s, parseInt(editingQty[s.stock_id], 10))) closeEdit(s.stock_id); }}
+                                  style={{ background: '#39ff14', border: 'none', borderRadius: 6, color: '#000', fontWeight: 800, padding: '4px 9px', cursor: 'pointer' }}>✓</button>
+                                <button title="Cancel" onClick={() => closeEdit(s.stock_id)}
+                                  style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 6, color: '#fff', padding: '4px 9px', cursor: 'pointer' }}>✕</button>
+                              </span>
                             ) : (
-                              <span
-                                style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 18, color: statusColor, cursor: 'pointer' }}
-                                title="Click to edit"
-                                onClick={() => setEditingQty(prev => ({ ...prev, [s.stock_id]: s.quantity }))}
-                              >{qty}</span>
+                              <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                                <button title="Remove 1" disabled={qty <= 0 || savingRow === s.stock_id}
+                                  onClick={() => setRowQty(s, qty - 1)}
+                                  style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#fff', fontSize: 16, cursor: qty <= 0 ? 'default' : 'pointer', opacity: qty <= 0 ? 0.3 : 1 }}>−</button>
+                                <span
+                                  style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, color: statusColor, cursor: 'pointer', minWidth: 28, textAlign: 'center', opacity: savingRow === s.stock_id ? 0.4 : 1 }}
+                                  title="Tap to type an exact number"
+                                  onClick={() => setEditingQty(prev => ({ ...prev, [s.stock_id]: s.quantity }))}
+                                >{qty}</span>
+                                <button title="Add 1" disabled={savingRow === s.stock_id}
+                                  onClick={() => setRowQty(s, qty + 1)}
+                                  style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#fff', fontSize: 16, cursor: 'pointer' }}>+</button>
+                              </span>
                             )}
                           </td>
                           <td style={{ padding: '10px 16px', textAlign: 'right' }}>
@@ -316,7 +342,7 @@ const WarehouseStockTab = ({ API }) => {
                               style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: 11, padding: 4 }}
                               onMouseEnter={e => e.currentTarget.style.color = '#00f0ff'}
                               onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}
-                              title="Edit quantity">✏️</button>
+                              title="Type an exact quantity">✏️</button>
                           </td>
                         </tr>
                       );

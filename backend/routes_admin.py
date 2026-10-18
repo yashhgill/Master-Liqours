@@ -863,7 +863,7 @@ async def list_warehouses(
     db: AsyncSession = Depends(get_db)
 ):
     """List all warehouses."""
-    require_role(user, ["super_admin", "master_admin", "staff"])
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN, UserRole.STAFF)
     result = await db.execute(select(Warehouse).order_by(Warehouse.name))
     warehouses = result.scalars().all()
     return [{"warehouse_id": w.warehouse_id, "name": w.name, "location": getattr(w, "location", "")} for w in warehouses]
@@ -877,7 +877,7 @@ async def create_warehouse(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new warehouse."""
-    require_role(user, ["super_admin", "master_admin"])
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
     import uuid as _uuid
     existing = (await db.execute(select(Warehouse).where(Warehouse.name == name))).scalar_one_or_none()
     if existing:
@@ -901,7 +901,9 @@ async def add_warehouse_stock(
     db: AsyncSession = Depends(get_db)
 ):
     """Add stock to warehouse shared pool (all staff in that warehouse sell from it)."""
-    require_role(user, ["super_admin", "master_admin"])
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    if quantity < 1 or quantity > 10000:
+        raise HTTPException(status_code=400, detail="Add between 1 and 10000 bottles (use the pencil to reduce or correct)")
     import uuid as _uuid
     from models import Warehouse
     wh = (await db.execute(select(Warehouse).where(Warehouse.warehouse_id == warehouse_id))).scalar_one_or_none()
@@ -919,6 +921,37 @@ async def add_warehouse_stock(
     return {"message": f"Added {quantity} to warehouse pool", "warehouse": wh.name, "total_quantity": stock.quantity}
 
 
+class WarehouseStockSet(BaseModel):
+    quantity: int
+
+
+@router.patch("/warehouse-stock/{stock_id}")
+async def set_warehouse_stock(
+    stock_id: str,
+    payload: WarehouseStockSet,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """SET (not add) the quantity of a shared-pool stock row. For corrections:
+    damaged bottles, recounts, removing stock. 0 = out of stock."""
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
+    if payload.quantity < 0 or payload.quantity > 100000:
+        raise HTTPException(status_code=400, detail="Quantity must be between 0 and 100000")
+    row = (await db.execute(
+        select(Stock).where(Stock.stock_id == stock_id, Stock.staff_id.is_(None)).with_for_update()
+    )).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Stock row not found")
+    old = row.quantity
+    row.quantity = payload.quantity
+    await db.commit()
+    try:
+        _cache_clear()
+    except Exception:
+        pass
+    return {"stock_id": stock_id, "old_quantity": old, "quantity": row.quantity}
+
+
 @router.get("/warehouse-stock/{warehouse_id}")
 async def get_warehouse_stock(
     warehouse_id: str,
@@ -926,7 +959,7 @@ async def get_warehouse_stock(
     db: AsyncSession = Depends(get_db)
 ):
     """Get shared stock levels for a warehouse."""
-    require_role(user, ["super_admin", "master_admin", "staff"])
+    await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN, UserRole.STAFF)
     rows = (await db.execute(
         select(Stock, Product)
         .join(Product, Stock.product_id == Product.product_id)
