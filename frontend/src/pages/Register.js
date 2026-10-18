@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context';
 import { FaArrowRight, FaGoogle, FaWhatsapp } from 'react-icons/fa';
@@ -25,6 +25,33 @@ const Register = () => {
   const { register, bossWhatsapp } = useAuth();
   const bossWa = (bossWhatsapp || '60133446521').replace(/\D/g, '');
   const navigate = useNavigate();
+  const tsBox = useRef(null);
+  const tsId = useRef(null);
+  const [tsToken, setTsToken] = useState('');
+
+  // Render the Cloudflare check explicitly. The automatic mode only scans the
+  // page once at first load, so it never ran when visitors arrived here by
+  // clicking a link inside the app.
+  useEffect(() => {
+    let stop = false;
+    const mount = () => {
+      if (stop || !tsBox.current || tsId.current !== null) return;
+      if (!window.turnstile) { setTimeout(mount, 300); return; }
+      tsId.current = window.turnstile.render(tsBox.current, {
+        sitekey: '0x4AAAAAAxwqsE-fLvmoGwW',
+        theme: 'dark',
+        callback: setTsToken,
+        'expired-callback': () => setTsToken(''),
+        'error-callback': () => setTsToken(''),
+      });
+    };
+    mount();
+    return () => {
+      stop = true;
+      if (tsId.current !== null && window.turnstile) window.turnstile.remove(tsId.current);
+      tsId.current = null;
+    };
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -37,13 +64,19 @@ const Register = () => {
       setConfirmError('Password must be at least 6 characters');
       return;
     }
+    if (!tsToken) {
+      setConfirmError('Please wait for the security check below to finish, then try again.');
+      return;
+    }
     setError(''); setLoading(true);
     try {
-      const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value || '';
-      await register({ ...form, cf_turnstile_response: turnstileToken });
+      await register({ ...form, cf_turnstile_response: tsToken });
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.detail || 'Cannot register lah, try again');
+      // Tokens are single-use: get a fresh one for the next attempt.
+      setTsToken('');
+      if (tsId.current !== null && window.turnstile) window.turnstile.reset(tsId.current);
     } finally {
       setLoading(false);
     }
@@ -162,6 +195,18 @@ const Register = () => {
               data-testid="reg-password-input"
             />
             <GlowInput
+              label="Confirm Password"
+              type="password"
+              name="confirm_password"
+              value={confirmPassword}
+              onChange={e => { setConfirmPassword(e.target.value); setConfirmError(''); }}
+              required
+              minLength={6}
+              placeholder="Type it again"
+              autoComplete="new-password"
+              data-testid="reg-confirm-password-input"
+            />
+            <GlowInput
               label="Phone (Optional)"
               type="tel"
               name="phone"
@@ -181,8 +226,12 @@ const Register = () => {
               data-testid="reg-referral-input"
             />
 
-            {/* Cloudflare Turnstile — bot protection (add your sitekey in Cloudflare dashboard) */}
-            <div className="cf-turnstile" data-sitekey="0x4AAAAAAxwqsE-fLvmoGwW" data-theme="dark" style={{ margin: '8px 0' }} />
+            {/* Cloudflare Turnstile — rendered explicitly in the effect above */}
+            <div ref={tsBox} style={{ margin: '8px 0', minHeight: 65 }} />
+
+            {confirmError && (
+              <div role="alert" style={{ color: '#ff007f', fontSize: 13, marginTop: -4 }}>{confirmError}</div>
+            )}
 
             <button
               type="submit"
