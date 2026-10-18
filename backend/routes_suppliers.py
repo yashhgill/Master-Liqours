@@ -288,7 +288,8 @@ async def delete_supplier_product(
 # Returns {product_id: total_qty} â no supplier names exposed
 
 @router.get("/available-stock", include_in_schema=False)
-async def available_stock_summary(db: AsyncSession = Depends(get_db)):
+async def available_stock_summary(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    _require_master(user)
     """Public endpoint: total supplier stock per product. Supplier names NOT included."""
     result = await db.execute(
         select(SupplierProduct.product_id, func.sum(SupplierProduct.quantity).label("total"))

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from rate_limit import limiter
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel
@@ -32,7 +33,8 @@ def _clean(obj):
 
 
 @router.post("/")
-async def create_review(
+@limiter.limit("10/hour")
+async def create_review(request: Request, 
     data: ReviewCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)

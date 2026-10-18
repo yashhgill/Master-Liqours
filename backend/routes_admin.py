@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from rate_limit import limiter
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from datetime import datetime, timedelta
@@ -653,7 +654,8 @@ async def delete_discount_code(
 
 # Public endpoint — validate a code at checkout (no auth required)
 @router.post("/discount-codes/validate")
-async def validate_discount_code(
+@limiter.limit("20/minute")
+async def validate_discount_code(request: Request, 
     payload: dict,
     db: AsyncSession = Depends(get_db),
 ):

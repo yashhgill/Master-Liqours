@@ -284,10 +284,14 @@ async def notify_customer(
 
 
 @router.get("/info")
-async def get_all_staff(db: AsyncSession = Depends(get_db)):
-    """Get all staff info (public)"""
+async def get_all_staff(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Staff directory for the order-transfer picker. Staff/admin only, and only
+    the fields the picker needs (was public and returned emails + internal IDs)."""
+    if user.role not in (UserRole.STAFF, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN):
+        raise HTTPException(status_code=403, detail="Staff only")
     result = await db.execute(select(Staff))
-    return [_clean(s) for s in result.scalars().all()]
+    return [{"staff_id": s.staff_id, "name": s.name, "whatsapp_number": s.whatsapp_number}
+            for s in result.scalars().all()]
 
 
 @router.post("/orders/{order_id}/transfer")

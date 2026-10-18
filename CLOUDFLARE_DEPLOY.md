@@ -35,8 +35,8 @@ fly launch --no-deploy --copy-config
 
 # Set ALL secrets (NEVER commit these)
 fly secrets set \
-  DATABASE_URL="postgresql://postgres.nfueiblvvwwwvefmtoxw:ckKet4b69IlSwuhP@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true" \
-  DIRECT_URL="postgresql://postgres.nfueiblvvwwwvefmtoxw:ckKet4b69IlSwuhP@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres" \
+  DATABASE_URL="postgresql://postgres.<PROJECT_REF>:<DB_PASSWORD>@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true" \
+  DIRECT_URL="postgresql://postgres.<PROJECT_REF>:<DB_PASSWORD>@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres" \
   SUPABASE_URL="https://nfueiblvvwwwvefmtoxw.supabase.co" \
   SUPABASE_SERVICE_KEY="<value from /app/backend/.env>" \
   RESEND_API_KEY="<value>" \
@@ -50,10 +50,10 @@ fly secrets set \
   TWILIO_AUTH_TOKEN="<value>" \
   TWILIO_FROM_NUMBER="+60126884924" \
   GOOGLE_CLIENT_ID="450907493101-mhk979qslefhps32sfipj1tgvsq61d82.apps.googleusercontent.com" \
-  GOOGLE_CLIENT_SECRET="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" \
+  GOOGLE_CLIENT_SECRET="<GOOGLE_CLIENT_SECRET>" \
   R2_ACCOUNT_ID="52c1d557ffffc7359a34d5ddeffc037d" \
-  R2_ACCESS_KEY_ID="ac9dfd7fa02cc99fe5236d0e02145d04" \
-  R2_SECRET_ACCESS_KEY="56735eec71006e54e825c482744248caf1e252dd90298fac01bb5a21d4cf7c90" \
+  R2_ACCESS_KEY_ID="<R2_ACCESS_KEY_ID>" \
+  R2_SECRET_ACCESS_KEY="<R2_SECRET>" \
   R2_BUCKET="masterliqours-uploads" \
   R2_PUBLIC_URL="https://pub-6149577759724680adcfe08ef87d3022.r2.dev"
 

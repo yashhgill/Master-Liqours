@@ -5,15 +5,20 @@ import { useAuth } from '../context';
 import { useNavigate } from 'react-router-dom';
 
 const API = process.env.REACT_APP_BACKEND_URL || 'https://master-liqours-sg.onrender.com';
-const MKEY = 'warehouse2026fix';
+// Admin endpoints use the normal logged-in session (no shared keys in browser code).
+const authHeaders = () => {
+  const t = localStorage.getItem('session_token');
+  return t ? { Authorization: `Bearer ${t}` } : {};
+};
 
-function BulkDescBtn({ API, MKEY }) {
+function BulkDescBtn({ API }) {
   const [running, setRunning] = React.useState(false);
   const [result, setResult] = React.useState('');
   const run = async () => {
     setRunning(true); setResult('');
     try {
-      const r = await fetch(`${API}/api/admin/bulk-generate-descriptions?maintenance_key=${MKEY}&limit=20`, { method: 'POST' });
+      const r = await fetch(`${API}/api/admin/bulk-generate-descriptions?limit=20`, { method: 'POST', headers: authHeaders(), credentials: 'include' });
+      if (!r.ok) throw new Error();
       const d = await r.json();
       setResult(`✅ ${d.generated} descriptions written`);
       setTimeout(() => setResult(''), 4000);
@@ -287,7 +292,7 @@ export default function ImageTool() {
         objUrl = URL.createObjectURL(input);
       } else {
         // Proxy through backend to get a same-origin blob
-        const proxyResp = await fetch(`${API}/api/admin/proxy-image?url=${encodeURIComponent(input)}&maintenance_key=warehouse2026fix`);
+        const proxyResp = await fetch(`${API}/api/admin/proxy-image?url=${encodeURIComponent(input)}`, { headers: authHeaders(), credentials: 'include' });
         if (!proxyResp.ok) throw new Error('Could not fetch image — try uploading directly');
         const blob = await proxyResp.blob();
         objUrl = URL.createObjectURL(blob);
@@ -338,7 +343,7 @@ export default function ImageTool() {
     if (!selected) return;
     setGenDesc(true);
     try {
-      const r = await fetch(`${API}/api/admin/generate-description?maintenance_key=${MKEY}&product_name=${encodeURIComponent(selected.name)}&category=${encodeURIComponent(selected.category || 'Spirits')}`, { method: 'POST' });
+      const r = await fetch(`${API}/api/admin/generate-description?product_name=${encodeURIComponent(selected.name)}&category=${encodeURIComponent(selected.category || 'Spirits')}`, { method: 'POST', headers: authHeaders(), credentials: 'include' });
       const d = await r.json();
       if (d.description) setDescription(d.description);
     } catch {}
@@ -372,7 +377,7 @@ export default function ImageTool() {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <BulkDescBtn API={API} MKEY={MKEY} />
+          <BulkDescBtn API={API} />
           <input type="password" placeholder="remove.bg key (optional)"
             value={removeBgKey}
             onChange={e => { setRemoveBgKey(e.target.value); localStorage.setItem('removebg_key', e.target.value); }}

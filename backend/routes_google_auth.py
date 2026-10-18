@@ -5,6 +5,8 @@ Frontend sends the same `redirect_uri` it used to obtain the `code` from Google.
 """
 import os
 import httpx
+import logging
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -52,7 +54,8 @@ async def google_exchange(
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         if token_res.status_code != 200:
-            raise HTTPException(status_code=401, detail=f"Google token exchange failed: {token_res.text}")
+            logger.warning("Google token exchange failed: %s", token_res.text[:300])
+            raise HTTPException(status_code=401, detail="Google sign-in failed, please try again")
         tokens = token_res.json()
         access_token = tokens.get("access_token")
         if not access_token:
@@ -70,6 +73,10 @@ async def google_exchange(
     email = (info.get("email") or "").lower()
     if not email:
         raise HTTPException(status_code=400, detail="Google profile missing email")
+    # Only trust addresses Google has verified — otherwise an account with an
+    # unverified email could sign straight into someone else's account.
+    if info.get("email_verified") is not True:
+        raise HTTPException(status_code=403, detail="Please verify your email with Google first")
     name = info.get("name") or email.split("@")[0]
     picture = info.get("picture")
 

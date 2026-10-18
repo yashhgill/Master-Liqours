@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, Response, Request, Cookie
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Response, Request, Cookie, Query
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -144,15 +144,23 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
     # Turnstile bot protection verification
     ts_secret = os.environ.get("TURNSTILE_SECRET_KEY", "")
     cf_token = getattr(body, 'cf_turnstile_response', None)
-    if ts_secret and cf_token:
+    # When a secret is configured the check is REQUIRED. Previously a missing
+    # token simply skipped verification, so bots could register freely.
+    if ts_secret:
+        if not cf_token:
+            raise HTTPException(status_code=400, detail="Security check missing — please refresh and try again")
         import httpx as _httpx
-        async with _httpx.AsyncClient() as _client:
-            ts_resp = await _client.post(
-                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-                data={"secret": ts_secret, "response": cf_token, "remoteip": request.client.host}
-            )
-            if not ts_resp.json().get("success"):
-                raise HTTPException(status_code=400, detail="Security check failed — please try again")
+        try:
+            async with _httpx.AsyncClient(timeout=10) as _client:
+                ts_resp = await _client.post(
+                    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                    data={"secret": ts_secret, "response": cf_token},
+                )
+            ok = ts_resp.json().get("success") is True
+        except Exception:
+            ok = False
+        if not ok:
+            raise HTTPException(status_code=400, detail="Security check failed — please try again")
 
     result = await db.execute(select(User).where(User.email == body.email))
     existing = result.scalar_one_or_none()
@@ -257,30 +265,70 @@ async def ping():
     return {"ok": True}
 
 
-@api_router.get("/admin/proxy-image")
-async def proxy_image(url: str, maintenance_key: str):
-    """Proxy an external image through the backend to bypass browser CORS restrictions."""
-    import httpx
-    expected = os.environ.get("MAINTENANCE_KEY", "")
-    if not expected or maintenance_key != expected:
-        raise HTTPException(status_code=403, detail="Invalid key")
+def _require_admin_user(user: User):
+    if user.role not in (UserRole.MASTER_ADMIN, UserRole.SUPER_ADMIN):
+        raise HTTPException(status_code=403, detail="Admin only")
+
+
+def _is_public_http_url(url: str) -> bool:
+    """Only allow http(s) URLs whose host resolves exclusively to public IPs.
+    Blocks the proxy from being pointed at localhost, private networks or
+    cloud metadata addresses (server-side request forgery)."""
+    import ipaddress, socket
+    from urllib.parse import urlparse
     try:
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-            resp = await client.get(url, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Referer": "https://www.google.com/",
-            })
+        p = urlparse(url)
+        if p.scheme not in ("http", "https") or not p.hostname:
+            return False
+        infos = socket.getaddrinfo(p.hostname, p.port or (443 if p.scheme == "https" else 80))
+        for info in infos:
+            ip = ipaddress.ip_address(info[4][0])
+            if not ip.is_global or ip.is_multicast:
+                return False
+        return bool(infos)
+    except Exception:
+        return False
+
+
+@api_router.get("/admin/proxy-image")
+async def proxy_image(url: str, user: User = Depends(get_current_user)):
+    """Proxy an external image through the backend to bypass browser CORS restrictions.
+    Admin only; public image URLs only; images only; 8 MB cap."""
+    import httpx
+    from fastapi.responses import Response
+    _require_admin_user(user)
+    MAX_BYTES = 8 * 1024 * 1024
+    try:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
+            current = url
+            for _ in range(4):  # follow up to 3 redirects, re-checking each hop
+                if not _is_public_http_url(current):
+                    raise HTTPException(status_code=400, detail="Only public image URLs are allowed")
+                resp = await client.get(current, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+                    "Referer": "https://www.google.com/",
+                })
+                if resp.is_redirect and resp.headers.get("location"):
+                    current = str(resp.next_request.url) if resp.next_request else resp.headers["location"]
+                    continue
+                break
+            else:
+                raise HTTPException(status_code=400, detail="Too many redirects")
             if resp.status_code != 200:
                 raise HTTPException(status_code=400, detail="Could not fetch image")
-            content_type = resp.headers.get("content-type", "image/jpeg")
-            from fastapi.responses import Response
+            content_type = resp.headers.get("content-type", "").split(";")[0].strip().lower()
+            if not content_type.startswith("image/") or content_type == "image/svg+xml":
+                raise HTTPException(status_code=400, detail="URL is not an image")
+            if len(resp.content) > MAX_BYTES:
+                raise HTTPException(status_code=400, detail="Image too large")
             return Response(
                 content=resp.content,
                 media_type=content_type,
-                headers={"Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=86400"}
+                headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"},
             )
+    except HTTPException:
+        raise
     except httpx.TimeoutException:
         raise HTTPException(status_code=408, detail="Image URL timed out")
     except Exception:
@@ -289,16 +337,14 @@ async def proxy_image(url: str, maintenance_key: str):
 
 @api_router.post("/admin/generate-description")
 async def generate_product_description(
-    maintenance_key: str,
     product_name: str,
     category: str = "Spirits",
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Generate a product description using AI. Protected by MAINTENANCE_KEY."""
+    """Generate a product description using AI. Admin only."""
     import groq as groq_lib
-    expected = os.environ.get("MAINTENANCE_KEY", "")
-    if not expected or maintenance_key != expected:
-        raise HTTPException(status_code=403, detail="Invalid maintenance key")
+    _require_admin_user(user)
     try:
         client = groq_lib.Groq(api_key=os.environ.get("GROQ_API_KEY"))
         completion = client.chat.completions.create(
@@ -326,66 +372,13 @@ Product: {product_name}"""
         raise HTTPException(status_code=500, detail="Description generation failed")
 
 
-@api_router.post("/admin/reset-users")
-async def reset_users(
-    maintenance_key: str,
-    keep_email: str = "jojo@montageevents.my",
-    db: AsyncSession = Depends(get_db)
-):
-    """DANGER: Delete ALL users except keep_email. Set that user to master_admin."""
-    from sqlalchemy import text as sat, delete as sa_delete
-    expected = os.environ.get("MAINTENANCE_KEY", "")
-    if not expected or maintenance_key != expected:
-        raise HTTPException(status_code=403, detail="Invalid key")
-
-    # Find the keeper
-    result = await db.execute(select(User).where(User.email == keep_email))
-    keeper = result.scalar_one_or_none()
-
-    # Count users before
-    count_r = await db.execute(sat("SELECT COUNT(*) FROM users"))
-    total_before = count_r.scalar()
-
-    if keeper:
-        keeper_id = str(keeper.user_id)
-        # Delete all sessions except keeper
-        await db.execute(sat(f"DELETE FROM user_sessions WHERE user_id != '{keeper_id}'"))
-        # Delete all users except keeper
-        await db.execute(sat(f"DELETE FROM users WHERE user_id != '{keeper_id}'"))
-        # Elevate keeper to master_admin
-        await db.execute(sat(f"UPDATE users SET role = 'master_admin', is_active = true WHERE user_id = '{keeper_id}'"))
-    else:
-        # keeper doesn't exist — delete everyone
-        await db.execute(sat("DELETE FROM user_sessions"))
-        await db.execute(sat("DELETE FROM users"))
-        # Create Jojo as master_admin
-        import secrets, hashlib
-        new_user = User(
-            email=keep_email,
-            name="Jojo",
-            password_hash="OAUTH_ONLY",
-            role="master_admin",
-            is_active=True,
-            points=0,
-        )
-        db.add(new_user)
-
-    await db.commit()
-
-    count_r2 = await db.execute(sat("SELECT COUNT(*) FROM users"))
-    total_after = count_r2.scalar()
-    return {"deleted": total_before - total_after, "remaining": total_after, "keeper": keep_email}
-
-
 @api_router.get("/admin/list-users")
 async def list_users(
-    maintenance_key: str,
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """List all users for audit."""
-    expected = os.environ.get("MAINTENANCE_KEY", "")
-    if not expected or maintenance_key != expected:
-        raise HTTPException(status_code=403, detail="Invalid key")
+    _require_admin_user(user)
     result = await db.execute(select(User).order_by(User.created_at.desc()))
     users = result.scalars().all()
     return [{"email": u.email, "name": u.name, "role": u.role, "created_at": str(u.created_at)} for u in users]
@@ -393,15 +386,13 @@ async def list_users(
 
 @api_router.post("/admin/bulk-generate-descriptions")
 async def bulk_generate_descriptions(
-    maintenance_key: str,
-    limit: int = 10,
+    user: User = Depends(get_current_user),
+    limit: int = Query(10, ge=1, le=25),
     db: AsyncSession = Depends(get_db)
 ):
     """Generate AI descriptions for all products missing one. Processes in small batches."""
     import groq as groq_lib, asyncio
-    expected = os.environ.get("MAINTENANCE_KEY", "")
-    if not expected or maintenance_key != expected:
-        raise HTTPException(status_code=403, detail="Invalid maintenance key")
+    _require_admin_user(user)
     
     result = await db.execute(
         select(Product).where(Product.is_active == True, 
@@ -429,122 +420,6 @@ async def bulk_generate_descriptions(
     
     await db.commit()
     return {"generated": ok, "failed": fail, "total_processed": len(products)}
-
-
-@api_router.post("/admin/clear-descriptions")
-async def clear_all_descriptions(
-    maintenance_key: str,
-    db: AsyncSession = Depends(get_db)
-):
-    """Set description to NULL for all products. Protected by MAINTENANCE_KEY."""
-    from sqlalchemy import text as sa_text
-    expected = os.environ.get("MAINTENANCE_KEY", "")
-    if not expected or maintenance_key != expected:
-        raise HTTPException(status_code=403, detail="Invalid maintenance key")
-    result = await db.execute(sa_text("UPDATE products SET description = NULL"))
-    await db.commit()
-    return {"updated": result.rowcount, "message": "All product descriptions cleared"}
-
-
-@api_router.post("/admin/bulk-preorder")
-async def bulk_set_preorder(
-    maintenance_key: str,
-    is_preorder: bool = True,
-    db: AsyncSession = Depends(get_db)
-):
-    """Set ALL active products to preorder (or clear preorder). Protected by MAINTENANCE_KEY."""
-    from sqlalchemy import text as sa_text
-    expected = os.environ.get("MAINTENANCE_KEY", "")
-    if not expected or maintenance_key != expected:
-        raise HTTPException(status_code=403, detail="Invalid maintenance key")
-    result = await db.execute(
-        sa_text("UPDATE products SET is_preorder = :v WHERE is_active = true"),
-        {"v": is_preorder}
-    )
-    await db.commit()
-    return {"updated": result.rowcount, "is_preorder": is_preorder}
-
-
-@api_router.post("/admin/migrate-r2")
-async def migrate_r2_images(
-    maintenance_key: str,
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    One-shot endpoint: copies all product images from the old public R2 CDN
-    to Jojo's new R2 bucket. Also updates image_url in DB to new bucket URL.
-    Safe to re-run — skips images already migrated.
-    Protected by MAINTENANCE_KEY env var.
-    """
-    import httpx, re, boto3
-    from botocore.exceptions import ClientError as BotoClientError
-    from sqlalchemy import text
-
-    expected_key = os.environ.get("MAINTENANCE_KEY", "")
-    if not expected_key or maintenance_key != expected_key:
-        raise HTTPException(status_code=403, detail="Invalid maintenance key")
-
-    new_s3 = boto3.client(
-        "s3",
-        endpoint_url=os.environ.get("R2_ENDPOINT"),
-        aws_access_key_id=os.environ.get("R2_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.environ.get("R2_SECRET_ACCESS_KEY"),
-        region_name="auto"
-    )
-    new_bucket = os.environ.get("R2_BUCKET", "masterliqours-uploads")
-    new_public = os.environ.get("R2_PUBLIC_URL", "").rstrip("/")
-
-    result = await db.execute(
-        select(Product.product_id, Product.name, Product.image_url)
-        .where(Product.image_url.isnot(None), Product.image_url != "")
-    )
-    products = result.fetchall()
-
-    def extract_key(url):
-        m = re.search(r"r2\.dev/(.+)$", url)
-        return m.group(1) if m else None
-
-    def already_in_new(key):
-        try:
-            new_s3.head_object(Bucket=new_bucket, Key=key)
-            return True
-        except BotoClientError:
-            return False
-
-    ok = skip = fail = 0
-    failed_names = []
-
-    async with httpx.AsyncClient(timeout=20) as http:
-        for pid, name, url in products:
-            if new_public and url.startswith(new_public):
-                skip += 1
-                continue
-            key = extract_key(url)
-            if not key:
-                skip += 1
-                continue
-            try:
-                if already_in_new(key):
-                    new_url = f"{new_public}/{key}"
-                    await db.execute(text("UPDATE products SET image_url = :url WHERE product_id = :pid"), {"url": new_url, "pid": str(pid)})
-                    skip += 1
-                    continue
-                resp = await http.get(url)
-                if resp.status_code != 200:
-                    fail += 1
-                    failed_names.append(f"{name} ({resp.status_code})")
-                    continue
-                ct = resp.headers.get("content-type", "image/png")
-                new_s3.put_object(Bucket=new_bucket, Key=key, Body=resp.content, ContentType=ct)
-                new_url = f"{new_public}/{key}"
-                await db.execute(text("UPDATE products SET image_url = :url WHERE product_id = :pid"), {"url": new_url, "pid": str(pid)})
-                ok += 1
-            except Exception as e:
-                fail += 1
-                failed_names.append(f"{name}: {str(e)[:50]}")
-
-    await db.commit()
-    return {"migrated": ok, "skipped": skip, "failed": fail, "failed_list": failed_names[:20]}
 
 
 @api_router.get("/products")
@@ -730,7 +605,8 @@ async def get_all_product_names(db: AsyncSession = Depends(get_db)):
 
 
 @api_router.post("/products/track")
-async def track_product_event(
+@limiter.limit("120/minute")
+async def track_product_event(request: Request, 
     product_id: str,
     event_type: str = "view",
     db: AsyncSession = Depends(get_db)

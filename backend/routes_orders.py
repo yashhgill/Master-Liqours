@@ -481,7 +481,7 @@ async def create_preorder(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    qty = max(1, int(data.quantity or 1))
+    qty = min(100, max(1, int(data.quantity or 1)))
     unit_price = float(product.price or 0)
     subtotal = unit_price * qty
 

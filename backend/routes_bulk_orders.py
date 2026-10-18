@@ -1,3 +1,4 @@
+from rate_limit import limiter
 """Bulk / event order enquiries — the "Contact Us" form for customers who want
 carton-quantity pricing for parties, weddings, corporate events, etc. Stored in
 the DB so the boss can see/manage them, and emailed to the admin inbox so
@@ -7,7 +8,7 @@ import os
 import re
 import html as html_lib
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, EmailStr
@@ -54,7 +55,8 @@ def _esc_header(value: str) -> str:
 
 
 @router.post("")
-async def submit_bulk_order(data: BulkOrderRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/hour")
+async def submit_bulk_order(request: Request, data: BulkOrderRequest, db: AsyncSession = Depends(get_db)):
     """Public endpoint — anyone (no login needed) can submit a bulk/event enquiry."""
     inquiry = BulkOrderInquiry(
         name=data.name.strip(),

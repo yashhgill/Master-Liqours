@@ -6,11 +6,11 @@ from models import UserTier, UserRole, OrderStatus
 # Auth Schemas
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=6)
-    name: str
-    phone: Optional[str] = None
+    password: str = Field(min_length=6, max_length=128)
+    name: str = Field(min_length=1, max_length=100)
+    phone: Optional[str] = Field(default=None, max_length=20)
     cf_turnstile_response: Optional[str] = None  # Cloudflare Turnstile bot protection token
-    referral_code: Optional[str] = None
+    referral_code: Optional[str] = Field(default=None, max_length=30)
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -88,11 +88,11 @@ class CartItem(BaseModel):
     quantity: int = Field(gt=0, le=1000)
 
 class CheckoutRequest(BaseModel):
-    items: List[CartItem]
-    customer_name: str
-    customer_whatsapp: str
-    shipping_address: str
-    discount_code: Optional[str] = None
+    items: List[CartItem] = Field(min_length=1, max_length=50)
+    customer_name: str = Field(min_length=1, max_length=100)
+    customer_whatsapp: str = Field(min_length=6, max_length=20)
+    shipping_address: str = Field(min_length=5, max_length=500)
+    discount_code: Optional[str] = Field(default=None, max_length=40)
 
 class OrderResponse(BaseModel):
     order_id: str
