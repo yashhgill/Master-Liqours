@@ -493,7 +493,7 @@ async def get_products(
     page = max(1, page or 1)
     offset = (page - 1) * limit
 
-    cache_key = f"products:page:{category}:{search}:{page}:{limit}:{min_price}:{max_price}:{sort}"
+    cache_key = f"products:page:{category}:{search}:{page}:{limit}:{min_price}:{max_price}:{sort}:{available_only}"
     # random sort must never be cached, or the first shuffle would be frozen.
     _use_cache = sort != "random"
     if _use_cache:
@@ -527,10 +527,35 @@ async def get_products(
     else:
         in_stock_ids = set()
 
+    # Active flash sales for this page, so search results / product listings
+    # show the same discounted price as the homepage flash-sale row and checkout.
+    sale_pct_by_id = {}
+    if product_ids:
+        from models import FlashSale
+        from datetime import datetime as _dt
+        _now = _dt.utcnow()
+        fs_result = await db.execute(
+            select(FlashSale.product_id, FlashSale.discount_percentage).where(
+                FlashSale.product_id.in_(product_ids),
+                FlashSale.is_active == True,
+                FlashSale.start_time <= _now,
+                FlashSale.end_time >= _now,
+            )
+        )
+        for pid, pct in fs_result.all():
+            if pct and 0 < pct < 100:
+                sale_pct_by_id[pid] = pct
+
     def _serialise(p):
         d = ProductResponse.model_validate(p, from_attributes=True).model_dump()
         # Override is_preorder: available if shared stock exists, otherwise preorder
         d["is_preorder"] = p.product_id not in in_stock_ids
+        pct = sale_pct_by_id.get(p.product_id)
+        if pct:
+            d["original_price"] = float(p.price)
+            d["price"] = round(p.price * (1 - pct / 100), 2)
+        elif d.get("original_price") is not None and d["original_price"] <= d["price"]:
+            d["original_price"] = None
         return d
 
     out = {
