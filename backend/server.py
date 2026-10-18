@@ -182,6 +182,11 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
             stored_referral = ref_staff.referral_code
         # If the code doesn't match any staff we still let them register,
         # just without an assigned staff (avoids blocking signup on a typo).
+    if not assigned_staff_id:
+        # No (valid) referral code: give the customer to the staff with the
+        # fewest customers — same rule as Google sign-up.
+        from auth_utils import assign_staff_round_robin
+        assigned_staff_id = await assign_staff_round_robin(db)
 
     hashed = hash_password(body.password)
     user = User(

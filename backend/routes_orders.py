@@ -696,6 +696,21 @@ async def update_order_status(
         )).scalars().all()
         for item in items:
             await _give_back_stock(db, order, item)
+        # Take back the loyalty points this order earned (and undo the
+        # best-seller count), so cancelled orders don't count.
+        cust = (await db.execute(select(User).where(User.user_id == order.user_id))).scalar_one_or_none()
+        if cust is not None and order.points_earned:
+            cust.points = max(0, (cust.points or 0) - int(order.points_earned))
+            if cust.points < 10000 and cust.tier == UserTier.PLATINUM:
+                cust.tier = UserTier.GOLD if cust.points >= 5000 else UserTier.REGULAR
+            elif cust.points < 5000 and cust.tier == UserTier.GOLD:
+                cust.tier = UserTier.REGULAR
+            db.add(Reward(user_id=cust.user_id, points=-int(order.points_earned), type="reversed",
+                          description=f"Order #{order.order_id[:8]} cancelled"))
+        for item in items:
+            prod = (await db.execute(select(Product).where(Product.product_id == item.product_id))).scalar_one_or_none()
+            if prod is not None:
+                prod.sales_count = max(0, (prod.sales_count or 0) - int(item.quantity or 0))
 
     order.status = new_status_enum
     await db.commit()
