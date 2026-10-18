@@ -28,7 +28,7 @@ const Field = ({ label, type = 'text', value, placeholder, onChange, error, rows
 
 const Checkout = () => {
   const { user, bossWhatsapp } = useAuth();
-  const bossWa = (bossWhatsapp || '60133446521').replace(/\D/g, '');
+  const bossWa = (bossWhatsapp || '').replace(/\D/g, '');
   const { cart, total, clearCart } = useCart();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: '', whatsapp: '', address: '' });

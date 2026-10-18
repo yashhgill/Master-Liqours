@@ -1,8 +1,12 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 
-// Fallback WhatsApp number used until /settings/public loads (and if it fails).
-export const DEFAULT_BOSS_WA = '60133446521';
+// No hardcoded number: the boss WhatsApp always comes from the admin
+// "Boss WhatsApp" setting (/settings/public). The last loaded value is cached
+// so links are correct instantly on the next visit.
+const BOSS_WA_CACHE = 'boss_whatsapp';
+const readCachedBossWa = () => { try { return localStorage.getItem(BOSS_WA_CACHE) || ''; } catch { return ''; } };
+export const DEFAULT_BOSS_WA = '';
 
 const AuthContext = createContext(null);
 const CartContext = createContext(null);
@@ -36,13 +40,15 @@ export const AuthProvider = ({ children }) => {
   // Set of product IDs the customer's assigned staff is out of stock on.
   const [unavailableIds, setUnavailableIds] = useState(() => new Set());
   // Editable site settings (boss WhatsApp for pre-order links).
-  const [bossWhatsapp, setBossWhatsapp] = useState(DEFAULT_BOSS_WA);
+  const [bossWhatsapp, setBossWhatsapp] = useState(readCachedBossWa);
 
   useEffect(() => {
     checkAuth();
     // Load public settings once (boss WhatsApp number).
     axios.get(`${API}/settings/public`).then(r => {
-      if (r.data?.boss_whatsapp) setBossWhatsapp(String(r.data.boss_whatsapp));
+      const wa = String(r.data?.boss_whatsapp || '').replace(/\D/g, '');
+      setBossWhatsapp(wa);
+      try { wa ? localStorage.setItem(BOSS_WA_CACHE, wa) : localStorage.removeItem(BOSS_WA_CACHE); } catch {}
     }).catch(() => {});
   }, []);
 

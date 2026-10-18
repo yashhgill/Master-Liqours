@@ -155,7 +155,7 @@ const MysteryDropCard = ({ drop }) => {
 
 const Home = () => {
   const { user, bossWhatsapp } = useAuth();
-  const bossWa = (bossWhatsapp || '60133446521').replace(/\D/g, '');
+  const bossWa = (bossWhatsapp || '').replace(/\D/g, '');
   const [products, setProducts] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
   const [flashSales, setFlashSales] = useState([]);

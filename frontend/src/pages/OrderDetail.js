@@ -28,7 +28,7 @@ const OrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, bossWhatsapp } = useAuth();
-  const bossWa = (bossWhatsapp || '60133446521').replace(/\D/g, '');
+  const bossWa = (bossWhatsapp || '').replace(/\D/g, '');
   const { addToCart } = useCart();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);

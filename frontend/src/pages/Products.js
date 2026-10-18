@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { DEFAULT_BOSS_WA as BOSS_WHATSAPP } from '../context';
+import { useAuth } from '../context';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FaSearch, FaSlidersH, FaTh, FaList, FaHeart, FaRegHeart, FaTimes, FaPhone, FaWhatsapp, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
@@ -65,7 +65,10 @@ const applyFilters = (source, q, cat, prIdx, srt) => {
 };
 
 // ── Order With Boss Modal ─────────────────────────────────────────────────────
-const OrderWithBossModal = ({ product, onClose }) => (
+const OrderWithBossModal = ({ product, onClose }) => {
+  const { bossWhatsapp } = useAuth();
+  const BOSS_WHATSAPP = (bossWhatsapp || '').replace(/\D/g, '');
+  return (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
     <div className="surface max-w-sm w-full p-6 text-center space-y-4">
       <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white"><FaTimes /></button>
@@ -90,6 +93,7 @@ const OrderWithBossModal = ({ product, onClose }) => (
     </div>
   </div>
 );
+};
 
 const Products = () => {
   const [urlParams, setUrlParams] = useSearchParams();

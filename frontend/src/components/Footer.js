@@ -31,7 +31,7 @@ const Footer = () => {
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(20px,3vw,28px)', letterSpacing: '0.02em' }}>
             Settle Order? WhatsApp Us Lah.
           </div>
-          <a href="https://wa.me/${bossWhatsapp}?text=Hi%20Masterliqours" target="_blank" rel="noopener noreferrer"
+          <a href={`https://wa.me/${bossWhatsapp}?text=Hi%20Masterliqours`} target="_blank" rel="noopener noreferrer"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#030303', color: '#fff', padding: '12px 24px', borderRadius: 50, fontWeight: 800, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', transition: 'all 0.2s' }}
             data-testid="footer-whatsapp-btn">
             <FaWhatsapp size={16} /> Chat Now

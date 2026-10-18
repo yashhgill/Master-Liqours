@@ -21,7 +21,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login, bossWhatsapp } = useAuth();
-  const bossWa = (bossWhatsapp || '60133446521').replace(/\D/g, '');
+  const bossWa = (bossWhatsapp || '').replace(/\D/g, '');
   const navigate = useNavigate();
 
   const submit = async (e) => {

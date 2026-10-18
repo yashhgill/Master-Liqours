@@ -5,7 +5,7 @@ import { FaArrowRight, FaWhatsapp } from 'react-icons/fa';
 
 const NotFound = () => {
   const { bossWhatsapp } = useAuth();
-  const bossWa = (bossWhatsapp || '60133446521').replace(/\D/g, '');
+  const bossWa = (bossWhatsapp || '').replace(/\D/g, '');
   return (
   <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', position: 'relative', overflow: 'hidden', background: '#030303' }}>
     <div style={{ position: 'absolute', width: 600, height: 600, top: '50%', left: '50%', transform: 'translate(-50%,-50%)', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,0,127,0.08), transparent 65%)', filter: 'blur(100px)', pointerEvents: 'none' }} />

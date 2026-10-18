@@ -552,7 +552,7 @@ async def get_public_settings(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(SiteSetting).where(SiteSetting.key.in_(["boss_whatsapp"])))
     rows = {r.key: r.value for r in result.scalars().all()}
     return {
-        "boss_whatsapp": rows.get("boss_whatsapp", "60182085097"),
+        "boss_whatsapp": rows.get("boss_whatsapp", ""),
     }
 
 
