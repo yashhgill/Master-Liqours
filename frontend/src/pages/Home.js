@@ -1,3 +1,4 @@
+import { currentSeason, DeepavaliGreeting } from '../components/Seasonal';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -597,6 +598,8 @@ const Home = () => {
           />
         </section>
       )}
+
+      {currentSeason() === 'deepavali' && <DeepavaliGreeting />}
 
       {/* ═══ AVAILABLE NOW (in-stock bottles) ═══ */}
       {newArrivals.length > 0 && (

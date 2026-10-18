@@ -2,6 +2,7 @@ import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, CartProvider, useAuth } from './context';
 import AnnouncementBar from './components/AnnouncementBar';
+import { currentSeason, DeepavaliGarland, DeepavaliSparkles } from './components/Seasonal';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import BottomNav from './components/BottomNav';
@@ -69,12 +70,14 @@ function AppContent() {
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
   }, []);
 
+  const season = React.useMemo(() => currentSeason(), []);
   return (
     <div className="min-h-screen flex flex-col bg-[#050505] overflow-x-hidden">
       <AgeGate />
       <ScrollToTop />
       <AnnouncementBar />
       <Navbar />
+      {season === 'deepavali' && !location.pathname.startsWith('/admin') && !location.pathname.startsWith('/staff') && <><DeepavaliGarland /><DeepavaliSparkles /></>}
       <main className="flex-grow pb-16 lg:pb-0">
         <ErrorBoundary resetKey={location.pathname}>
         <Suspense fallback={<div style={{minHeight:"100vh",background:"#050505"}} />}>

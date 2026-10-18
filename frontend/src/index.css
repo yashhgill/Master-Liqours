@@ -443,3 +443,26 @@ body::after {
 
 /* Prevent iOS/Android zoom on input focus */
 input, textarea, select { font-size: 16px !important; }
+
+/* ── Seasonal: Deepavali (see components/Seasonal.js) ───────────────────── */
+.dv-bar{background:linear-gradient(90deg,#7a1240,#ff007f 30%,#ff7a00 70%,#ffb21a)}
+.dv-garland{position:relative;z-index:30;height:44px;margin-bottom:-44px;pointer-events:none;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
+.dv-garland svg{display:block}
+.dv-garland-diyas{position:absolute;inset:0;display:flex;justify-content:space-between;align-items:flex-start;padding:4px max(10px,env(safe-area-inset-left,0px)) 0;pointer-events:none}
+.dv-sparkles{position:fixed;inset:0;width:100vw;height:100vh;z-index:5;pointer-events:none;mix-blend-mode:screen}
+.dv-flame{transform-origin:32px 26px;animation:dvFlicker 1.6s ease-in-out infinite}
+.dv-halo{animation:dvGlow 2.4s ease-in-out infinite}
+@keyframes dvFlicker{0%,100%{transform:scale(1,1) skewX(0)}25%{transform:scale(.94,1.06) skewX(-3deg)}55%{transform:scale(1.05,.95) skewX(2deg)}80%{transform:scale(.97,1.03) skewX(-1deg)}}
+@keyframes dvGlow{0%,100%{opacity:.75}50%{opacity:1}}
+.dv-greet{position:relative;overflow:hidden;margin:40px auto 0;max-width:1280px;width:calc(100% - 32px);display:flex;gap:28px;align-items:center;padding:28px 32px;border-radius:24px;
+  border:1px solid rgba(255,178,26,.35);background:linear-gradient(120deg,rgba(255,0,127,.16),rgba(255,122,0,.12) 55%,rgba(255,215,0,.08)),#0b0507;box-shadow:0 0 60px -20px rgba(255,122,0,.45)}
+.dv-greet-diyas{display:flex;align-items:flex-end;gap:6px;flex:none}
+.dv-greet-kicker{font-size:12px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:#ffc21a}
+.dv-greet-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(34px,4.5vw,56px);line-height:1;margin:6px 0 8px;color:#fff;text-shadow:0 0 26px rgba(255,122,0,.55)}
+.dv-greet-copy{color:rgba(255,255,255,.72);max-width:60ch;margin:0;font-size:15px}
+.dv-kolam{position:absolute;right:-60px;top:50%;width:300px;height:300px;transform:translateY(-50%);opacity:.22;pointer-events:none;
+  background:repeating-conic-gradient(from 0deg,rgba(255,194,26,.9) 0 6deg,transparent 6deg 30deg),radial-gradient(circle,transparent 30%,rgba(255,0,127,.8) 31% 33%,transparent 34% 52%,rgba(255,194,26,.8) 53% 55%,transparent 56%);
+  -webkit-mask:radial-gradient(circle,#000 0 60%,transparent 70%);mask:radial-gradient(circle,#000 0 60%,transparent 70%);animation:dvSpin 60s linear infinite}
+@keyframes dvSpin{to{transform:translateY(-50%) rotate(360deg)}}
+@media (max-width:640px){.dv-greet{flex-direction:column;align-items:flex-start;padding:22px}.dv-garland{height:32px;margin-bottom:-32px}.dv-garland svg{height:32px}}
+@media (prefers-reduced-motion:reduce){.dv-flame,.dv-halo,.dv-kolam{animation:none}}
