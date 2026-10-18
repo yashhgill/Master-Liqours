@@ -282,10 +282,11 @@ const Home = () => {
         setProducts(all.slice(0, 12));
       }
     });
-    safe(axios.get(API + '/products', { params: { page: 1, limit: 24, sort: 'random' } })).then(naRes => {
+    // "Available Now" row: only bottles with warehouse stock > 0, shuffled.
+    safe(axios.get(API + '/products', { params: { page: 1, limit: 24, sort: 'random', available_only: true } })).then(naRes => {
       if (naRes?.data) {
         const all = naRes.data?.products || (Array.isArray(naRes.data) ? naRes.data : []);
-        setNewArrivals(all.slice(0, 8));
+        setNewArrivals(all.slice(0, 12));
       }
     });
 
@@ -597,10 +598,10 @@ const Home = () => {
         </section>
       )}
 
-      {/* ═══ NEW ARRIVALS ═══ */}
+      {/* ═══ AVAILABLE NOW (in-stock bottles) ═══ */}
       {newArrivals.length > 0 && (
         <section className="py-20" style={{ background: 'linear-gradient(180deg, #030303, #050008)' }}>
-          <Slider eyebrow="Just Landed" title={<>New <span style={{ color: '#00f0ff', textShadow: '0 0 30px rgba(0,240,255,0.4)' }}>Arrivals</span></>} viewAllLink="/products" items={newArrivals} renderItem={(p) => <ProductCard product={p} />} />
+          <Slider eyebrow="In Stock · Ready to Deliver" title={<>Available <span style={{ color: '#00f0ff', textShadow: '0 0 30px rgba(0,240,255,0.4)' }}>Now</span></>} viewAllLink="/products?available=1" items={newArrivals} renderItem={(p) => <ProductCard product={p} />} />
         </section>
       )}
 
