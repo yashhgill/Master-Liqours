@@ -38,11 +38,14 @@ const Register = () => {
       if (stop || !tsBox.current || tsId.current !== null) return;
       if (!window.turnstile) { setTimeout(mount, 300); return; }
       tsId.current = window.turnstile.render(tsBox.current, {
-        sitekey: '0x4AAAAAAxwqsE-fLvmoGwW',
+        sitekey: '0x4AAAAAAExwqsE-fLvmoGwW',
         theme: 'dark',
         callback: setTsToken,
         'expired-callback': () => setTsToken(''),
-        'error-callback': () => setTsToken(''),
+        'error-callback': () => {
+          setTsToken('');
+          setConfirmError('Security check could not load. Refresh the page, or use Continue with Google.');
+        },
       });
     };
     mount();
