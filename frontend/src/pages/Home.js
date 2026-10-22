@@ -181,11 +181,15 @@ const Home = () => {
   }, []);
 
   const next = useCallback(() => {
-    setSlide(s => (s + 1) % slides.length);
+    // Guard: while banners are still loading (slow server) there are 0 slides;
+    // (s+1) % 0 is NaN, which later crashed the page once banners arrived.
+    if (!slides.length) return;
+    setSlide(s => ((Number.isFinite(s) ? s : 0) + 1) % slides.length);
   }, [slides.length]);
 
   const prev = useCallback(() => {
-    setSlide(s => (s - 1 + slides.length) % slides.length);
+    if (!slides.length) return;
+    setSlide(s => ((Number.isFinite(s) ? s : 0) - 1 + slides.length) % slides.length);
   }, [slides.length]);
 
   // Auto-advance with reset on manual nav
@@ -301,7 +305,7 @@ const Home = () => {
     });
   };
 
-  const hero = slides[slide] || null;
+  const hero = slides[slide] || slides[0] || null;
   const isPoster = hero?.bg_image && hero?.show_text === false;
 
   return (
