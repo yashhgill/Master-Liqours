@@ -10,6 +10,7 @@ import {
 } from 'react-icons/fa';
 import ImageUploader from '../components/ImageUploader';
 import { resolveImageUrl } from '../lib/imageUrl';
+import { PosterCountdown } from '../components/Festive';
 import OverviewTab from './admin/OverviewTab';
 import StaffPerfTab from './admin/StaffPerfTab';
 import ReportsTab from './admin/ReportsTab';
@@ -42,6 +43,15 @@ const blankBanner = { title: '', subtitle: '', cta_text: '', cta_link: '', backg
 const toMytInput = (utc) => { if (!utc) return ''; const d = new Date(/Z|[+-]\d\d:?\d\d$/.test(utc) ? utc : utc + 'Z'); return new Date(d.getTime() + 8 * 3600e3).toISOString().slice(0, 16); };
 const fromMytInput = (v) => (v ? `${v}:00+08:00` : null);
 const fmtMyt = (utc) => (utc ? new Date(/Z|[+-]\d\d:?\d\d$/.test(utc) ? utc : utc + 'Z').toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '');
+const seasonFor = (utc) => {
+  if (!utc) return '';
+  const d = new Date(/Z|[+-]\d\d:?\d\d$/.test(utc) ? utc : utc + 'Z');
+  const m = new Date(d.getTime() + 8 * 3600e3); const mo = m.getUTCMonth(); const day = m.getUTCDate();
+  if (mo === 11 && day >= 21 && day <= 28) return 'christmas';
+  if ((mo === 11 && day >= 29) || (mo === 0 && day <= 3)) return 'newyear';
+  return '';
+};
+const previewUrl = (b) => `/?preview_banner=${b.banner_id}${seasonFor(b.starts_at) ? `&season=${seasonFor(b.starts_at)}` : ''}`;
 const bannerState = (b) => {
   const now = Date.now(); const t = (x) => (x ? new Date(/Z|[+-]\d\d:?\d\d$/.test(x) ? x : x + 'Z').getTime() : null);
   if (!b.is_active) return ['Hidden', 'text-white/30'];
@@ -1626,6 +1636,16 @@ const SuperAdminDashboard = () => {
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={bannerForm.is_active} onChange={(e) => setBannerForm({ ...bannerForm, is_active: e.target.checked })} /> Active
                 </label>
+                {bannerForm.background_image && (
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-wider text-white/60 mb-2">Live preview (exactly how the homepage shows it)</div>
+                    <div className="relative w-full rounded-2xl overflow-hidden ring-1 ring-white/10 bg-black" style={{ aspectRatio: '3 / 1' }}>
+                      <img src={resolveImageUrl(bannerForm.background_image)} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      {bannerForm.countdown_to && <PosterCountdown to={fromMytInput(bannerForm.countdown_to)} />}
+                    </div>
+                    <div className="text-[11px] text-white/40 mt-1">Best size: 2172 × 724 px (3:1). Keep the bottom-left corner empty if you use a countdown.</div>
+                  </div>
+                )}
                 <div className="rounded-xl border border-white/10 p-3 space-y-2">
                   <div className="text-xs font-bold uppercase tracking-wider text-white/60">Schedule (Malaysia time, optional)</div>
                   <div className="grid sm:grid-cols-2 gap-3">
@@ -1656,8 +1676,8 @@ const SuperAdminDashboard = () => {
           <div className="space-y-3">
             {banners.map((b) => (
               <div key={b.banner_id} className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
-                <div className="w-24 h-16 sm:w-32 sm:h-20 rounded-xl bg-black overflow-hidden shrink-0">
-                  {b.background_image && <img src={resolveImageUrl(b.background_image)} alt="" className="w-full h-full object-cover opacity-60" />}
+                <div className="w-32 sm:w-48 rounded-xl bg-black overflow-hidden shrink-0 ring-1 ring-white/10" style={{ aspectRatio: '3 / 1' }}>
+                  {b.background_image && <img src={resolveImageUrl(b.background_image)} alt="" className="w-full h-full object-cover" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-display text-base sm:text-lg uppercase truncate">{b.title}</div>
@@ -1666,6 +1686,8 @@ const SuperAdminDashboard = () => {
                   {(b.starts_at || b.ends_at) && <div className="text-[10px] text-white/40">{b.starts_at ? fmtMyt(b.starts_at) : 'now'} → {b.ends_at ? fmtMyt(b.ends_at) : 'no end'}{b.countdown_to ? ` · countdown to ${fmtMyt(b.countdown_to)}` : ''}</div>}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 shrink-0">
+                  <a href={previewUrl(b)} target="_blank" rel="noopener noreferrer" title="Preview on the homepage"
+                    className="h-8 sm:h-9 px-3 rounded-full border border-white/10 hover:border-[#39ff14] hover:text-[#39ff14] flex items-center justify-center text-[11px] font-bold uppercase tracking-wider">Preview</a>
                   <button onClick={() => editBanner(b)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center"><FaPen size={11} /></button>
                   <button onClick={() => delBanner(b.banner_id)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#ff007f] hover:text-[#ff007f] flex items-center justify-center"><FaTrash size={11} /></button>
                 </div>

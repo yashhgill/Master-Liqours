@@ -296,7 +296,23 @@ const Home = () => {
     const safe = (p, again) => p.catch(() => (again ? new Promise((r) => setTimeout(r, 2500)).then(again).catch(() => null) : null));
 
     // ── Priority 1: hero banners — fast, shows first ──────────────────────
-    safe(axios.get(API + '/hero-banners'), () => axios.get(API + '/hero-banners')).then(bannersRes => {
+    // Admin preview: /?preview_banner=<id> shows a scheduled banner first, for admins only.
+    let previewId = null;
+    try { previewId = new URLSearchParams(window.location.search).get('preview_banner'); } catch { /* ignore */ }
+    const loadBanners = async () => {
+      const res = await axios.get(API + '/hero-banners');
+      if (!previewId) return res;
+      try {
+        const all = await axios.get(API + '/admin/hero-banners', { withCredentials: true });
+        const b = (all.data || []).find((x) => x.banner_id === previewId);
+        if (b) {
+          const asPublic = { ...b, id: b.banner_id, countdown_to: b.countdown_to ? (/Z|[+-]\d\d:?\d\d$/.test(b.countdown_to) ? b.countdown_to : b.countdown_to + 'Z') : null };
+          return { data: [asPublic, ...(res.data || []).filter((x) => x.id !== previewId)] };
+        }
+      } catch { /* not an admin: show the normal banners */ }
+      return res;
+    };
+    safe(loadBanners(), loadBanners).then(bannersRes => {
       if (bannersRes?.data?.length > 0) {
       const mapped = bannersRes.data.map(b => {
         const hasTitle = !!(b.title && b.title.trim());
