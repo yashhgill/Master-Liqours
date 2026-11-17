@@ -45,7 +45,7 @@ const CategoryGrid = () => {
   }, []);
   const shown = cats.filter((c) => c.count !== 0);
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
       {shown.map((cat) => (
         <Link key={cat.name} to={`/products?category=${encodeURIComponent(cat.name)}`}
           className="group relative block overflow-hidden rounded-2xl border border-white/10 hover:border-[#ff007f]/50 transition-all duration-300 hover:-translate-y-1"
