@@ -14,12 +14,15 @@ import { PosterCountdown } from '../components/Festive';
 import OverviewTab from './admin/OverviewTab';
 import StaffPerfTab from './admin/StaffPerfTab';
 import ReportsTab from './admin/ReportsTab';
+import AnalyticsTab from './admin/AnalyticsTab';
+import { markStaffDevice } from '../lib/analytics';
 import { toast } from '../lib/toast';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: FaChartLine },
+  { id: 'analytics', label: 'Analytics', icon: FaChartLine },
   { id: 'reports', label: 'Reports', icon: FaFileCsv },
   { id: 'banners', label: 'Hero Banners', icon: FaImage },
   { id: 'products', label: 'Products', icon: FaBoxOpen },
@@ -786,6 +789,7 @@ const SupplierTab = ({ API, active }) => {
 };
 
 const SuperAdminDashboard = () => {
+  useEffect(() => { markStaffDevice(); }, []);
   const { user } = useAuth();
   const [tab, setTab] = useState('overview');
   const [showAI, setShowAI] = useState(false);
@@ -1355,6 +1359,7 @@ const SuperAdminDashboard = () => {
       {/* === STAFF PERFORMANCE === */}
       {tab === 'staff-perf' && <StaffPerfTab />}
       {tab === 'reports' && <ReportsTab />}
+      {tab === 'analytics' && <AnalyticsTab />}
 
       {/* === PRODUCTS === */}
       {tab === 'products' && (

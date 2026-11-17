@@ -28,6 +28,7 @@ from routes_auth import router as auth_router
 from routes_reviews import router as reviews_router
 from routes_admin import router as admin_router
 from routes_reports import router as reports_router
+from routes_analytics import router as analytics_router
 from routes_newsletter import router as newsletter_router
 from routes_ai import router as ai_router
 from routes_staff import router as staff_router
@@ -857,6 +858,7 @@ api_router.include_router(auth_router)
 api_router.include_router(orders_router)
 api_router.include_router(admin_router)
 api_router.include_router(reports_router)
+api_router.include_router(analytics_router)
 api_router.include_router(reviews_router)
 api_router.include_router(newsletter_router)
 api_router.include_router(ai_router)

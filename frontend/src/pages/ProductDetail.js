@@ -5,6 +5,7 @@ import { FaShoppingBag, FaArrowLeft, FaMinus, FaPlus, FaCheckCircle, FaWhatsapp,
 import { useCart, useAuth, DEFAULT_BOSS_WA as BOSS_WA } from '../context';
 import ProductCard from '../components/ProductCard';
 import useSeo, { prettyName } from '../seo/useSeo';
+import { track } from '../lib/analytics';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // Boss WA comes from context
@@ -50,6 +51,7 @@ const ProductDetail = () => {
       const res = await axios.get(`${API}/products/${id}`);
       setProduct(res.data);
       trackRecent(id);
+      track('product_view', { product_id: res.data.product_id, product_name: res.data.name, category: res.data.category, in_stock: !res.data.is_preorder, value: res.data.price });
       // Track view — fire and forget, don't await
       axios.post(`${API}/products/track?product_id=${id}&event_type=view`).catch(() => {});
       // Check if this product is in an active flash sale so the detail page

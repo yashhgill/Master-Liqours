@@ -341,3 +341,31 @@ class SiteSetting(Base):
     key = Column(String(64), primary_key=True)
     value = Column(Text, nullable=True)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class AnalyticsEvent(Base):
+    """First-party, cookieless site analytics. No IP addresses or personal data are stored.
+    Location comes from Cloudflare (country / state / city level only)."""
+    __tablename__ = 'analytics_events'
+
+    event_id = Column(String(36), primary_key=True, default=generate_uuid)
+    ts = Column(DateTime, default=utcnow, index=True)
+    type = Column(String(24), index=True)            # pageview, product_view, search, add_to_cart, checkout, order, whatsapp, outbound
+    session_id = Column(String(40), index=True)      # random per browser tab session
+    path = Column(String(300))
+    source = Column(String(40))                      # Google, Instagram, WhatsApp, ChatGPT, Direct ...
+    referrer = Column(String(200))                   # referring host only
+    utm_source = Column(String(80))
+    utm_campaign = Column(String(120))
+    country = Column(String(4))
+    region = Column(String(80))
+    city = Column(String(80))
+    device = Column(String(16))
+    browser = Column(String(24))
+    product_id = Column(String(36), index=True)
+    product_name = Column(String(255))
+    category = Column(String(60))
+    in_stock = Column(Boolean, nullable=True)
+    query = Column(String(120))
+    results = Column(Integer, nullable=True)
+    value = Column(Float, nullable=True)

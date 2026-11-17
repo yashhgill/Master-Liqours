@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { track } from '../lib/analytics';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth, useCart } from '../context';
@@ -27,6 +28,7 @@ const Field = ({ label, type = 'text', value, placeholder, onChange, error, rows
 );
 
 const Checkout = () => {
+  useEffect(() => { track('checkout'); }, []);
   const { user, bossWhatsapp } = useAuth();
   const bossWa = (bossWhatsapp || '').replace(/\D/g, '');
   const { cart, total, clearCart } = useCart();
@@ -95,6 +97,7 @@ const Checkout = () => {
         total: finalTotal,
         items: cart.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
       };
+      track('order', { value: finalTotal, results: cart.reduce((n, i) => n + i.quantity, 0) });
       clearCart();
       setDone({ ...res.data, snapshot });
     } catch (err) {

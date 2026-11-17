@@ -5,6 +5,7 @@ import axios from 'axios';
 import { FaSearch, FaSlidersH, FaTh, FaList, FaHeart, FaRegHeart, FaTimes, FaPhone, FaWhatsapp, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 import useSeo from '../seo/useSeo';
+import { track } from '../lib/analytics';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // Boss WA comes from context
@@ -170,6 +171,14 @@ const Products = () => {
       setAllProducts(data);
       setPage(targetPage);
       setTotalProducts(total);
+      // What shoppers search for (and what we don't carry) drives stocking decisions.
+      if (search.trim().length >= 2 && targetPage === 1) {
+        // Only log the finished search (not every keystroke): wait for typing to stop.
+        clearTimeout(window.__mlSearchT);
+        const q = search.trim().slice(0, 120);
+        window.__mlSearchT = setTimeout(() => track('search', { query: q, results: total }), 1500);
+      }
+      else if (selected && targetPage === 1 && opts.reset) track('category', { category: selected, results: total });
       // Recent products only on the very first load
       if (opts.reset) {
         const recentIds = getRecent();

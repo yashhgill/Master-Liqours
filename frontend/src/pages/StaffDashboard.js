@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { markStaffDevice } from '../lib/analytics';
 import axios from 'axios';
 import { useAuth } from '../context';
 import { subscribeStaffToPush } from '../lib/pwa';
@@ -422,6 +423,7 @@ const AddStockModal = ({ existingStock, onClose, onSaved }) => {
 
 
 const StaffDashboard = () => {
+  useEffect(() => { markStaffDevice(); }, []);
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [stock, setStock] = useState([]);

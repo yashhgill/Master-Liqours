@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
+import { track } from './lib/analytics';
 
 // No hardcoded number: the boss WhatsApp always comes from the admin
 // "Boss WhatsApp" setting (/settings/public). The last loaded value is cached
@@ -136,6 +137,7 @@ export const CartProvider = ({ children }) => {
   }, [cart]);
 
   const addToCart = (product, quantity = 1, flashSalePrice = null) => {
+    track('add_to_cart', { product_id: product.product_id, product_name: product.name, category: product.category, in_stock: product.is_preorder === undefined ? null : !product.is_preorder, value: (flashSalePrice ?? product.price) * quantity });
     // Track add-to-cart signal for ranking algorithm — fire and forget
     axios.post(`${API}/products/track?product_id=${product.product_id}&event_type=add_to_cart`).catch(() => {});
     // Use flash sale price if provided, otherwise use product base price

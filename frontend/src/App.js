@@ -11,6 +11,7 @@ import ChatWidget from './components/ChatWidget';
 import SignInPrompt from './components/SignInPrompt';
 import ErrorBoundary from './components/ErrorBoundary';
 import AgeGate from './components/AgeGate';
+import { trackPageview, installClickTracking } from './lib/analytics';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 import Products from './pages/Products';
@@ -52,6 +53,9 @@ const ProtectedRoute = ({ children, roles = [] }) => {
 
 function AppContent() {
   const location = useLocation();
+  // First-party analytics: one page view per route change, plus WhatsApp/outbound clicks.
+  useEffect(() => { installClickTracking(); }, []);
+  useEffect(() => { trackPageview(); }, [location.pathname, location.search]);
   // Keep-alive ping: while someone has the site open, ping the backend so a
   // free-tier Render instance doesn't spin down between their page views.
   // NOTE: this only runs in an open browser tab — it cannot keep the server
