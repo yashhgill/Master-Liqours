@@ -4,7 +4,7 @@ import { currentSeason } from './Seasonal';
 const items = [
   'Low prices & value for money in one place',
   '100% authentic, original & genuine — guaranteed boss',
-  'FREE delivery for orders above RM1,250 in Peninsular Malaysia',
+  'FREE delivery for orders above RM1,250 in KL & Klang Valley',
   'Settle payment via WhatsApp — fast & easy lah',
   'Earn points on every order — climb to Gold & Platinum tier',
 ];
@@ -12,7 +12,7 @@ const items = [
 const festive = [
   'Selamat Hari Deepavali — festive bottles delivered across KL & Klang Valley',
   'Open house sorted: order early, Deepavali is Sunday 8 November',
-  'FREE delivery for orders above RM1,250 in Peninsular Malaysia',
+  'FREE delivery for orders above RM1,250 in KL & Klang Valley',
   '100% authentic, original & genuine — guaranteed boss',
 ];
 

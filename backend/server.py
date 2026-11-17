@@ -441,6 +441,7 @@ async def get_products(
     sort: Optional[str] = None,
     available_only: Optional[bool] = None,
     preorder_only: Optional[bool] = None,
+    on_sale: Optional[bool] = None,
     db: AsyncSession = Depends(get_db)
 ):
     limit = min(max(1, limit), 200)
@@ -468,6 +469,16 @@ async def get_products(
             StockModel.quantity > 0,
         ).scalar_subquery()
         base_query = base_query.where(Product.product_id.not_in(in_stock_subq))
+
+    if on_sale:
+        # Only products with a flash sale running right now (the "Promotions" page)
+        from models import FlashSale as _FS
+        from datetime import datetime as _dt0
+        _n0 = _dt0.utcnow()
+        sale_subq = select(_FS.product_id).where(
+            _FS.is_active == True, _FS.start_time <= _n0, _FS.end_time >= _n0,
+        ).scalar_subquery()
+        base_query = base_query.where(Product.product_id.in_(sale_subq))
 
     # Ordering
     # Popularity score: purchases weigh most, then cart-adds, then views.
@@ -508,7 +519,7 @@ async def get_products(
     page = max(1, page or 1)
     offset = (page - 1) * limit
 
-    cache_key = f"products:page:{category}:{search}:{page}:{limit}:{min_price}:{max_price}:{sort}:{available_only}:{preorder_only}"
+    cache_key = f"products:page:{category}:{search}:{page}:{limit}:{min_price}:{max_price}:{sort}:{available_only}:{preorder_only}:{on_sale}"
     # random sort must never be cached, or the first shuffle would be frozen.
     _use_cache = sort != "random"
     if _use_cache:

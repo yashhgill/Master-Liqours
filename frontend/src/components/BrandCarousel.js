@@ -6,20 +6,24 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // These are the hardcoded fallback brands — same ones the admin can add via the Brands tab.
 // Once the admin adds brands in /admin → Brands, those replace these automatically.
+// Fallback shown only if the brand list can't load — all brands the shop really stocks.
 const FALLBACK_BRANDS = [
-  'Hennessy','Johnnie Walker','Chivas','Glenfiddich','Jack Daniels',
-  'Absolut','Grey Goose','Bacardi','Jameson','Moët & Chandon',
-  'Glenlivet','Hendricks','Bombay Sapphire','Tanqueray','Patron',
-  'Remy Martin','Martell','Courvoisier','Smirnoff','Captain Morgan',
-];
+  ['Johnnie Walker', 'jw'], ['Chivas', 'chivas'], ['Glenfiddich', 'glenfiddich'], ['Glenlivet', 'glenlivet'],
+  ['Singleton', 'singleton'], ['Dalmore', 'dalmore'], ['Jameson', 'jameson'], ["Jack Daniel's", 'jack daniels'],
+  ['Hennessy', 'hennessy'], ['Martell', 'martell'], ['Moët', 'moet'], ['Absolut', 'absolut'],
+  ['Grey Goose', 'grey goose'], ['Bacardi', 'bacardi'], ['Tanqueray', 'tanqueray'], ['Suntory', 'suntory'],
+].map(([label, q]) => ({ label, q }));
 
 const BrandCarousel = () => {
   const [brands, setBrands] = useState(FALLBACK_BRANDS);
 
   useEffect(() => {
     axios.get(`${API}/brands`, { timeout: 8000 }).then(r => {
-      const names = (r.data || []).map(b => b.short_name || b.name).filter(Boolean);
-      if (names.length >= 6) setBrands(names);
+      const list = (r.data || [])
+        .filter(b => b.product_count === undefined || b.product_count > 0)
+        .map(b => ({ label: b.short_name || b.name, q: b.query || b.search_term || b.name }))
+        .filter(b => b.label);
+      if (list.length >= 6) setBrands(list);
     }).catch(() => {});
   }, []);
 
@@ -46,7 +50,7 @@ const BrandCarousel = () => {
               Shop by <span style={{ color: '#00f0ff', textShadow: '0 0 30px rgba(0,240,255,0.4)' }}>Brand</span>
             </h2>
           </div>
-          <Link to="/products" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}
+          <Link to="/products" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}
             className="hover:text-[#ff007f] transition-colors hidden sm:flex">
             All Products →
           </Link>
@@ -57,8 +61,8 @@ const BrandCarousel = () => {
           on a phone — the link slides out from under your finger). */}
       <div className="sm:hidden max-w-7xl mx-auto px-4">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-          {brands.map((name, i) => (
-            <Link key={i} to={`/products?search=${encodeURIComponent(name)}`}
+          {brands.map((b, i) => (
+            <Link key={i} to={`/products?search=${encodeURIComponent(b.q)}`}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '16px 12px', textDecoration: 'none',
@@ -66,7 +70,7 @@ const BrandCarousel = () => {
                 borderRadius: 14, textAlign: 'center',
               }}>
               <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, letterSpacing: '0.04em', color: 'rgba(255,255,255,0.85)', textShadow: '0 0 14px rgba(255,0,127,0.35)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
-                {name}
+                {b.label}
               </span>
             </Link>
           ))}
@@ -81,13 +85,13 @@ const BrandCarousel = () => {
       {/* Row 1 — left to right */}
       <div style={{ overflow: 'hidden', marginBottom: 16 }}>
         <div style={{ display: 'flex', width: 'max-content', animation: 'brandScroll1 40s linear infinite', gap: 0 }}>
-          {doubled.map((name, i) => (
-            <Link key={i} to={`/products?search=${encodeURIComponent(name)}`}
+          {doubled.map((b, i) => (
+            <Link key={i} to={`/products?search=${encodeURIComponent(b.q)}`}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 20, padding: '0 32px', textDecoration: 'none', flexShrink: 0 }}>
               <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(24px, 3vw, 36px)', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.85)', textShadow: '0 0 18px rgba(255,0,127,0.45)', transition: 'all 0.3s', whiteSpace: 'nowrap' }}
                 onMouseEnter={e => { e.target.style.color = '#fff'; e.target.style.textShadow = '0 0 26px rgba(255,0,127,0.9), 0 0 40px rgba(255,0,127,0.5)'; }}
                 onMouseLeave={e => { e.target.style.color = 'rgba(255,255,255,0.85)'; e.target.style.textShadow = '0 0 18px rgba(255,0,127,0.45)'; }}>
-                {name}
+                {b.label}
               </span>
               <span style={{ color: 'rgba(255,0,127,0.3)', fontSize: 8 }}>✦</span>
             </Link>
@@ -98,13 +102,13 @@ const BrandCarousel = () => {
       {/* Row 2 — right to left, offset */}
       <div style={{ overflow: 'hidden' }}>
         <div style={{ display: 'flex', width: 'max-content', animation: 'brandScroll2 50s linear infinite', gap: 0 }}>
-          {[...doubled].reverse().map((name, i) => (
-            <Link key={i} to={`/products?search=${encodeURIComponent(name)}`}
+          {[...doubled].reverse().map((b, i) => (
+            <Link key={i} to={`/products?search=${encodeURIComponent(b.q)}`}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 20, padding: '0 32px', textDecoration: 'none', flexShrink: 0 }}>
-              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(18px, 2.5vw, 28px)', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)', textShadow: '0 0 14px rgba(0,240,255,0.35)', transition: 'all 0.3s', whiteSpace: 'nowrap' }}
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(18px, 2.5vw, 28px)', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.72)', textShadow: '0 0 14px rgba(0,240,255,0.35)', transition: 'all 0.3s', whiteSpace: 'nowrap' }}
                 onMouseEnter={e => { e.target.style.color = '#fff'; e.target.style.textShadow = '0 0 22px rgba(0,240,255,0.8)'; }}
-                onMouseLeave={e => { e.target.style.color = 'rgba(255,255,255,0.5)'; e.target.style.textShadow = '0 0 14px rgba(0,240,255,0.35)'; }}>
-                {name}
+                onMouseLeave={e => { e.target.style.color = 'rgba(255,255,255,0.72)'; e.target.style.textShadow = '0 0 14px rgba(0,240,255,0.35)'; }}>
+                {b.label}
               </span>
               <span style={{ color: 'rgba(0,240,255,0.2)', fontSize: 6 }}>✦</span>
             </Link>
@@ -116,7 +120,7 @@ const BrandCarousel = () => {
       {/* Trust bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 mt-10 flex items-center justify-center gap-8 flex-wrap">
         {['100% Authentic', 'Direct from Distributors', 'Sealed & Verified'].map(t => (
-          <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)' }}>
+          <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' }}>
             <span style={{ color: '#39ff14', fontSize: 10 }}>✓</span> {t}
           </div>
         ))}

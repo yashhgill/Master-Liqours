@@ -28,7 +28,7 @@ const useCountdown = (endTime) => {
 
 const pad = (n) => String(n).padStart(2, '0');
 
-const ProductCard = ({ product, flashSale, totalStock }) => {
+const ProductCard = ({ product, flashSale, totalStock, badgeInset = 16 }) => {
   const { addToCart } = useCart();
   const { user, unavailableIds, bossWhatsapp } = useAuth();
 
@@ -126,28 +126,28 @@ const ProductCard = ({ product, flashSale, totalStock }) => {
       {/* State badges */}
 
       {cardState === 'available' && (
-        <div className="absolute top-4 left-4 z-10">
+        <div className="absolute top-4 z-10" style={{ left: badgeInset }}>
           <div className="bg-[#39ff1420] border border-[#39ff14] text-[#39ff14] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
             In Stock
           </div>
         </div>
       )}
       {cardState === 'preorder' && (
-        <div className="absolute top-4 left-4 z-10">
+        <div className="absolute top-4 z-10" style={{ left: badgeInset }}>
           <div className="bg-[#ffd70020] border border-[#ffd700] text-[#ffd700] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
             Pre-order
           </div>
         </div>
       )}
       {cardState === 'oos' && (
-        <div className="absolute top-4 left-4 z-10">
+        <div className="absolute top-4 z-10" style={{ left: badgeInset }}>
           <div className="bg-black/90 text-white/80 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest border border-white/30">
             Unavailable
           </div>
         </div>
       )}
       {cardState === 'available' && stockLevel > 0 && stockLevel <= 5 && (
-        <div className="absolute top-4 left-4 z-10">
+        <div className="absolute top-4 z-10" style={{ left: badgeInset }}>
           <div className="bg-[#ffd70015] border border-[#ffd700]/60 text-[#ffd700] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
             Only {stockLevel} left
           </div>

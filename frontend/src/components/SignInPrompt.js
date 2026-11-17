@@ -1,92 +1,87 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context';
-import { FaTimes, FaArrowRight } from 'react-icons/fa';
+import { FaTimes, FaArrowRight, FaGift } from 'react-icons/fa';
 
 /**
- * "Join the family" prompt for signed-out visitors.
+ * "Join the family" nudge for signed-out visitors.
  *
- * Shows a few seconds after load for anyone who isn't logged in. Dismissing it
- * hides it for the rest of the page visit only (in-memory) — it shows again on
- * the next visit/refresh, so a single accidental dismissal doesn't kill it
- * forever. Never shown to signed-in users.
+ * A small card in the corner, never a full-screen blur: shoppers can keep
+ * browsing while it's up. It appears once, after someone has been looking
+ * around for a while, and after it's closed (or acted on) it stays away for
+ * a few days.
  */
+const KEY = 'ml_join_prompt_hidden_until';
+const DELAY_MS = 25000;
+const SNOOZE_DAYS = 3;
+
+const snoozed = () => {
+  try { return Date.now() < Number(localStorage.getItem(KEY) || 0); } catch { return false; }
+};
+const snooze = () => {
+  try { localStorage.setItem(KEY, String(Date.now() + SNOOZE_DAYS * 864e5)); } catch { /* storage blocked */ }
+};
+
 const SignInPrompt = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
   const [visible, setVisible] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
 
-  // Never show on auth pages, admin, or staff pages
-  const suppressedPaths = ['/login', '/register', '/admin', '/staff', '/reset-password', '/auth'];
+  const suppressedPaths = ['/login', '/register', '/admin', '/staff', '/reset-password', '/forgot-password', '/auth', '/checkout', '/cart'];
   const isSuppressed = suppressedPaths.some(p => location.pathname.startsWith(p));
 
   useEffect(() => {
-    if (loading) return;                 // wait for auth to resolve
-    if (isSuppressed) { setVisible(false); return; }
-    if (user) {
-      // Signed in (or a stale valid token is present) — prompt intentionally hidden.
-      // eslint-disable-next-line no-console
-      console.info('[SignInPrompt] hidden: a user session is active', user?.email || '');
-      setVisible(false);
-      return;
-    }
-    if (dismissed) return;
-    // eslint-disable-next-line no-console
-    console.info('[SignInPrompt] no user — prompt will show in 2s');
-    const t = setTimeout(() => setVisible(true), 2000);
+    if (loading || user || snoozed()) return undefined;
+    // Wait until the visitor has dealt with the cookie notice so the two never stack.
+    let t;
+    const tryShow = () => {
+      let cookiesDone = true;
+      try { cookiesDone = !!localStorage.getItem('ml_cookies_ok'); } catch { /* ignore */ }
+      if (snoozed()) return;
+      if (cookiesDone) setVisible(true); else t = setTimeout(tryShow, 5000);
+    };
+    t = setTimeout(tryShow, DELAY_MS);
     return () => clearTimeout(t);
-  }, [user, loading, dismissed]);
+  }, [user, loading]);
 
-  if (!visible || user || dismissed || isSuppressed) return null;
+  if (!visible || user || isSuppressed) return null;
 
-  const dismiss = () => { setVisible(false); setDismissed(true); };
+  const dismiss = () => { snooze(); setVisible(false); };
 
   return (
     <div
-      role="dialog"
-      aria-label="Sign up"
+      role="complementary"
+      aria-label="Create a free account"
+      className="ml-join-toast"
       style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        pointerEvents: 'none',
-        background: 'rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(4px)',
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget) dismiss(); }}>
-      <div style={{
-        width: '100%',
-        maxWidth: 380,
-        pointerEvents: 'auto',
-        animation: 'slideUp 0.3s ease',
+        position: 'fixed', left: 16, zIndex: 900, width: 'min(340px, calc(100vw - 32px))',
+        background: 'rgba(15,15,15,0.96)', border: '1px solid rgba(255,0,127,0.35)', borderRadius: 18,
+        boxShadow: '0 18px 50px rgba(0,0,0,0.6), 0 0 30px rgba(255,0,127,0.15)', padding: '14px 16px',
+        display: 'flex', gap: 12, alignItems: 'flex-start', animation: 'slideUp 0.35s ease',
       }}>
-        <div style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 24, overflow: 'hidden', boxShadow: '0 32px 64px rgba(0,0,0,0.8)' }}>
-        <div style={{ background: 'linear-gradient(135deg,#ff007f,#c8005a)', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#fff' }}>Join the family lah</div>
-          <button onClick={dismiss} aria-label="Close" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', padding: 4 }}><FaTimes size={14} /></button>
-        </div>
-        <div style={{ padding: '18px 20px 20px' }}>
-          <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
-            Sign up free to track orders, earn reward points, and get a dedicated staff member on WhatsApp.
-          </p>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <Link to="/register" onClick={dismiss}
-              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'linear-gradient(135deg,#ff007f,#c8005a)', color: '#fff', padding: '11px 16px', borderRadius: 50, fontWeight: 800, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', boxShadow: '0 0 20px rgba(255,0,127,0.3)' }}>
-              Get Started <FaArrowRight size={11} />
-            </Link>
-            <Link to="/login" onClick={dismiss}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', padding: '11px 16px', borderRadius: 50, fontWeight: 700, fontSize: 12, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)' }}>
-              Sign In
-            </Link>
-          </div>
-        </div>
+      <div style={{ width: 36, height: 36, borderRadius: 12, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#ff007f,#c8005a)' }}>
+        <FaGift color="#fff" size={15} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ color: '#fff', fontWeight: 800, fontSize: 14 }}>Join free, get 10% off</div>
+        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, lineHeight: 1.5, margin: '3px 0 10px' }}>
+          Code ML10 on your first order, plus reward points and order tracking.
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link to="/register" onClick={dismiss}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg,#ff007f,#c8005a)', color: '#fff', padding: '8px 14px', borderRadius: 50, fontWeight: 800, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none' }}>
+            Sign up <FaArrowRight size={10} />
+          </Link>
+          <Link to="/login" onClick={dismiss}
+            style={{ display: 'inline-flex', alignItems: 'center', color: 'rgba(255,255,255,0.8)', padding: '8px 12px', borderRadius: 50, fontWeight: 700, fontSize: 12, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.15)' }}>
+            Sign in
+          </Link>
         </div>
       </div>
+      <button onClick={dismiss} aria-label="Close" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.55)', cursor: 'pointer', padding: 4, marginTop: -2 }}>
+        <FaTimes size={13} />
+      </button>
+      <style>{`.ml-join-toast{bottom:24px}@media(max-width:1023px){.ml-join-toast{bottom:84px}}@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 };

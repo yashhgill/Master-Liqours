@@ -107,6 +107,7 @@ const Products = () => {
   const [priceRange, setPriceRange] = useState(0);
   const [sort, setSort] = useState(urlParams.get('sort') || 'trending');
   const [availableOnly, setAvailableOnly] = useState(urlParams.get('available') === '1');
+  const promo = urlParams.get('promo') === '1';
   const seoWord = selected ? (selected === 'Whiskey' ? 'Whisky' : selected) : '';
   useSeo({
     title: seoWord ? `Buy ${seoWord} Online Malaysia | ${seoWord} Delivery KL – Masterliqours` : 'Shop 500+ Bottles Online | Liquor Delivery KL & Klang Valley – Masterliqours',
@@ -162,6 +163,7 @@ const Products = () => {
       // so send it — ranking is global across the catalogue, not per page.
       if (sort) params.sort = sort === 'trending' ? 'popular' : sort;
       if (availableOnly) params.available_only = true;
+      if (promo) params.on_sale = true;
       const res = await axios.get(`${API}/products`, { params });
       const data = res.data?.products || res.data || [];
       const total = res.data?.total ?? data.length;
@@ -181,7 +183,7 @@ const Products = () => {
   };
 
   // Initial load and whenever category changes
-  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); fetchProducts({ reset: true }); }, [selected, availableOnly]); // eslint-disable-line
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); fetchProducts({ reset: true }); }, [selected, availableOnly, promo]); // eslint-disable-line
 
   // Keep the on-page search box in sync with the URL. The navbar search
   // navigates to /products?search=… — when that URL param changes (or category
@@ -275,7 +277,7 @@ const Products = () => {
         {oos ? (
           <div className="relative cursor-pointer" onClick={() => setOrderWithBoss(p)}>
             <div className="pointer-events-none" style={{ filter: 'blur(2px)', opacity: 0.5 }}>
-              <ProductCard product={p} />
+              <ProductCard product={p} badgeInset={52} />
             </div>
             <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
               <div className="bg-black/80 backdrop-blur-sm rounded-2xl px-4 py-3 text-center border border-[#ff007f30]">
@@ -287,7 +289,7 @@ const Products = () => {
             </div>
           </div>
         ) : (
-          <ProductCard product={p} />
+          <ProductCard product={p} badgeInset={52} />
         )}
 
         {/* Wishlist button */}
@@ -309,9 +311,16 @@ const Products = () => {
       <div className="border-b border-white/5 bg-gradient-to-b from-black to-[#050505] py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
           <div className="eyebrow mb-3">Shop · Browse</div>
-          <h1 className="display-xl">All <span className="neon-pink-text">Drops</span></h1>
+          <h1 className="display-xl">
+            {promo ? <>On <span className="neon-pink-text">Sale</span></>
+              : selected ? <>{selected === 'Whiskey' ? 'Whisky' : selected}</>
+              : availableOnly ? <>In <span className="neon-pink-text">Stock</span></>
+              : <>All <span className="neon-pink-text">Drops</span></>}
+          </h1>
           <p className="text-white/60 mt-4 max-w-xl">
-            {loading ? '...' : `${products.length} premium bottle${products.length !== 1 ? 's' : ''} — sorted by what everyone's buying.`}
+            {loading ? '\u00a0' : promo
+              ? (totalProducts ? `${totalProducts} bottle${totalProducts !== 1 ? 's' : ''} with a live discount right now.` : 'No promotions running right now. Check back soon, boss.')
+              : `${totalProducts} premium bottle${totalProducts !== 1 ? 's' : ''}${availableOnly ? ' ready for same-day delivery' : ''}.`}
           </p>
         </div>
       </div>

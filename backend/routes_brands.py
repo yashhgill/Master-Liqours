@@ -34,7 +34,32 @@ async def list_brands(db: AsyncSession = Depends(get_db)):
     r = await db.execute(
         select(Brand).where(Brand.is_active == True).order_by(Brand.order_position, Brand.name)
     )
-    return [_clean(b) for b in r.scalars().all()]
+    brands = r.scalars().all()
+    # Only show brands the shop actually sells right now (e.g. hide beer brands
+    # when there is no beer in the catalogue), so customers never land on an
+    # empty search.
+    from models import Product
+    import unicodedata, re as _re
+    def _norm(x):
+        x = unicodedata.normalize('NFKD', x or '').encode('ascii', 'ignore').decode().lower()
+        return ' ' + _re.sub(r"[^a-z0-9]+", ' ', x.replace("'", '')).strip() + ' '
+    names = [_norm(n) for (n,) in (await db.execute(select(Product.name).where(Product.is_active == True))).all()]
+    ALIASES = {'johnnie walker': [' jw '], 'jack daniels': [' jack daniels ', ' jd '], 'moet chandon': [' moet ']}
+    out = []
+    for b in brands:
+        terms = {_norm(t) for t in (b.search_term, b.name, b.short_name) if t and t.strip()}
+        terms |= set(ALIASES.get(_norm(b.name).strip(), []))
+        terms = {t for t in terms if len(t.strip()) >= 3}
+        if not terms:
+            continue
+        count = sum(1 for n in names if any(t in n for t in terms))
+        if count:
+            d = _clean(b)
+            d["product_count"] = count
+            # The search term that finds the most bottles, for the "shop this brand" link
+            d["query"] = max(terms, key=lambda t: sum(1 for n in names if t in n)).strip()
+            out.append(d)
+    return out
 
 
 async def _require_admin(user: User):

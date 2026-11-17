@@ -181,8 +181,17 @@ export function productCards(list) {
   }).join('')}</ul>`;
 }
 
+/*
+ * The readable page text is for search engines and AI crawlers (they read the
+ * HTML without running JavaScript). Shoppers' browsers show a branded loading
+ * screen on top of it for the split second before the app takes over, so
+ * customers never see a plain-text page. React replaces all of #root on load,
+ * which removes both. Browsers with JavaScript turned off see the text.
+ */
+const COVER = `<div id="ssr-cover" aria-hidden="true" style="position:fixed;inset:0;z-index:50;background:#050505;display:flex;align-items:center;justify-content:center"><img src="/icons/icon-192.png" alt="" width="72" height="72" style="width:72px;height:72px;object-fit:contain;animation:ssrPulse 1.4s ease-in-out infinite;filter:drop-shadow(0 0 18px rgba(255,0,127,.55))" /></div><style>@keyframes ssrPulse{0%,100%{opacity:.55;transform:scale(.94)}50%{opacity:1;transform:scale(1)}}</style><noscript><style>#ssr-cover{display:none!important}</style></noscript>`;
+
 export function shell(inner) {
-  return `<div id="ssr-seo" style="max-width:960px;margin:0 auto;padding:96px 20px 40px;color:#ddd;font:15px/1.6 system-ui,sans-serif">${NAV()}<main>${inner}</main>${FOOT()}<style>#ssr-seo a{color:#ff4fa3}#ssr-seo h1,#ssr-seo h2{color:#fff;font-family:'Bebas Neue',system-ui,sans-serif;letter-spacing:.5px}</style></div>`;
+  return `${COVER}<div id="ssr-seo" style="max-width:960px;margin:0 auto;padding:96px 20px 40px;color:#ddd;font:15px/1.6 system-ui,sans-serif">${NAV()}<main>${inner}</main>${FOOT()}<style>#ssr-seo a{color:#ff4fa3}#ssr-seo h1,#ssr-seo h2{color:#fff;font-family:'Bebas Neue',system-ui,sans-serif;letter-spacing:.5px}</style></div>`;
 }
 
 /* ---------- rewrite index.html for a page ---------- */

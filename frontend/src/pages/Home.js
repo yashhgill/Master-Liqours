@@ -3,6 +3,7 @@ import { ChristmasGreeting, NewYearGreeting, PosterCountdown } from '../componen
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { resolveImageUrl } from '../lib/imageUrl';
 import {
   FaArrowRight, FaBolt, FaWhatsapp, FaTrophy,
   FaUserShield, FaGem, FaCheck, FaChevronLeft, FaChevronRight,
@@ -19,20 +20,65 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // Default hero matches the first real banner from the API — no visible flash
 // on load since the image is the same. API response replaces this seamlessly.
 const DEFAULT_HERO = []; // empty — show skeleton div while banners load
-const CATEGORIES = [
-  { name: 'Whiskey', abbr: 'WH' },
-  { name: 'Vodka', abbr: 'VK' },
-  { name: 'Gin', abbr: 'GN' },
-  { name: 'Rum', abbr: 'RM' },
-  { name: 'Champagne', abbr: 'CH' },
-  { name: 'Wine', abbr: 'WN' },
-  { name: 'Tequila', abbr: 'TQ' },
-  { name: 'Cognac', abbr: 'CG' },
-  { name: 'Brandy', abbr: 'BR' },
-  { name: 'Liqueur', abbr: 'LQ' },
-  { name: 'Beer', abbr: 'BR' },
-  { name: 'Sake', abbr: 'SK' },
-];
+// Categories the shop sells, in display order. Live counts + a real bottle photo
+// for each are loaded from the API; categories with no bottles are hidden.
+const CATEGORIES = ['Whiskey', 'Cognac', 'Champagne', 'Wine', 'Gin', 'Vodka', 'Rum', 'Tequila', 'Liqueur', 'Brandy'];
+const catLabel = (c) => (c === 'Whiskey' ? 'Whisky' : c);
+
+const CategoryGrid = () => {
+  const [cats, setCats] = useState(CATEGORIES.map((name) => ({ name, count: null, img: null })));
+  useEffect(() => {
+    let alive = true;
+    axios.get(API + '/categories').then((r) => {
+      const counts = Object.fromEntries((r.data || []).map((c) => [c.name, c.count]));
+      if (alive) setCats((prev) => prev.map((c) => ({ ...c, count: counts[c.name] ?? 0 })));
+    }).catch(() => {});
+    CATEGORIES.forEach((name) => {
+      axios.get(API + '/products', { params: { category: name, limit: 1, page: 1, sort: 'popular', available_only: true } })
+        .then((r) => r.data?.products?.[0] ? r : axios.get(API + '/products', { params: { category: name, limit: 1, page: 1, sort: 'popular' } }))
+        .then((r) => {
+          const img = r.data?.products?.[0]?.image_url;
+          if (alive && img) setCats((prev) => prev.map((c) => (c.name === name ? { ...c, img } : c)));
+        }).catch(() => {});
+    });
+    return () => { alive = false; };
+  }, []);
+  const shown = cats.filter((c) => c.count !== 0);
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      {shown.map((cat) => (
+        <Link key={cat.name} to={`/products?category=${encodeURIComponent(cat.name)}`}
+          className="group relative block overflow-hidden rounded-2xl border border-white/10 hover:border-[#ff007f]/50 transition-all duration-300 hover:-translate-y-1"
+          style={{ aspectRatio: '4 / 5', background: '#0b0b0b' }}>
+          {cat.img
+            ? <img src={resolveImageUrl(cat.img)} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            : <div className="absolute inset-0 animate-pulse" style={{ background: 'linear-gradient(135deg,#141414,#0a0a0a)' }} />}
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.85) 100%)' }} />
+          <div className="absolute left-0 right-0 bottom-0 p-3 sm:p-4">
+            <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 'clamp(22px,2.2vw,28px)', letterSpacing: '0.03em', lineHeight: 1, color: '#fff' }}>{catLabel(cat.name)}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 4 }}>
+              {cat.count == null ? '\u00a0' : `${cat.count} bottle${cat.count === 1 ? '' : 's'}`}
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+};
+
+/* Placeholder row shown while bottles load, so the page never jumps or looks empty */
+const SkeletonRow = ({ title }) => (
+  <section className="py-20" style={{ background: '#030303' }}>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+      <h2 className="sec-title mb-8" style={{ opacity: 0.9 }}>{title}</h2>
+      <div className="flex gap-4 overflow-hidden">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className="shrink-0 rounded-[20px] animate-pulse" style={{ width: 'min(240px, 44vw)', aspectRatio: '3 / 4.3', background: 'linear-gradient(180deg,#141414,#0c0c0c)', border: '1px solid rgba(255,255,255,0.05)' }} />
+        ))}
+      </div>
+    </div>
+  </section>
+);
 
 // Reusable horizontal slider
 const Slider = ({ items, renderItem, title, eyebrow, viewAllLink }) => {
@@ -166,6 +212,8 @@ const Home = () => {
   const bossWa = (bossWhatsapp || '').replace(/\D/g, '');
   const [products, setProducts] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
+  const [productsDone, setProductsDone] = useState(false);
+  const [newArrivalsDone, setNewArrivalsDone] = useState(false);
   const [flashSales, setFlashSales] = useState([]);
   const [mysteryDrops, setMysteryDrops] = useState([]);
   const season = React.useMemo(() => currentSeason(), []);
@@ -243,10 +291,12 @@ const Home = () => {
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
-    const safe = (p) => p.catch(() => null);
+    // Each request retries once (after a short pause) so a brief network or
+    // server hiccup doesn't leave whole sections of the homepage missing.
+    const safe = (p, again) => p.catch(() => (again ? new Promise((r) => setTimeout(r, 2500)).then(again).catch(() => null) : null));
 
     // ── Priority 1: hero banners — fast, shows first ──────────────────────
-    safe(axios.get(API + '/hero-banners')).then(bannersRes => {
+    safe(axios.get(API + '/hero-banners'), () => axios.get(API + '/hero-banners')).then(bannersRes => {
       if (bannersRes?.data?.length > 0) {
       const mapped = bannersRes.data.map(b => {
         const hasTitle = !!(b.title && b.title.trim());
@@ -290,26 +340,28 @@ const Home = () => {
     // real popularity data yet. To switch back to the real algorithm later:
     //   Crowd Favourites → sort:'popular'   New Arrivals → sort:'newest'
     // Pull a larger random pool so the two rows don't overlap much.
-    safe(axios.get(API + '/products', { params: { page: 1, limit: 24, sort: 'random' } })).then(productsRes => {
+    safe(axios.get(API + '/products', { params: { page: 1, limit: 24, sort: 'random' } }), () => axios.get(API + '/products', { params: { page: 1, limit: 24, sort: 'random' } })).then(productsRes => {
       if (productsRes?.data) {
         const all = productsRes.data?.products || (Array.isArray(productsRes.data) ? productsRes.data : []);
         setProducts(all.slice(0, 12));
       }
+      setProductsDone(true);
     });
     // "Available Now" row: only bottles with warehouse stock > 0, shuffled.
-    safe(axios.get(API + '/products', { params: { page: 1, limit: 24, sort: 'random', available_only: true } })).then(naRes => {
+    safe(axios.get(API + '/products', { params: { page: 1, limit: 24, sort: 'random', available_only: true } }), () => axios.get(API + '/products', { params: { page: 1, limit: 24, sort: 'random', available_only: true } })).then(naRes => {
       if (naRes?.data) {
         const all = naRes.data?.products || (Array.isArray(naRes.data) ? naRes.data : []);
         setNewArrivals(all.slice(0, 12));
       }
+      setNewArrivalsDone(true);
     });
 
-    safe(axios.get(API + '/flash-sales/active')).then(salesRes => {
+    safe(axios.get(API + '/flash-sales/active'), () => axios.get(API + '/flash-sales/active')).then(salesRes => {
       if (salesRes?.data) setFlashSales(salesRes.data);
     });
 
     // ── Priority 3: mystery drops — lowest priority ───────────────────────
-    safe(axios.get(API + '/drink-reveal/today')).then(dropsRes => {
+    safe(axios.get(API + '/drink-reveal/today'), () => axios.get(API + '/drink-reveal/today')).then(dropsRes => {
       if (dropsRes?.data?.available) setMysteryDrops(dropsRes.data.drops || []);
     });
   };
@@ -322,7 +374,9 @@ const Home = () => {
 
       {/* ═══ HERO ═══ */}
       {slides.length === 0 ? (
-        <div style={{ width: '100%', height: 'clamp(420px, 56vw, 640px)', background: '#0a0a0a' }} />
+        <div className="px-3 sm:px-6 lg:px-12 pt-4 pb-2 bg-[#030303]">
+          <div className="w-full rounded-[1.5rem] sm:rounded-[2rem] animate-pulse" style={{ aspectRatio: '3 / 1', background: 'linear-gradient(135deg,#120810,#0a0a0a)', border: '1px solid rgba(255,255,255,0.06)' }} />
+        </div>
       ) : isPoster ? (
         /* ---- IMAGE POSTER MODE: container locks to the image's own shape ---- */
         <section
@@ -588,15 +642,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
           <div className="sec-eyebrow mb-3">What's Your Vibe</div>
           <h2 className="sec-title mb-10">Shop by <span style={{ color: '#ffd700', textShadow: '0 0 30px rgba(255,215,0,0.3)' }}>Category</span></h2>
-          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-3">
-            {CATEGORIES.map((cat) => (
-              <Link key={cat.name} to={`/products?category=${encodeURIComponent(cat.name)}`}
-                className="group flex flex-col items-center gap-2 p-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.05] transition-all duration-300 hover:-translate-y-2">
-                <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:18, letterSpacing:'0.05em', color:'rgba(255,0,127,0.6)', display:'block', marginBottom:4, transition:'all 0.3s' }} className="group-hover:text-[#ff007f] group-hover:scale-110">{cat.abbr}</span>
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }} className="group-hover:text-white transition-colors text-center">{cat.name}</span>
-              </Link>
-            ))}
-          </div>
+          <CategoryGrid />
         </div>
       </section>
 
@@ -606,7 +652,7 @@ const Home = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 text-center mb-12">
             <div className="sec-eyebrow justify-center mb-3">Admin Curated</div>
             <h2 className="sec-title">Mystery <span style={{ color: '#ff007f' }}>Drops</span></h2>
-            <p style={{ color: 'rgba(255,255,255,0.4)', maxWidth: 400, margin: '12px auto 0', fontSize: 14 }}>A hidden deal — revealed only to you. Tap to see today's secret bottle.</p>
+            <p style={{ color: 'rgba(255,255,255,0.65)', maxWidth: 400, margin: '12px auto 0', fontSize: 14 }}>A hidden deal — revealed only to you. Tap to see today's secret bottle.</p>
           </div>
           <Slider
             items={mysteryDrops}
@@ -620,6 +666,7 @@ const Home = () => {
       {season === 'newyear' && <NewYearGreeting />}
 
       {/* ═══ AVAILABLE NOW (in-stock bottles) ═══ */}
+      {!newArrivalsDone && <SkeletonRow title="Available Now" />}
       {newArrivals.length > 0 && (
         <section className="py-20" style={{ background: 'linear-gradient(180deg, #030303, #050008)' }}>
           <Slider eyebrow="In Stock · Ready to Deliver" title={<>Available <span style={{ color: '#00f0ff', textShadow: '0 0 30px rgba(0,240,255,0.4)' }}>Now</span></>} viewAllLink="/products?available=1" items={newArrivals} renderItem={(p) => <ProductCard product={p} />} />
@@ -627,6 +674,7 @@ const Home = () => {
       )}
 
       {/* ═══ POPULAR DROPS ═══ */}
+      {!productsDone && <SkeletonRow title="Crowd Favourites" />}
       {products.length > 0 && (
         <section className="py-20" style={{ background: '#030303' }}>
           <Slider eyebrow="Most Ordered" title={<>Crowd <span style={{ color: '#00f0ff', textShadow: '0 0 30px rgba(0,240,255,0.4)' }}>Favourites</span></>} viewAllLink="/products" items={products} renderItem={(p) => <ProductCard product={p} />} />
@@ -646,22 +694,21 @@ const Home = () => {
           <div className="text-center mb-12">
             <div className="sec-eyebrow justify-center mb-3">Members Only</div>
             <h2 className="sec-title">Drink More, <span style={{ color: '#39ff14', textShadow: '0 0 30px rgba(57,255,20,0.4)' }}>Earn More</span></h2>
-            <p style={{ color: 'rgba(255,255,255,0.4)', maxWidth: 440, margin: '12px auto 0', fontSize: 15 }}>Every order earns points. Climb the tier for exclusive perks lah.</p>
+            <p style={{ color: 'rgba(255,255,255,0.65)', maxWidth: 440, margin: '12px auto 0', fontSize: 15 }}>Every order earns points. Climb the tier for exclusive perks lah.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
-              { icon: 'regular', tier: 'Tier 1', name: 'Regular', col: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.08)', perks: ['Earn 1pt per RM10 spent', 'Newsletter promos', 'WhatsApp support'], check: '#39ff14' },
+              { icon: 'regular', tier: 'Tier 1 · Everyone', name: 'Regular', col: '#ffffff', border: 'rgba(255,255,255,0.08)', perks: ['Earn 1pt per RM10 spent', 'Newsletter promos', 'WhatsApp support'], check: '#39ff14' },
               { icon: 'gold', tier: 'Tier 2 · 5,000 pts', name: 'Gold', col: '#ffd700', border: 'rgba(255,215,0,0.2)', perks: ['All Regular perks', 'RM50 off every shipping', 'Early flash sale access'], check: '#ffd700', glow: 'rgba(255,215,0,0.15)' },
               { icon: 'platinum', tier: 'Tier 3 · 10,000 pts', name: 'Platinum', col: '#00f0ff', border: 'rgba(0,240,255,0.2)', perks: ['All Gold perks', '3% off every order', 'Dedicated staff line'], check: '#00f0ff', glow: 'rgba(0,240,255,0.12)' },
             ].map((t, i) => (
               <div key={i} className="rounded-[28px] p-10 relative overflow-hidden hover:-translate-y-2 transition-transform duration-300"
                 style={{ border: `1px solid ${t.border}`, background: 'rgba(255,255,255,0.02)', boxShadow: t.glow ? `0 0 60px ${t.glow}` : 'none' }}>
                 {t.glow && <div style={{ position: 'absolute', top: -80, right: -80, width: 200, height: 200, borderRadius: '50%', background: t.glow, filter: 'blur(60px)', pointerEvents: 'none' }} />}
-                <div style={{ marginBottom: 24 }}><span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:32,color:t.col,letterSpacing:'0.1em',opacity:0.6}}>{t.icon.toUpperCase()}</span></div>
-                <div style={{ fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 8 }}>{t.tier}</div>
+                                <div style={{ fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>{t.tier}</div>
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 44, color: t.col, textShadow: t.glow ? `0 0 30px ${t.glow}` : 'none', marginBottom: 28 }}>{t.name}</div>
                 {t.perks.map((p, j) => (
-                  <div key={j} className="flex items-start gap-3 mb-3" style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)' }}>
+                  <div key={j} className="flex items-start gap-3 mb-3" style={{ fontSize: 14, color: 'rgba(255,255,255,0.82)' }}>
                     <span style={{ color: t.check, fontSize: 12, marginTop: 3, flexShrink: 0 }}>✓</span>{p}
                   </div>
                 ))}
@@ -679,12 +726,12 @@ const Home = () => {
             <h2 className="sec-title">Order → <span style={{ color: '#ff007f', textShadow: '0 0 30px rgba(255,0,127,0.4)' }}>WhatsApp</span> → Done.</h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[['01', 'Browse', 'Pick from 500+ premium bottles.'], ['02', 'Checkout', 'Add to cart, enter your address.'], ['03', 'WhatsApp', 'Staff contacts you directly.'], ['04', 'Settle', 'Pay via QR. Same-day delivery KL.']].map(([n, title, desc]) => (
+            {[['01', 'Browse', 'Pick from 500+ premium bottles.'], ['02', 'Checkout', 'Add to cart, enter your address.'], ['03', 'WhatsApp', 'Staff contacts you directly.'], ['04', 'Settle', 'Pay via QR. Same-day delivery in KL & Klang Valley.']].map(([n, title, desc]) => (
               <div key={n} className="p-8 rounded-[24px] border border-white/[0.06] hover:border-[#ff007f]/30 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 64, color: 'rgba(255,255,255,0.04)', lineHeight: 1, marginBottom: 16 }}>{n}</div>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, color: 'rgba(255,0,127,0.55)', lineHeight: 1, marginBottom: 14 }}>{n}</div>
 
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, marginBottom: 8, letterSpacing: '0.02em' }}>{title}</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 1.7 }}>{desc}</div>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>{desc}</div>
               </div>
             ))}
           </div>
@@ -709,7 +756,7 @@ const Home = () => {
                 SETTLE ALREADY.
               </h2>
               <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, marginBottom: 36 }}>
-                Free delivery for orders above RM1,250. 100% authentic, guaranteed boss. Thousands of happy customers across Malaysia.
+                Free delivery for orders above RM1,250. 100% authentic, guaranteed boss. Same-day delivery across KL & Klang Valley.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link to="/products" className="btn-lime">Start Shopping <FaArrowRight size={13} /></Link>
@@ -733,7 +780,7 @@ const Home = () => {
         @keyframes marquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
         @keyframes scrollDot { 0%,100%{opacity:1;transform:translateY(0)} 50%{opacity:0;transform:translateY(4px)} }
         @keyframes mysteryBob { 0%,100%{transform:translateY(0) rotate(-5deg)} 50%{transform:translateY(-12px) rotate(5deg)} }
-        .sec-eyebrow { display:flex;align-items:center;gap:10px;font-size:10px;font-weight:700;letter-spacing:0.4em;text-transform:uppercase;color:rgba(255,215,0,0.7); }
+        .sec-eyebrow { display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;letter-spacing:0.35em;text-transform:uppercase;color:rgba(255,215,0,0.9); }
         .sec-eyebrow::before { content:'';width:24px;height:1px;background:linear-gradient(90deg,transparent,#ffd700); }
         .sec-title { font-family:'Bebas Neue','Inter',sans-serif;font-size:clamp(34px,5vw,58px);letter-spacing:0.02em;line-height:1; }
         .btn-fire { display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#ff007f,#c8005a);color:#fff;font-size:12px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;padding:17px 34px;border-radius:50px;text-decoration:none;box-shadow:0 0 36px rgba(255,0,127,0.45),inset 0 1px 0 rgba(255,255,255,0.15);transition:all 0.3s cubic-bezier(0.22,1,0.36,1); }
