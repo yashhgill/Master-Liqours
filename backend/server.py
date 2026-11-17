@@ -737,17 +737,25 @@ async def get_categories(db: AsyncSession = Depends(get_db)):
 @api_router.get("/hero-banners")
 async def get_hero_banners(db: AsyncSession = Depends(get_db)):
     from models import HeroBanner
-    from sqlalchemy import or_
+    from sqlalchemy import or_, text as _text
     from datetime import datetime as _dt
     now = _dt.utcnow()
-    result = await db.execute(
+    q = (
         select(HeroBanner)
         .where(HeroBanner.is_active == True)
         .where(or_(HeroBanner.starts_at == None, HeroBanner.starts_at <= now))
         .where(or_(HeroBanner.ends_at == None, HeroBanner.ends_at > now))
         .order_by(HeroBanner.order_position)
     )
-    banners = result.scalars().all()
+    try:
+        banners = (await db.execute(q)).scalars().all()
+    except Exception:
+        # Self-heal if the schedule columns haven't been added yet.
+        await db.rollback()
+        for col in ("starts_at", "ends_at", "countdown_to"):
+            await db.execute(_text(f"ALTER TABLE hero_banners ADD COLUMN IF NOT EXISTS {col} TIMESTAMP"))
+        await db.commit()
+        banners = (await db.execute(q)).scalars().all()
     return [
         {
             "id": str(b.banner_id),
@@ -857,39 +865,46 @@ app.include_router(api_router)
 @app.on_event("startup")
 async def startup():
     logger.info("Masterliqours API started!")
-    try:
-        from database import engine, AsyncSessionLocal
-        from models import Base
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            # Migrate new columns that create_all skips on existing tables
-            from sqlalchemy import text as _text
-            _migrations = [
-                "ALTER TABLE hero_banners ADD COLUMN IF NOT EXISTS starts_at TIMESTAMP",
-                "ALTER TABLE hero_banners ADD COLUMN IF NOT EXISTS ends_at TIMESTAMP",
-                "ALTER TABLE hero_banners ADD COLUMN IF NOT EXISTS countdown_to TIMESTAMP",
-                "ALTER TABLE products ADD COLUMN IF NOT EXISTS sales_count INTEGER DEFAULT 0 NOT NULL",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0 NOT NULL",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE NOT NULL",
-                "ALTER TABLE products ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0 NOT NULL",
-                "ALTER TABLE products ADD COLUMN IF NOT EXISTS cart_count INTEGER DEFAULT 0 NOT NULL",
-                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code_used VARCHAR(50)",
-                "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS stock_id VARCHAR(36)",
-                "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS stock_deducted INTEGER DEFAULT 0",
-                "ALTER TABLE discount_codes ADD COLUMN IF NOT EXISTS is_first_order_only BOOLEAN DEFAULT FALSE",
-            ]
-            for _sql in _migrations:
-                try:
-                    await conn.execute(_text(_sql))
-                except Exception as _me:
-                    logger.warning("Migration skipped: %s", _me)
-        async with AsyncSessionLocal() as db:
-            n = await seed_default_brands(db)
-            if n:
-                logger.info(f"Seeded {n} default brands")
-    except Exception as e:
-        logger.exception("Startup table/seed failed: %s", e)
+    # During a deploy the old and new instances briefly share the database's
+    # connection limit, so the first attempt can fail. Retry so schema
+    # migrations are never silently skipped.
+    import asyncio as _asyncio
+    for _attempt in range(5):
+        try:
+            from database import engine, AsyncSessionLocal
+            from models import Base
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+                # Migrate new columns that create_all skips on existing tables
+                from sqlalchemy import text as _text
+                _migrations = [
+                    "ALTER TABLE hero_banners ADD COLUMN IF NOT EXISTS starts_at TIMESTAMP",
+                    "ALTER TABLE hero_banners ADD COLUMN IF NOT EXISTS ends_at TIMESTAMP",
+                    "ALTER TABLE hero_banners ADD COLUMN IF NOT EXISTS countdown_to TIMESTAMP",
+                    "ALTER TABLE products ADD COLUMN IF NOT EXISTS sales_count INTEGER DEFAULT 0 NOT NULL",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0 NOT NULL",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE NOT NULL",
+                    "ALTER TABLE products ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0 NOT NULL",
+                    "ALTER TABLE products ADD COLUMN IF NOT EXISTS cart_count INTEGER DEFAULT 0 NOT NULL",
+                    "ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code_used VARCHAR(50)",
+                    "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS stock_id VARCHAR(36)",
+                    "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS stock_deducted INTEGER DEFAULT 0",
+                    "ALTER TABLE discount_codes ADD COLUMN IF NOT EXISTS is_first_order_only BOOLEAN DEFAULT FALSE",
+                ]
+                for _sql in _migrations:
+                    try:
+                        await conn.execute(_text(_sql))
+                    except Exception as _me:
+                        logger.warning("Migration skipped: %s", _me)
+            async with AsyncSessionLocal() as db:
+                n = await seed_default_brands(db)
+                if n:
+                    logger.info(f"Seeded {n} default brands")
+            break
+        except Exception as e:
+            logger.exception("Startup table/seed failed (attempt %s): %s", _attempt + 1, e)
+            await _asyncio.sleep(6 * (_attempt + 1))
     try:
         from database import AsyncSessionLocal
         from sqlalchemy import text as sa_text
