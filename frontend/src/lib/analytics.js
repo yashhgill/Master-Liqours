@@ -3,7 +3,7 @@
  * browser tab session counts visitors. Events go to /t on our own domain.
  * Admin and staff browsing is never counted.
  */
-const SKIP = ['/admin', '/staff', '/master', '/receipt'];
+const SKIP = ['/admin', '/staff', '/master', '/receipt', '/auth', '/reset-password'];
 let lastPath = null;
 
 function sid() {

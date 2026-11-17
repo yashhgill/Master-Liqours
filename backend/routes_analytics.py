@@ -106,7 +106,7 @@ async def collect(data: CollectIn, x_analytics_key: Optional[str] = Header(None)
     if BOT_RE.search(ua):
         return None
     path = (data.path or "")[:300]
-    if path.startswith(("/admin", "/staff", "/master")):
+    if path.startswith(("/admin", "/staff", "/master", "/auth", "/reset-password")):
         return None
     ref = (data.referrer or "").strip()
     ref_host = ""
