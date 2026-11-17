@@ -25,10 +25,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 EXPOSE 8001
 
-# Use 2 uvicorn workers via gunicorn for free-tier perf
+# One async uvicorn worker: the Starter plan has 0.5 CPU, and a single worker
+# keeps database connections well under Supabase's 15-connection limit even
+# while an old and a new server overlap during a deploy.
 CMD ["gunicorn", "server:app", \
      "-k", "uvicorn.workers.UvicornWorker", \
-     "-w", "2", \
+     "-w", "1", \
      "-b", "0.0.0.0:8001", \
      "--timeout", "120", \
      "--access-logfile", "-"]

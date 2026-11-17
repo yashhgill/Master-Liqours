@@ -25,10 +25,10 @@ ASYNC_DATABASE_URL = DATABASE_URL_CLEAN.replace('postgresql://', 'postgresql+asy
 # connection the pooler has silently dropped, instead of erroring on first use.
 engine = create_async_engine(
     ASYNC_DATABASE_URL,
-    # Supabase's session pooler allows 15 connections in total. We run 2
-    # workers, and during a deploy the old and new servers overlap, so each
-    # worker must stay small: 3 warm + 3 burst = 6 per worker, 12 per server.
-    # (10 + 10 here used to exhaust the limit and cause 500s during deploys.)
+    # Supabase's session pooler allows 15 connections in total. We run one
+    # worker, and during a deploy the old and new servers overlap: 3 warm +
+    # 3 burst = 6 per server, 12 during the overlap. (10 + 10 with 2 workers
+    # used to exhaust the limit and cause 500s during deploys.)
     pool_size=3,
     max_overflow=3,
     pool_timeout=10,       # Fail fast if no connection available (was 30s)
