@@ -65,7 +65,7 @@ const DailyChart = ({ data }) => {
   const step = Math.ceil(data.length / 8);
   return (
     <svg viewBox={`0 0 ${W} ${H + 24}`} className="w-full h-auto" role="img" aria-label="Visitors per day">
-      {[0.25, 0.5, 0.75, 1].map((f) => (
+      {[...new Set([0.25, 0.5, 0.75, 1].map((f) => Math.max(1, Math.round(maxV * f))))].map((v) => v / maxV).map((f) => (
         <g key={f}>
           <line x1={P} x2={W - P} y1={H - (H - 20) * f} y2={H - (H - 20) * f} stroke="rgba(255,255,255,0.06)" />
           <text x={P - 6} y={H - (H - 20) * f + 4} textAnchor="end" fontSize="10" fill="rgba(255,255,255,0.4)">{Math.round(maxV * f)}</text>
@@ -189,7 +189,7 @@ const AnalyticsTab = () => {
             <Stat label="Page views" value={nf(s.pageviews)} prev={s.pageviews_prev} />
             <Stat label="Bottles viewed" value={nf(s.product_views)} />
             <Stat label="Added to cart" value={nf(s.add_to_cart)} color="#ffd27a" />
-            <Stat label="Orders" value={nf(s.orders)} color="#39ff14" note={`${rm(s.revenue)} · ${s.conversion}% of visitors`} />
+            <Stat label="Orders" value={nf(s.orders)} color="#39ff14" note={`${rm(s.revenue)} · ${s.conversion}% of visitors ordered`} />
             <Stat label="WhatsApp taps" value={nf(s.whatsapp)} color="#25d366" />
           </div>
 

@@ -248,7 +248,7 @@ async def dashboard(days: int = Query(30, ge=1, le=365), user: User = Depends(ge
             "product_views": by_type["product_view"], "searches": by_type["search"],
             "add_to_cart": by_type["add_to_cart"], "checkouts": by_type["checkout"], "whatsapp": by_type["whatsapp"],
             "orders": len(valid), "revenue": round(sum(o[1] or 0 for o in valid), 2),
-            "conversion": round(100 * len(valid) / visitors, 2) if visitors else 0,
+            "conversion": round(100 * len(funnel["order"]) / visitors, 2) if visitors else 0,  # tracked visits that ordered
         },
         "funnel": [
             {"step": "Visited", "count": visitors},
