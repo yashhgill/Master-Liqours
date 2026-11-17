@@ -8,6 +8,7 @@ import {
   FaShieldAlt, FaMedal, FaGem as FaDiamond,
 } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
+import useSeo from '../seo/useSeo';
 import ReviewSection from '../components/ReviewSection';
 import BrandCarousel from '../components/BrandCarousel';
 import { useAuth } from '../context';
@@ -155,6 +156,11 @@ const MysteryDropCard = ({ drop }) => {
 };
 
 const Home = () => {
+  useSeo({
+    title: 'Alcohol Delivery KL & Klang Valley | Same-Day Liquor Delivery – Masterliqours',
+    description: 'Order whisky, cognac, wine, champagne, gin & vodka online. 500+ bottles, same-day delivery across KL, PJ, Shah Alam, Subang & the Klang Valley. Free delivery over RM1,250. 21+ only.',
+    path: '/',
+  });
   const { user, bossWhatsapp } = useAuth();
   const bossWa = (bossWhatsapp || '').replace(/\D/g, '');
   const [products, setProducts] = useState([]);

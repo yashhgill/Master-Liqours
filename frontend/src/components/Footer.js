@@ -1,3 +1,4 @@
+import SEO from '../seo/seo-data.json';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -100,6 +101,8 @@ const Footer = () => {
               {[
                 ['Rewards Program', '/dashboard'],
                 ['Bulk & Event Orders', '/bulk-order'],
+                ['Delivery Areas', '/delivery'],
+                ['FAQ', '/faq'],
                 ['All Products', '/products'],
                 ['Promotions', '/products?promo=1'],
                 ['Contact Us', `https://wa.me/${bossWhatsapp}`],
@@ -147,6 +150,17 @@ const Footer = () => {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Delivery areas — plain links help customers (and search engines) find their area page */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12" style={{ paddingBottom: 24, fontSize: 12, lineHeight: 2, color: 'rgba(255,255,255,0.3)' }}>
+        <span style={{ marginRight: 8 }}>Same-day alcohol delivery:</span>
+        {SEO.areas.map((a, i) => (
+          <React.Fragment key={a.slug}>
+            {i > 0 && ' · '}
+            <Link to={`/delivery/${a.slug}`} style={{ color: 'rgba(255,255,255,0.45)', textDecoration: 'none' }}>{a.name}</Link>
+          </React.Fragment>
+        ))}
       </div>
 
       {/* Bottom bar */}

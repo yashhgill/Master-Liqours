@@ -4,6 +4,7 @@ import axios from 'axios';
 import { FaShoppingBag, FaArrowLeft, FaMinus, FaPlus, FaCheckCircle, FaWhatsapp, FaHeart, FaRegHeart, FaShare, FaSearch } from 'react-icons/fa';
 import { useCart, useAuth, DEFAULT_BOSS_WA as BOSS_WA } from '../context';
 import ProductCard from '../components/ProductCard';
+import useSeo, { prettyName } from '../seo/useSeo';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // Boss WA comes from context
@@ -27,6 +28,13 @@ const ProductDetail = () => {
   const isStaffOrAdmin = user && ['staff', 'super_admin', 'master_admin'].includes(user.role);
   const [product, setProduct] = useState(null);
   const [flashSale, setFlashSale] = useState(null);
+  const seoName = product ? prettyName(product.name) : '';
+  const seoCat = product ? (product.category === 'Whiskey' ? 'Whisky' : product.category) : '';
+  useSeo(product ? {
+    title: `${seoName}: Price RM${Math.round(product.price)} | Buy ${seoCat} Online KL – Masterliqours`,
+    description: `Buy ${seoName} online in Malaysia for RM${Number(product.price).toFixed(2)}. ${product.is_preorder ? 'Available to pre-order' : 'In stock for same-day delivery'} across KL & Klang Valley.`,
+    path: `/product/${product.product_id}`,
+  } : {});
   const [related, setRelated] = useState([]);
   const [qty, setQty] = useState(1);
   const [loading, setLoading] = useState(true);

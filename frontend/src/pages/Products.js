@@ -4,6 +4,7 @@ import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FaSearch, FaSlidersH, FaTh, FaList, FaHeart, FaRegHeart, FaTimes, FaPhone, FaWhatsapp, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
+import useSeo from '../seo/useSeo';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // Boss WA comes from context
@@ -106,6 +107,12 @@ const Products = () => {
   const [priceRange, setPriceRange] = useState(0);
   const [sort, setSort] = useState(urlParams.get('sort') || 'trending');
   const [availableOnly, setAvailableOnly] = useState(urlParams.get('available') === '1');
+  const seoWord = selected ? (selected === 'Whiskey' ? 'Whisky' : selected) : '';
+  useSeo({
+    title: seoWord ? `Buy ${seoWord} Online Malaysia | ${seoWord} Delivery KL – Masterliqours` : 'Shop 500+ Bottles Online | Liquor Delivery KL & Klang Valley – Masterliqours',
+    description: `Order ${seoWord ? seoWord.toLowerCase() : 'whisky, cognac, wine, gin & vodka'} online for same-day delivery across KL & Klang Valley. Free delivery over RM1,250. 21+ only.`,
+    path: seoWord ? `/products?category=${encodeURIComponent(selected)}` : '/products',
+  });
   const [viewMode, setViewMode] = useState('grid');
   const [wishlist, setWishlist] = useState(getWishlist());
   const [recentProducts, setRecentProducts] = useState([]);

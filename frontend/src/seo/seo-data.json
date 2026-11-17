@@ -1,0 +1,150 @@
+{
+  "site": "https://www.masterliqours.my",
+  "name": "Masterliqours",
+  "legalOperator": "HarNova Technology",
+  "email": "hello@masterliqours.my",
+  "tagline": "Premium liquor delivery in KL & Klang Valley",
+  "summary": "Masterliqours (masterliqours.my) is an online liquor store in Kuala Lumpur, Malaysia. Customers order whisky, cognac, wine, champagne, gin, vodka, rum, tequila, brandy and liqueur on the website and get same-day delivery across Kuala Lumpur and the Klang Valley, including Petaling Jaya, Shah Alam, Subang Jaya, Klang, Puchong, Cheras, Cyberjaya and Putrajaya. 500+ bottles, prices in Malaysian Ringgit, payment confirmed over WhatsApp before delivery, free delivery on orders above RM1,250. Buyers and recipients must be 21 or older.",
+  "facts": [
+    "500+ bottles across whisky, cognac, brandy, wine, champagne, gin, vodka, rum, tequila and liqueur",
+    "Same-day delivery across Kuala Lumpur and the Klang Valley (times are estimates)",
+    "Order on the website; payment is confirmed over WhatsApp before delivery",
+    "Free delivery on orders above RM1,250",
+    "New customers: code ML10 for 10% off the first order",
+    "Bulk and event orders available at masterliqours.my/bulk-order",
+    "Must be 21+ to buy; the person receiving the delivery must also be 21+",
+    "Damaged or wrong items replaced or refunded if reported within 24 hours with photos"
+  ],
+  "categories": ["Whiskey", "Cognac", "Brandy", "Wine", "Champagne", "Gin", "Vodka", "Rum", "Tequila", "Liqueur"],
+  "categoryCopy": {
+    "Whiskey": "Scotch single malts, blended Scotch, Irish whiskey, bourbon and Japanese whisky: Johnnie Walker, Chivas Regal, Glenfiddich, The Glenlivet, Singleton, Dalmore, Jameson, Jack Daniel's, Suntory, Hibiki and Yamazaki.",
+    "Cognac": "VS, VSOP and XO cognac from Hennessy, Martell and Courvoisier, the classic choice for dinners, weddings and Chinese New Year.",
+    "Brandy": "Brandy for gifting and celebrations, from everyday bottles to aged expressions.",
+    "Wine": "Red, white and rosé wine for dinners, open houses and gifts.",
+    "Champagne": "Moët & Chandon and other champagne and sparkling wine for birthdays, launches and celebrations.",
+    "Gin": "London dry and premium gin: Hendrick's, Bombay Sapphire, Tanqueray, Monkey 47 and more for G&Ts and cocktails.",
+    "Vodka": "Absolut, Grey Goose, Belvedere, Smirnoff and other vodka for parties and cocktails.",
+    "Rum": "White, gold and spiced rum from Bacardi, Captain Morgan and more.",
+    "Tequila": "Blanco, reposado and añejo tequila, including Patrón and Don Julio.",
+    "Liqueur": "Baileys, Jägermeister, Kahlúa and other liqueurs for shots, desserts and cocktails."
+  },
+  "areas": [
+    {
+      "slug": "kuala-lumpur",
+      "name": "Kuala Lumpur",
+      "short": "KL",
+      "neighbourhoods": ["KLCC", "Bukit Bintang", "Bangsar", "Mont Kiara", "Sri Hartamas", "Cheras", "Bukit Jalil", "Kepong", "Setapak", "Wangsa Maju", "Brickfields", "Titiwangsa", "Sentul", "Desa ParkCity", "Old Klang Road", "Taman Tun Dr Ismail (TTDI)"],
+      "intro": "Order liquor online anywhere in Kuala Lumpur, from condos in KLCC and Mont Kiara to homes in Cheras and Bukit Jalil. Masterliqours delivers whisky, cognac, wine, champagne and spirits to your door the same day.",
+      "notes": "KL orders are our busiest. For house parties in KLCC, Bukit Bintang or Bangsar, order a few hours ahead on Friday and Saturday nights. Condo deliveries go to the lobby or guardhouse, and the recipient must be 21+."
+    },
+    {
+      "slug": "klang-valley",
+      "name": "Klang Valley",
+      "short": "Klang Valley",
+      "neighbourhoods": ["Kuala Lumpur", "Petaling Jaya", "Shah Alam", "Subang Jaya", "Klang", "Puchong", "Ampang", "Cheras", "Kajang", "Cyberjaya", "Putrajaya", "Damansara", "Setia Alam", "Selayang", "Rawang", "Seri Kembangan"],
+      "intro": "Masterliqours delivers alcohol across the whole Klang Valley: KL, Petaling Jaya, Shah Alam, Subang Jaya, Klang, Puchong, Ampang, Kajang, Cyberjaya and Putrajaya. Order online and get premium bottles delivered the same day.",
+      "notes": "Delivery across the Klang Valley is free on orders above RM1,250. Larger event and bulk orders can be planned ahead through the bulk order page."
+    },
+    {
+      "slug": "petaling-jaya",
+      "name": "Petaling Jaya",
+      "short": "PJ",
+      "neighbourhoods": ["Damansara Utama", "Damansara Jaya", "Damansara Perdana", "Ara Damansara", "Kota Damansara", "SS2", "Section 17", "Bandar Utama", "Kelana Jaya", "Mutiara Damansara", "Taman Tun Dr Ismail border", "Seksyen 14"],
+      "intro": "Need drinks in PJ? Masterliqours delivers whisky, wine, gin, vodka and champagne across Petaling Jaya, from SS2 and Section 17 to Damansara and Bandar Utama, the same day.",
+      "notes": "PJ is a short run from our KL base, which makes it one of the quickest areas to deliver to. Great for dinner parties in Damansara and get-togethers in SS2."
+    },
+    {
+      "slug": "shah-alam",
+      "name": "Shah Alam",
+      "short": "Shah Alam",
+      "neighbourhoods": ["Setia Alam", "Kota Kemuning", "Bukit Jelutong", "Section 7", "Section 13", "Glenmarie", "Bukit Rimau", "Alam Impian", "Denai Alam", "Eco Ardence", "Bandar Botanic border", "Seksyen 9"],
+      "intro": "Masterliqours delivers premium alcohol to Shah Alam, including Setia Alam, Kota Kemuning, Bukit Jelutong and Glenmarie. Order whisky, cognac, wine and spirits online and get them delivered the same day.",
+      "notes": "Shah Alam and Setia Alam orders are popular for family gatherings and open houses. Order earlier in the day for the smoothest same-day delivery."
+    },
+    {
+      "slug": "subang-jaya",
+      "name": "Subang Jaya",
+      "short": "Subang",
+      "neighbourhoods": ["SS15", "SS19", "USJ", "Putra Heights", "Bandar Sunway", "Subang Jaya town centre", "SS18", "Subang Airport area", "Taipan", "USJ 1 to USJ 27"],
+      "intro": "Order alcohol online in Subang Jaya, USJ and Sunway. Masterliqours delivers whisky, vodka, gin, wine and champagne to SS15, Taipan, Bandar Sunway and Putra Heights the same day.",
+      "notes": "A favourite for student and young-professional parties around SS15 and Sunway. Remember: the person receiving the order must be 21 or older."
+    },
+    {
+      "slug": "klang",
+      "name": "Klang",
+      "short": "Klang",
+      "neighbourhoods": ["Bandar Botanic", "Bukit Tinggi", "Bandar Bukit Raja", "Taman Sentosa", "Kapar", "Port Klang", "Meru", "Bayu Perdana", "Klang town"],
+      "intro": "Masterliqours delivers liquor to Klang, Bukit Tinggi, Bandar Botanic and Port Klang. Shop 500+ bottles online, from everyday whisky to celebration cognac.",
+      "notes": "Klang is at the edge of our same-day zone, so ordering earlier in the day helps. Delivery is free on orders above RM1,250."
+    },
+    {
+      "slug": "puchong",
+      "name": "Puchong",
+      "short": "Puchong",
+      "neighbourhoods": ["Bandar Puteri", "IOI Puchong", "Puchong Jaya", "Bandar Kinrara", "Puchong Perdana", "Taman Wawasan", "Setiawangsa Puchong", "Bukit Puchong"],
+      "intro": "Order alcohol online in Puchong, including Bandar Puteri, Puchong Jaya and Bandar Kinrara. Masterliqours delivers premium spirits, wine and champagne the same day.",
+      "notes": "Bandar Puteri and Kinrara orders usually arrive quickly from KL. Bulk orders for events and dinners are welcome."
+    },
+    {
+      "slug": "cheras",
+      "name": "Cheras",
+      "short": "Cheras",
+      "neighbourhoods": ["Taman Connaught", "Taman Midah", "Cheras Leisure Mall area", "Bandar Tun Hussein Onn", "Balakong", "Taman Maluri", "Cheras Traders Square", "Alam Damai", "Bukit Teratai"],
+      "intro": "Masterliqours delivers whisky, cognac, wine and spirits across Cheras, including Taman Connaught, Maluri and Bandar Tun Hussein Onn. Order online for same-day delivery.",
+      "notes": "Cognac and whisky are the top picks for Cheras family dinners and festive gatherings. Order early during Chinese New Year and other festive weeks."
+    },
+    {
+      "slug": "ampang",
+      "name": "Ampang",
+      "short": "Ampang",
+      "neighbourhoods": ["Ampang Jaya", "Taman Melawati", "Pandan Indah", "Pandan Jaya", "Ampang Point area", "Taman Tasik Permaisuri border", "Ukay Heights", "Desa Pandan"],
+      "intro": "Order alcohol online in Ampang, Pandan and Taman Melawati. Masterliqours delivers premium bottles the same day across Ampang Jaya.",
+      "notes": "Ampang and Ukay Heights orders are often for dinners and gifting. We can help with gift and bulk orders through the bulk order page."
+    },
+    {
+      "slug": "kajang",
+      "name": "Kajang",
+      "short": "Kajang",
+      "neighbourhoods": ["Bandar Baru Bangi", "Semenyih", "Sungai Long", "Saujana Impian", "Taman Prima Saujana", "Kajang town", "Cheras Perdana", "Bandar Mahkota Cheras"],
+      "intro": "Masterliqours delivers liquor to Kajang, Sungai Long and Bandar Mahkota Cheras. Order whisky, vodka, wine and more online.",
+      "notes": "Kajang and Sungai Long are on the outer edge of the Klang Valley, so place same-day orders earlier in the day."
+    },
+    {
+      "slug": "cyberjaya-putrajaya",
+      "name": "Cyberjaya & Putrajaya",
+      "short": "Cyberjaya",
+      "neighbourhoods": ["Cyberjaya", "Putrajaya Precinct areas", "Dengkil border", "Shaftsbury Square area", "Cyber 10 to Cyber 12", "Persiaran Multimedia"],
+      "intro": "Order alcohol online in Cyberjaya and Putrajaya. Masterliqours delivers premium spirits, wine and champagne to homes and condos in Cyberjaya.",
+      "notes": "Popular with Cyberjaya students and tech workers for weekend get-togethers. The recipient must be 21+, and ID may be checked."
+    },
+    {
+      "slug": "mont-kiara",
+      "name": "Mont Kiara & Sri Hartamas",
+      "short": "Mont Kiara",
+      "neighbourhoods": ["Mont Kiara", "Sri Hartamas", "Desa Sri Hartamas", "Solaris", "Segambut", "Dutamas", "Publika area", "Kiara Bay"],
+      "intro": "Masterliqours delivers premium whisky, wine, champagne and spirits to Mont Kiara, Sri Hartamas and Dutamas. Order online for same-day delivery to your condo.",
+      "notes": "Mont Kiara condo orders go to the lobby or guardhouse. Champagne and wine are the favourites for dinners and expat gatherings here."
+    },
+    {
+      "slug": "damansara",
+      "name": "Damansara & TTDI",
+      "short": "Damansara",
+      "neighbourhoods": ["Damansara Heights", "Bukit Damansara", "TTDI", "Damansara Utama", "Damansara Perdana", "Kota Damansara", "Mutiara Damansara", "Bandar Utama"],
+      "intro": "Order alcohol online in Damansara Heights, Bukit Damansara and TTDI. Masterliqours delivers whisky, cognac, champagne and wine the same day.",
+      "notes": "Damansara Heights and TTDI customers often order single malts and champagne for dinners. Free delivery on orders above RM1,250."
+    }
+  ],
+  "faq": [
+    { "q": "Can I order alcohol online in KL and get it delivered?", "a": "Yes. Masterliqours (masterliqours.my) delivers alcohol across Kuala Lumpur and the Klang Valley. Choose your bottles on the website, place the order, confirm payment over WhatsApp, and it is delivered the same day (times are estimates)." },
+    { "q": "Which areas does Masterliqours deliver to?", "a": "Kuala Lumpur and the Klang Valley, including Petaling Jaya, Shah Alam, Subang Jaya, USJ, Klang, Puchong, Cheras, Ampang, Kajang, Cyberjaya, Putrajaya, Mont Kiara and Damansara." },
+    { "q": "Is there same-day liquor delivery in the Klang Valley?", "a": "Yes. Masterliqours offers same-day delivery across KL and the Klang Valley. Ordering earlier in the day is best for outer areas like Klang and Kajang." },
+    { "q": "How much is delivery?", "a": "Delivery is free on orders above RM1,250. For smaller orders, the delivery fee is shown at checkout." },
+    { "q": "How do I pay?", "a": "Place your order on the website, then payment is confirmed with our team over WhatsApp before your bottles are delivered. Prices are in Malaysian Ringgit (RM)." },
+    { "q": "Is there a discount for first-time customers?", "a": "Yes. Use code ML10 for 10% off your first order." },
+    { "q": "How old do I have to be to buy alcohol from Masterliqours?", "a": "You must be 21 or older to buy, and the person receiving the delivery must also be 21+. We may ask for ID and can refuse delivery to anyone who appears underage or intoxicated." },
+    { "q": "What brands do you sell?", "a": "500+ bottles including Johnnie Walker, Chivas Regal, Glenfiddich, The Glenlivet, Singleton, Dalmore, Jameson, Jack Daniel's, Hibiki, Yamazaki, Hennessy, Martell, Courvoisier, Moët & Chandon, Hendrick's, Bombay Sapphire, Absolut, Grey Goose, Bacardi, Patrón and more." },
+    { "q": "Are the bottles genuine?", "a": "Yes. Masterliqours sells authentic products only. If a bottle arrives damaged or the wrong item is delivered, report it within 24 hours with photos for a replacement or refund." },
+    { "q": "Can I order in bulk for a wedding, party or corporate event?", "a": "Yes. Use the bulk order page at masterliqours.my/bulk-order and the team will get back to you with pricing and delivery arrangements." },
+    { "q": "What is the difference between In Stock and Pre-order?", "a": "In Stock bottles are available now for same-day delivery. Pre-order bottles are sourced for you after you order, so they take longer to arrive." }
+  ]
+}

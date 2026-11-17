@@ -25,6 +25,7 @@ import ResetPassword from './pages/ResetPassword';
 import ChangePassword from './pages/ChangePassword';
 import UserDashboard from './pages/UserDashboard';
 import BulkOrder from './pages/BulkOrder';
+import DeliveryArea, { DeliveryIndex, FaqPage } from './pages/DeliveryArea';
 // Heavy dashboards are code-split: only downloaded when a staff/admin actually
 // visits them, so customers get a much smaller, faster initial bundle.
 const StaffDashboard = lazy(() => import('./pages/StaffDashboard'));
@@ -102,6 +103,9 @@ function AppContent() {
           <Route path="/legal/:page" element={<LegalPage />} />
           <Route path="/receipt/:orderId" element={<Receipt />} />
           <Route path="/bulk-order" element={<BulkOrder />} />
+          <Route path="/delivery" element={<DeliveryIndex />} />
+          <Route path="/delivery/:area" element={<DeliveryArea />} />
+          <Route path="/faq" element={<FaqPage />} />
           <Route path="/master" element={<Navigate to="/admin" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
