@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { AuthProvider, CartProvider, useAuth } from './context';
 import AnnouncementBar from './components/AnnouncementBar';
 import { currentSeason, DeepavaliGarland, DeepavaliSparkles } from './components/Seasonal';
+import { FestiveLights, Snowfall, Fireworks } from './components/Festive';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import BottomNav from './components/BottomNav';
@@ -78,7 +79,12 @@ function AppContent() {
       <ScrollToTop />
       <AnnouncementBar />
       <Navbar />
-      {season === 'deepavali' && !location.pathname.startsWith('/admin') && !location.pathname.startsWith('/staff') && <><DeepavaliGarland /><DeepavaliSparkles /></>}
+      {!location.pathname.startsWith('/admin') && !location.pathname.startsWith('/staff') && (
+        season === 'deepavali' ? <><DeepavaliGarland /><DeepavaliSparkles /></>
+        : season === 'christmas' ? <><FestiveLights variant="christmas" /><Snowfall /></>
+        : season === 'newyear' ? <><FestiveLights variant="newyear" /><Fireworks /></>
+        : null
+      )}
       <main className="flex-grow pb-16 lg:pb-0">
         <ErrorBoundary resetKey={location.pathname}>
         <Suspense fallback={<div style={{minHeight:"100vh",background:"#050505"}} />}>

@@ -466,3 +466,91 @@ input, textarea, select { font-size: 16px !important; }
 @keyframes dvSpin{to{transform:translateY(-50%) rotate(360deg)}}
 @media (max-width:640px){.dv-greet{flex-direction:column;align-items:flex-start;padding:22px}.dv-garland{height:32px;margin-bottom:-32px}.dv-garland svg{height:32px}}
 @media (prefers-reduced-motion:reduce){.dv-flame,.dv-halo,.dv-kolam{animation:none}}
+
+/* ═══════════ Christmas & New Year (components/Festive.js) ═══════════ */
+.xm-bar{background:linear-gradient(90deg,#7d0b24,#ff007f 40%,#c8102e 70%,#0f6b3e)}
+.ny-bar{background:linear-gradient(90deg,#0b0b0b,#6b4a12 25%,#ffd27a 50%,#6b4a12 75%,#0b0b0b);color:#fff}
+.ny-bar span{text-shadow:0 1px 6px rgba(0,0,0,.7)}
+.fx-lights{position:relative;z-index:30;height:46px;margin-bottom:-46px;pointer-events:none}
+.fx-lights svg{display:block}
+.fx-bulbs{position:absolute;inset:0}
+.fx-bulb{position:absolute;top:13px;width:9px;height:13px;margin-left:-4.5px;border-radius:50% 50% 45% 45%;background:var(--c);box-shadow:0 0 8px var(--c),0 0 18px var(--c);animation:fxTwinkle 2.6s ease-in-out infinite}
+.fx-bulb::before{content:'';position:absolute;top:-4px;left:2px;width:5px;height:5px;border-radius:1px;background:#2a2a2a}
+.fx-bulbs .fx-bulb:nth-child(odd){top:20px}
+.fx-overlay{position:fixed;inset:0;width:100vw;height:100vh;z-index:5;pointer-events:none}
+@keyframes fxTwinkle{0%,100%{opacity:1;filter:brightness(1.15)}50%{opacity:.45;filter:brightness(.7)}}
+@keyframes fxPulse{0%,100%{opacity:.85;transform:scale(1)}50%{opacity:1;transform:scale(1.18)}}
+@keyframes fxFloat{0%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-18px,0)}100%{transform:translate3d(0,0,0)}}
+@keyframes fxShine{0%{background-position:-200% 0}100%{background-position:200% 0}}
+
+/* hero poster */
+.fx-hero{position:relative;overflow:hidden;display:grid;grid-template-columns:1.05fr 1fr;align-items:center;gap:24px;min-height:clamp(460px,46vw,600px);padding:clamp(28px,4vw,56px);border-radius:2rem;border:1px solid rgba(255,255,255,.1);box-shadow:0 20px 60px -15px rgba(255,0,127,.35),0 8px 24px -8px rgba(0,0,0,.8);isolation:isolate}
+.fx-xmas{background:radial-gradient(ellipse 60% 70% at 78% 55%,rgba(200,16,46,.38),transparent 70%),radial-gradient(ellipse 50% 60% at 10% 10%,rgba(255,0,127,.22),transparent 70%),radial-gradient(ellipse 40% 50% at 60% 110%,rgba(15,107,62,.35),transparent 70%),#07030a}
+.fx-ny{background:radial-gradient(ellipse 60% 70% at 75% 50%,rgba(255,178,26,.22),transparent 70%),radial-gradient(ellipse 45% 55% at 5% 0%,rgba(255,0,127,.18),transparent 70%),radial-gradient(ellipse 40% 50% at 95% 100%,rgba(0,240,255,.12),transparent 70%),#050505}
+.fx-hero-copy{position:relative;z-index:2;max-width:560px}
+.fx-kicker{font-size:11px;font-weight:800;letter-spacing:.32em;text-transform:uppercase;color:#ffd27a}
+.fx-title{font-family:'Bebas Neue',sans-serif;line-height:.86;margin:12px 0 14px;color:#fff;font-weight:400}
+.fx-title span{display:block;font-size:clamp(46px,6.4vw,92px);letter-spacing:.02em}
+.fx-title em{display:block;font-style:normal;font-size:clamp(62px,9vw,134px);color:#ff007f;text-shadow:0 0 22px rgba(255,0,127,.75),0 0 60px rgba(255,0,127,.45)}
+.fx-title-ny span{font-size:clamp(40px,5.4vw,78px)}
+.fx-year{background:linear-gradient(100deg,#8a5a12 0%,#ffd27a 22%,#fff6d6 35%,#ffb21a 50%,#ffd27a 65%,#8a5a12 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;text-shadow:none!important;filter:drop-shadow(0 0 22px rgba(255,190,60,.45));animation:fxShine 6s linear infinite}
+.fx-sub{color:rgba(255,255,255,.74);font-size:clamp(14px,1.25vw,16px);line-height:1.65;margin:0 0 22px;max-width:46ch}
+.fx-ctas{display:flex;flex-wrap:wrap;gap:12px}
+.fx-btn{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#ff007f,#c8005a);color:#fff;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:15px 28px;border-radius:50px;text-decoration:none;box-shadow:0 0 34px rgba(255,0,127,.45),inset 0 1px 0 rgba(255,255,255,.18);transition:transform .25s,box-shadow .25s}
+.fx-btn:hover{transform:translateY(-2px);box-shadow:0 0 52px rgba(255,0,127,.65)}
+.fx-btn-gold{background:linear-gradient(135deg,#ffd27a,#c88a1a);color:#1a1000;box-shadow:0 0 34px rgba(255,190,60,.4),inset 0 1px 0 rgba(255,255,255,.4)}
+.fx-btn-ghost{display:inline-flex;align-items:center;padding:15px 24px;border-radius:50px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;text-decoration:none;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(10px)}
+.fx-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.fx-chips span{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:rgba(255,255,255,.75);padding:7px 12px;border-radius:50px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.fx-chips svg{color:#ffd27a}
+.fx-hero-art{position:relative;z-index:1;height:100%;min-height:380px;display:flex;align-items:center;justify-content:center}
+.fx-tree{position:absolute;width:min(100%,460px);height:auto;top:50%;left:50%;transform:translate(-50%,-52%);filter:drop-shadow(0 0 10px rgba(255,0,127,.35))}
+.fx-twinkle{animation:fxTwinkle 2.4s ease-in-out infinite}
+.fx-pulse{transform-origin:200px 22px;animation:fxPulse 2.8s ease-in-out infinite}
+.fx-bokeh i{position:absolute;z-index:0;width:calc(40px + var(--i) * 6px);height:calc(40px + var(--i) * 6px);border-radius:50%;left:calc(var(--i) * 7.3%);background:radial-gradient(circle,rgba(255,210,122,.22),transparent 70%);filter:blur(2px);animation:fxFloat calc(7s + var(--i) * .6s) ease-in-out infinite}
+.fx-bokeh i:nth-child(3n){background:radial-gradient(circle,rgba(255,0,127,.2),transparent 70%)}
+.fx-bokeh i:nth-child(4n){background:radial-gradient(circle,rgba(43,217,107,.16),transparent 70%)}
+.fx-hero-fw{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.fx-glow-ring{position:absolute;width:min(90%,420px);aspect-ratio:1;border-radius:50%;border:1px solid rgba(255,210,122,.35);box-shadow:0 0 60px rgba(255,190,60,.25),inset 0 0 60px rgba(255,190,60,.12)}
+
+/* bottle tiles */
+.fx-fan{position:relative;width:min(100%,460px);height:clamp(260px,26vw,330px);margin-top:clamp(60px,9vw,120px)}
+.fx-tile{position:absolute;bottom:0;width:44%;aspect-ratio:1;border-radius:22px;overflow:hidden;border:1px solid rgba(255,210,122,.45);box-shadow:0 18px 40px -10px rgba(0,0,0,.9),0 0 30px rgba(255,0,127,.25);transition:transform .35s cubic-bezier(.22,1,.36,1);background:#111}
+.fx-tile img{width:100%;height:100%;object-fit:cover;display:block}
+.fx-tile-0{left:2%;transform:rotate(-9deg) translateY(10px)}
+.fx-tile-1{left:28%;width:46%;z-index:2;transform:translateY(-22px)}
+.fx-tile-2{right:2%;transform:rotate(9deg) translateY(10px)}
+.fx-tile:hover{transform:translateY(-30px) rotate(0);z-index:3}
+.fx-ribbon{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,transparent 46%,rgba(200,16,46,.92) 46%,rgba(255,60,90,.92) 54%,transparent 54%)}
+.fx-ribbon::after{content:'';position:absolute;top:-6px;left:50%;width:34px;height:20px;transform:translateX(-50%);background:radial-gradient(ellipse at 25% 60%,#ff3c5a 40%,transparent 42%),radial-gradient(ellipse at 75% 60%,#ff3c5a 40%,transparent 42%);filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.fx-tag{position:absolute;left:10px;bottom:10px;padding:5px 10px;border-radius:50px;font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.04em;color:#fff;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(6px)}
+
+/* countdown */
+.fx-count{display:flex;gap:10px;margin:0 0 18px}
+.fx-count-cell{min-width:64px;padding:10px 8px;border-radius:14px;text-align:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,210,122,.3);backdrop-filter:blur(10px)}
+.fx-count-cell b{display:block;font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:#ffd27a;font-weight:400}
+.fx-count-cell span{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.fx-ny-cheers{display:inline-flex;gap:10px;align-items:center;font-family:'Bebas Neue',sans-serif;font-size:30px;color:#ffd27a;margin:0 0 16px}
+
+/* greeting cards */
+.fx-greet{position:relative;overflow:hidden;margin:40px auto 0;max-width:1280px;width:calc(100% - 32px);display:flex;gap:28px;align-items:center;justify-content:space-between;padding:30px 34px;border-radius:24px;border:1px solid rgba(255,210,122,.3)}
+.fx-greet-xmas{background:radial-gradient(ellipse at 100% 0%,rgba(200,16,46,.35),transparent 60%),radial-gradient(ellipse at 0% 100%,rgba(15,107,62,.35),transparent 60%),rgba(12,6,10,.92)}
+.fx-greet-ny{background:radial-gradient(ellipse at 100% 0%,rgba(255,178,26,.22),transparent 60%),radial-gradient(ellipse at 0% 100%,rgba(255,0,127,.16),transparent 60%),rgba(10,8,4,.92)}
+.fx-greet-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(32px,4.2vw,52px);line-height:1;margin:8px 0;color:#fff;font-weight:400}
+.fx-greet-copy{color:rgba(255,255,255,.72);max-width:62ch;margin:0;font-size:15px;line-height:1.65}
+.fx-greet .fx-count{margin:0;flex:none}
+
+@media (max-width:860px){
+  .fx-hero{grid-template-columns:1fr;min-height:0;padding:28px 20px 24px}
+  .fx-hero-art{min-height:300px;order:2}
+  .fx-fan{margin-top:70px;height:240px}
+  .fx-tree{width:min(100%,360px)}
+  .fx-greet{flex-direction:column;align-items:flex-start;padding:22px}
+  .fx-count-cell{min-width:56px}
+  .fx-lights{height:34px;margin-bottom:-34px}
+  .fx-lights svg{height:34px}
+  .fx-bulb{top:9px;width:7px;height:10px}
+  .fx-bulbs .fx-bulb:nth-child(odd){top:14px}
+  .fx-bulbs .fx-bulb:nth-child(even){display:none}
+}
+@media (prefers-reduced-motion:reduce){.fx-bulb,.fx-twinkle,.fx-pulse,.fx-bokeh i,.fx-year{animation:none}}

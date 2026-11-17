@@ -1,12 +1,24 @@
 import React, { useEffect, useRef } from 'react';
 
 /*
- * Seasonal theming.
- * Deepavali 2026 falls on Sunday 8 Nov (Monday 9 Nov is the replacement holiday in most states).
- * Decorations switch on automatically from 22 Oct to 11 Nov 2026 (Malaysia time).
- * Preview any time with ?season=deepavali, force off with ?season=off (remembered for the browser tab).
+ * Seasonal theming — everything switches on and off by itself (Malaysia time).
+ *   Deepavali 2026 : 22 Oct – 11 Nov 2026
+ *   Christmas      : 21 – 28 Dec every year
+ *   New Year       : 29 Dec – 3 Jan every year (with a countdown to midnight)
+ * Preview any time with ?season=deepavali | christmas | newyear, force off with ?season=off
+ * (remembered for the browser tab).
  */
-const WINDOWS = [{ id: 'deepavali', from: '2026-10-22T00:00:00+08:00', to: '2026-11-12T00:00:00+08:00' }];
+const IDS = ['deepavali', 'christmas', 'newyear'];
+
+function windowsAround(now) {
+  const y = new Date(now + 8 * 3600e3).getUTCFullYear(); // year in Malaysia time
+  const w = [{ id: 'deepavali', from: '2026-10-22T00:00:00+08:00', to: '2026-11-12T00:00:00+08:00' }];
+  for (const yr of [y - 1, y]) {
+    w.push({ id: 'christmas', from: `${yr}-12-21T00:00:00+08:00`, to: `${yr}-12-29T00:00:00+08:00` });
+    w.push({ id: 'newyear', from: `${yr}-12-29T00:00:00+08:00`, to: `${yr + 1}-01-04T00:00:00+08:00` });
+  }
+  return w;
+}
 
 export function currentSeason() {
   try {
@@ -14,11 +26,20 @@ export function currentSeason() {
     if (q) sessionStorage.setItem('ml_season', q);
     const forced = sessionStorage.getItem('ml_season');
     if (forced === 'off') return null;
-    if (forced && WINDOWS.some(w => w.id === forced)) return forced;
+    if (forced && IDS.includes(forced)) return forced;
   } catch { /* storage blocked: fall through to dates */ }
   const now = Date.now();
-  const w = WINDOWS.find(w => now >= Date.parse(w.from) && now < Date.parse(w.to));
+  const w = windowsAround(now).find(w => now >= Date.parse(w.from) && now < Date.parse(w.to));
   return w ? w.id : null;
+}
+
+/** The New Year moment we count down to (midnight 1 Jan, Malaysia time). */
+export function nextNewYear(now = Date.now()) {
+  const y = new Date(now + 8 * 3600e3).getUTCFullYear();
+  const target = Date.parse(`${y + 1}-01-01T00:00:00+08:00`);
+  const thisYear = Date.parse(`${y}-01-01T00:00:00+08:00`);
+  // During 1–3 Jan we are already "in" the new year.
+  return now - thisYear < 4 * 864e5 ? { at: thisYear, year: y } : { at: target, year: y + 1 };
 }
 
 /* A small brass diya with a flickering flame */
