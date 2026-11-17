@@ -556,3 +556,9 @@ input, textarea, select { font-size: 16px !important; }
   .fx-bulbs .fx-bulb:nth-child(even){display:none}
 }
 @media (prefers-reduced-motion:reduce){.fx-bulb,.fx-twinkle,.fx-pulse,.fx-bokeh i,.fx-year{animation:none}}
+
+/* countdown overlay on uploaded poster banners (3:1, scales with the banner width) */
+.fx-pc{position:absolute;z-index:2;left:4%;bottom:9%;width:32%;display:grid;grid-template-columns:repeat(4,1fr);gap:2.5%;container-type:inline-size}
+.fx-pc-cell{aspect-ratio:1/1.05;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:14%;background:rgba(0,0,0,.55);border:1px solid rgba(255,210,122,.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 0 18px rgba(255,190,60,.18)}
+.fx-pc-cell b{font-family:'Bebas Neue',sans-serif;font-weight:400;font-size:11cqw;line-height:1;color:#ffd27a;text-shadow:0 0 12px rgba(255,190,60,.45)}
+.fx-pc-cell span{font-size:3.6cqw;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.7);margin-top:4%}

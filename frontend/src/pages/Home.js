@@ -1,5 +1,5 @@
 import { currentSeason, DeepavaliGreeting } from '../components/Seasonal';
-import { ChristmasHero, NewYearHero, ChristmasGreeting, NewYearGreeting } from '../components/Festive';
+import { ChristmasGreeting, NewYearGreeting, PosterCountdown } from '../components/Festive';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -168,10 +168,8 @@ const Home = () => {
   const [newArrivals, setNewArrivals] = useState([]);
   const [flashSales, setFlashSales] = useState([]);
   const [mysteryDrops, setMysteryDrops] = useState([]);
-  // Christmas / New Year: a built-in poster leads the hero carousel while the season is on.
   const season = React.useMemo(() => currentSeason(), []);
-  const festiveSlides = React.useMemo(() => (season === 'christmas' || season === 'newyear') ? [{ seasonal: season }] : [], [season]);
-  const [slides, setSlides] = useState(festiveSlides);
+  const [slides, setSlides] = useState([]);
   const [slide, setSlide] = useState(0);
   // One stable aspect ratio for the whole poster carousel. Locked by the first
   // poster that loads and NOT reset per slide — otherwise the container would
@@ -258,6 +256,7 @@ const Home = () => {
           return {
             bg_image: b.background_image,
             show_text: false,
+            countdown_to: b.countdown_to || null,
             cta_text: b.cta_text || null,
             cta_link: b.cta_link || '/products',
             eyebrow: '', title: '', title2: '', sub: '',
@@ -277,7 +276,7 @@ const Home = () => {
           show_text: true,
         };
       });
-      setSlides([...festiveSlides, ...mapped]);
+      setSlides(mapped);
       // Preload every poster image so swiping to the next slide shows instantly
       // instead of flashing empty/black while the browser fetches it.
       mapped.forEach(m => {
@@ -316,8 +315,7 @@ const Home = () => {
   };
 
   const hero = slides[slide] || slides[0] || null;
-  const isSeasonal = !!hero?.seasonal;
-  const isPoster = !isSeasonal && hero?.bg_image && hero?.show_text === false;
+  const isPoster = hero?.bg_image && hero?.show_text === false;
 
   return (
     <div style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -325,34 +323,6 @@ const Home = () => {
       {/* ═══ HERO ═══ */}
       {slides.length === 0 ? (
         <div style={{ width: '100%', height: 'clamp(420px, 56vw, 640px)', background: '#0a0a0a' }} />
-      ) : isSeasonal ? (
-        /* ---- SEASONAL POSTER (Christmas / New Year, drawn in code) ---- */
-        <section
-          ref={heroRef}
-          className="relative overflow-hidden bg-[#030303] px-3 sm:px-6 lg:px-12 pt-4 pb-2"
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
-        >
-          {hero.seasonal === 'christmas' ? <ChristmasHero /> : <NewYearHero />}
-          {slides.length > 1 && (
-            <>
-              <button onClick={() => { prev(); resetTimer(); }} aria-label="Previous"
-                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-[3] w-10 h-10 rounded-full bg-black/50 backdrop-blur border border-white/15 hidden sm:flex items-center justify-center text-white/80 hover:bg-black/70">
-                <FaChevronLeft size={14} />
-              </button>
-              <button onClick={() => { next(); resetTimer(); }} aria-label="Next"
-                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-[3] w-10 h-10 rounded-full bg-black/50 backdrop-blur border border-white/15 hidden sm:flex items-center justify-center text-white/80 hover:bg-black/70">
-                <FaChevronRight size={14} />
-              </button>
-              <div className="flex justify-center gap-2 mt-3">
-                {slides.map((_, i) => (
-                  <button key={i} onClick={() => { setSlide(i); resetTimer(); }} aria-label={`Slide ${i + 1}`}
-                    style={{ width: i === slide ? 22 : 7, height: 7, borderRadius: 4, background: i === slide ? '#ff007f' : 'rgba(255,255,255,0.3)', transition: 'all 0.3s', border: 'none', cursor: 'pointer' }} />
-                ))}
-              </div>
-            </>
-          )}
-        </section>
       ) : isPoster ? (
         /* ---- IMAGE POSTER MODE: container locks to the image's own shape ---- */
         <section
@@ -407,6 +377,9 @@ const Home = () => {
               }}
               className="relative z-[1] w-full h-full object-cover block"
             />
+
+            {/* Optional live countdown, drawn into the poster's reserved bottom-left area */}
+            {hero.countdown_to && <PosterCountdown to={hero.countdown_to} />}
 
             {/* Optional shop button for a poster */}
             {hero.cta_text && (

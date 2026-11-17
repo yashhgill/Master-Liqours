@@ -37,7 +37,18 @@ const TABS = [
 const CATEGORIES = ['Whiskey', 'Vodka', 'Gin', 'Rum', 'Cognac', 'Brandy', 'Tequila', 'Liqueur', 'Wine', 'Champagne', 'Beer', 'Sake'];
 
 const blankProduct = { name: '', price: '', description: '', category: '', image_url: '', is_active: true, is_preorder: false, discount_price: '', discount_days: 0, discount_hours: 0, discount_minutes: 0 };
-const blankBanner = { title: '', subtitle: '', cta_text: '', cta_link: '', background_image: '', is_active: true, order_position: 0 };
+const blankBanner = { title: '', subtitle: '', cta_text: '', cta_link: '', background_image: '', is_active: true, order_position: 0, starts_at: '', ends_at: '', countdown_to: '' };
+// Banner schedule helpers. The inputs work in Malaysia time; the server stores UTC.
+const toMytInput = (utc) => { if (!utc) return ''; const d = new Date(/Z|[+-]\d\d:?\d\d$/.test(utc) ? utc : utc + 'Z'); return new Date(d.getTime() + 8 * 3600e3).toISOString().slice(0, 16); };
+const fromMytInput = (v) => (v ? `${v}:00+08:00` : null);
+const fmtMyt = (utc) => (utc ? new Date(/Z|[+-]\d\d:?\d\d$/.test(utc) ? utc : utc + 'Z').toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '');
+const bannerState = (b) => {
+  const now = Date.now(); const t = (x) => (x ? new Date(/Z|[+-]\d\d:?\d\d$/.test(x) ? x : x + 'Z').getTime() : null);
+  if (!b.is_active) return ['Hidden', 'text-white/30'];
+  if (t(b.starts_at) && now < t(b.starts_at)) return ['Scheduled', 'text-[#00f0ff]'];
+  if (t(b.ends_at) && now >= t(b.ends_at)) return ['Ended', 'text-white/30'];
+  return ['Live', 'text-[#39ff14]'];
+};
 const blankBrand = { name: '', short_name: '', subtitle: '', logo_url: '', color_hex: '#1a1a1a', search_term: '', is_active: true, order_position: 0 };
 const blankFlash = { product_id: '', discount_percentage: 10, start_time: '', end_time: '' };
 const blankStaff = { name: '', email: '', whatsapp_number: '', referral_code: '', warehouse_name: '' };
@@ -892,12 +903,18 @@ const SuperAdminDashboard = () => {
   };
 
   // === BANNERS ===
+  const bannerPayload = () => ({
+    ...bannerForm,
+    starts_at: fromMytInput(bannerForm.starts_at),
+    ends_at: fromMytInput(bannerForm.ends_at),
+    countdown_to: fromMytInput(bannerForm.countdown_to),
+  });
   const saveBanner = async () => {
     try {
       if (editingBanner) {
-        await axios.patch(`${API}/admin/hero-banners/${editingBanner}`, bannerForm, { withCredentials: true });
+        await axios.patch(`${API}/admin/hero-banners/${editingBanner}`, bannerPayload(), { withCredentials: true });
       } else {
-        await axios.post(`${API}/admin/hero-banners`, bannerForm, { withCredentials: true });
+        await axios.post(`${API}/admin/hero-banners`, bannerPayload(), { withCredentials: true });
       }
       setShowBanner(false); setEditingBanner(null); setBannerForm(blankBanner);
       load();
@@ -909,6 +926,7 @@ const SuperAdminDashboard = () => {
       title: b.title || '', subtitle: b.subtitle || '', cta_text: b.cta_text || '',
       cta_link: b.cta_link || '', background_image: b.background_image || '',
       is_active: !!b.is_active, order_position: b.order_position || 0,
+      starts_at: toMytInput(b.starts_at), ends_at: toMytInput(b.ends_at), countdown_to: toMytInput(b.countdown_to),
     });
     setShowBanner(true);
   };
@@ -1608,6 +1626,25 @@ const SuperAdminDashboard = () => {
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={bannerForm.is_active} onChange={(e) => setBannerForm({ ...bannerForm, is_active: e.target.checked })} /> Active
                 </label>
+                <div className="rounded-xl border border-white/10 p-3 space-y-2">
+                  <div className="text-xs font-bold uppercase tracking-wider text-white/60">Schedule (Malaysia time, optional)</div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <label className="text-xs text-white/50">Show from
+                      <input type="datetime-local" value={bannerForm.starts_at} onChange={(e) => setBannerForm({ ...bannerForm, starts_at: e.target.value })} className="input-dark mt-1" />
+                    </label>
+                    <label className="text-xs text-white/50">Hide after
+                      <input type="datetime-local" value={bannerForm.ends_at} onChange={(e) => setBannerForm({ ...bannerForm, ends_at: e.target.value })} className="input-dark mt-1" />
+                    </label>
+                  </div>
+                  <label className="text-xs text-white/50 block">Countdown to (shows a live timer on the poster's bottom-left)
+                    <input type="datetime-local" value={bannerForm.countdown_to} onChange={(e) => setBannerForm({ ...bannerForm, countdown_to: e.target.value })} className="input-dark mt-1" />
+                  </label>
+                  <div className="flex flex-wrap gap-2 text-[11px]">
+                    <button type="button" className="btn-ghost" onClick={() => setBannerForm({ ...bannerForm, starts_at: '2026-12-21T00:00', ends_at: '2026-12-29T00:00', countdown_to: '2026-12-25T00:00' })}>Christmas preset</button>
+                    <button type="button" className="btn-ghost" onClick={() => setBannerForm({ ...bannerForm, starts_at: '2026-12-29T00:00', ends_at: '2027-01-04T00:00', countdown_to: '2027-01-01T00:00' })}>New Year preset</button>
+                    <button type="button" className="btn-ghost" onClick={() => setBannerForm({ ...bannerForm, starts_at: '', ends_at: '', countdown_to: '' })}>Clear schedule</button>
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <button onClick={saveBanner} className="btn-lime">{editingBanner ? 'Update' : 'Create'}</button>
                   <button onClick={() => { setShowBanner(false); setEditingBanner(null); setBannerForm(blankBanner); }} className="btn-ghost">Cancel</button>
@@ -1625,7 +1662,8 @@ const SuperAdminDashboard = () => {
                 <div className="flex-1 min-w-0">
                   <div className="font-display text-base sm:text-lg uppercase truncate">{b.title}</div>
                   <div className="text-xs text-white/50 truncate">{b.subtitle}</div>
-                  <span className={`text-[10px] uppercase font-bold whitespace-nowrap ${b.is_active ? 'text-[#39ff14]' : 'text-white/30'}`}>{b.is_active ? 'Active' : 'Hidden'} · pos {b.order_position}</span>
+                  <span className={`text-[10px] uppercase font-bold whitespace-nowrap ${bannerState(b)[1]}`}>{bannerState(b)[0]} · pos {b.order_position}</span>
+                  {(b.starts_at || b.ends_at) && <div className="text-[10px] text-white/40">{b.starts_at ? fmtMyt(b.starts_at) : 'now'} → {b.ends_at ? fmtMyt(b.ends_at) : 'no end'}{b.countdown_to ? ` · countdown to ${fmtMyt(b.countdown_to)}` : ''}</div>}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 shrink-0">
                   <button onClick={() => editBanner(b)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-white/10 hover:border-[#00f0ff] hover:text-[#00f0ff] flex items-center justify-center"><FaPen size={11} /></button>

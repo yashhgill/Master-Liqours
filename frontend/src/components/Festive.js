@@ -141,6 +141,22 @@ const Countdown = () => {
   );
 };
 
+/* ───────────────────────── countdown overlay for uploaded poster banners ─────────────────────────
+ * Sits in the bottom-left "safe zone" of a 3:1 poster (x 4–36%, y 60–92%) and scales with the banner. */
+export const PosterCountdown = ({ to }) => {
+  const target = new Date(to).getTime();
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const ms = target - now;
+  if (!Number.isFinite(target) || ms <= 0) return null;
+  const cells = [['Days', Math.floor(ms / 864e5)], ['Hrs', Math.floor(ms / 36e5) % 24], ['Min', Math.floor(ms / 6e4) % 60], ['Sec', Math.floor(ms / 1e3) % 60]];
+  return (
+    <div className="fx-pc" aria-label="Countdown">
+      {cells.map(([l, v]) => <div key={l} className="fx-pc-cell"><b>{String(v).padStart(2, '0')}</b><span>{l}</span></div>)}
+    </div>
+  );
+};
+
 /* ───────────────────────── a tree drawn from fairy lights ───────────────────────── */
 const LightTree = () => {
   // Three strands of fairy lights wound round a cone, plus a soft pine silhouette.

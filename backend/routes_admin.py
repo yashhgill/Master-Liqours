@@ -2,9 +2,9 @@ from rate_limit import limiter
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 from database import get_db
 from cache import cache_clear as _cache_clear
@@ -29,6 +29,15 @@ class HeroBannerCreate(BaseModel):
     background_image: Optional[str] = None
     is_active: bool = True
     order_position: int = 0
+    starts_at: Optional[datetime] = None   # send ISO with timezone; stored as UTC
+    ends_at: Optional[datetime] = None
+    countdown_to: Optional[datetime] = None
+
+    @validator('starts_at', 'ends_at', 'countdown_to', pre=False)
+    def _to_utc_naive(cls, v):
+        if v is not None and v.tzinfo is not None:
+            v = v.astimezone(timezone.utc).replace(tzinfo=None)
+        return v
 
 class HeroBannerResponse(BaseModel):
     banner_id: str
@@ -39,6 +48,9 @@ class HeroBannerResponse(BaseModel):
     background_image: Optional[str]
     is_active: bool
     order_position: int
+    starts_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+    countdown_to: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

@@ -737,8 +737,15 @@ async def get_categories(db: AsyncSession = Depends(get_db)):
 @api_router.get("/hero-banners")
 async def get_hero_banners(db: AsyncSession = Depends(get_db)):
     from models import HeroBanner
+    from sqlalchemy import or_
+    from datetime import datetime as _dt
+    now = _dt.utcnow()
     result = await db.execute(
-        select(HeroBanner).where(HeroBanner.is_active == True).order_by(HeroBanner.order_position)
+        select(HeroBanner)
+        .where(HeroBanner.is_active == True)
+        .where(or_(HeroBanner.starts_at == None, HeroBanner.starts_at <= now))
+        .where(or_(HeroBanner.ends_at == None, HeroBanner.ends_at > now))
+        .order_by(HeroBanner.order_position)
     )
     banners = result.scalars().all()
     return [
@@ -750,6 +757,7 @@ async def get_hero_banners(db: AsyncSession = Depends(get_db)):
             "cta_text": b.cta_text,
             "cta_link": b.cta_link,
             "display_order": b.order_position,
+            "countdown_to": (b.countdown_to.isoformat() + "Z") if b.countdown_to else None,
         }
         for b in banners
     ]
@@ -857,6 +865,9 @@ async def startup():
             # Migrate new columns that create_all skips on existing tables
             from sqlalchemy import text as _text
             _migrations = [
+                "ALTER TABLE hero_banners ADD COLUMN IF NOT EXISTS starts_at TIMESTAMP",
+                "ALTER TABLE hero_banners ADD COLUMN IF NOT EXISTS ends_at TIMESTAMP",
+                "ALTER TABLE hero_banners ADD COLUMN IF NOT EXISTS countdown_to TIMESTAMP",
                 "ALTER TABLE products ADD COLUMN IF NOT EXISTS sales_count INTEGER DEFAULT 0 NOT NULL",
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0 NOT NULL",
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP",

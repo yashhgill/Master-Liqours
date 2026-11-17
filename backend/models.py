@@ -261,6 +261,10 @@ class HeroBanner(Base):
     background_image = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)
     order_position = Column(Integer, default=0)
+    # Optional schedule (stored as UTC). Outside this window the banner is hidden automatically.
+    starts_at = Column(DateTime, nullable=True)
+    ends_at = Column(DateTime, nullable=True)
+    countdown_to = Column(DateTime, nullable=True)  # optional: overlay a live countdown to this moment (UTC)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
