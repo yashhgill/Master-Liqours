@@ -2,7 +2,7 @@
 
 POST /api/analytics/collect  - events from the site (sent via the Cloudflare
                                Pages Function /t, which adds country/state/city)
-GET  /api/admin/analytics    - dashboard data (master / super admin only)
+GET  /api/admin/site-analytics - dashboard data (master / super admin only)
 
 Privacy: no cookies, no IP addresses, no personal data. A random id per browser
 tab session is used to count visitors.
@@ -133,7 +133,7 @@ def _top(counter: Counter, n=10):
     return [{"name": k, "count": v} for k, v in counter.most_common(n) if k]
 
 
-@router.get("/admin/analytics")
+@router.get("/admin/site-analytics")
 async def dashboard(days: int = Query(30, ge=1, le=365), user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await require_role(user, UserRole.SUPER_ADMIN, UserRole.MASTER_ADMIN)
     now = datetime.utcnow()
