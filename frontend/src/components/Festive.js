@@ -143,26 +143,31 @@ const Countdown = () => {
 
 /* ───────────────────────── a tree drawn from fairy lights ───────────────────────── */
 const LightTree = () => {
+  // Three strands of fairy lights wound round a cone, plus a soft pine silhouette.
   const pts = [];
-  const turns = 6.5, N = 120;
-  for (let i = 0; i < N; i++) {
-    const t = i / (N - 1);
-    const y = 30 + t * 330;
-    const r = 6 + t * 130;
-    const a = t * turns * 6.283;
-    pts.push({ x: 200 + Math.cos(a) * r, y: y + Math.sin(a) * r * .12, z: Math.sin(a), i });
+  const N = 95;
+  for (let k = 0; k < 3; k++) {
+    for (let i = 0; i < N; i++) {
+      const t = i / (N - 1);
+      const r = 8 + t * 158;
+      const a = t * 5.5 * 6.283 + k * 2.094;
+      const y = 42 + t * 318;
+      pts.push({ x: 200 + Math.cos(a) * r, y: y + Math.sin(a) * r * .14, z: Math.sin(a), t, id: `${k}-${i}`, c: (i + k * 2) % 5 });
+    }
   }
   const cols = ['#ff007f', '#ffd27a', '#00f0ff', '#ff2d55', '#2bd96b'];
   return (
     <svg className="fx-tree" viewBox="0 0 400 400" aria-hidden="true">
       <defs>
         <radialGradient id="fx-star"><stop offset="0" stopColor="#fff8dc" /><stop offset=".5" stopColor="#ffd27a" /><stop offset="1" stopColor="#ffb21a" stopOpacity="0" /></radialGradient>
+        <linearGradient id="fx-pine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1f7a4a" stopOpacity=".55" /><stop offset="1" stopColor="#0b3b24" stopOpacity=".75" /></linearGradient>
       </defs>
-      {pts.filter((p) => p.z < 0).map((p) => <circle key={p.i} cx={p.x} cy={p.y} r="2.2" fill={cols[p.i % 5]} opacity=".35" />)}
-      {pts.filter((p) => p.z >= 0).map((p) => <circle key={p.i} className="fx-twinkle" style={{ animationDelay: `${(p.i % 9) * .27}s` }} cx={p.x} cy={p.y} r="3.4" fill={cols[p.i % 5]} />)}
-      <circle cx="200" cy="22" r="26" fill="url(#fx-star)" className="fx-pulse" />
-      <path d="M200 6l4.7 9.6 10.6 1.5-7.6 7.5 1.8 10.5L200 30l-9.5 5.1 1.8-10.5-7.6-7.5 10.6-1.5z" fill="#fff3c4" />
-      <rect x="186" y="372" width="28" height="18" rx="3" fill="#3a1d0a" opacity=".7" />
+      <path d="M200 36 C 230 120, 300 260, 366 362 Q 200 384 34 362 C 100 260, 170 120, 200 36z" fill="url(#fx-pine)" />
+      <path d="M200 36 C 230 120, 300 260, 366 362 Q 200 384 34 362 C 100 260, 170 120, 200 36z" fill="none" stroke="rgba(43,217,107,.25)" strokeWidth="1.2" />
+      {pts.filter((p) => p.z < 0).map((p) => <circle key={p.id} cx={p.x} cy={p.y} r={1.4 + p.t * 1.4} fill={cols[p.c]} opacity=".4" />)}
+      {pts.filter((p) => p.z >= 0).map((p, j) => <circle key={p.id} className="fx-twinkle" style={{ animationDelay: `${(j % 11) * .23}s`, filter: `drop-shadow(0 0 3px ${cols[p.c]})` }} cx={p.x} cy={p.y} r={2.2 + p.t * 2.2} fill={cols[p.c]} />)}
+      <circle cx="200" cy="30" r="30" fill="url(#fx-star)" className="fx-pulse" />
+      <path d="M200 12l5.6 11.4 12.6 1.8-9.1 8.9 2.1 12.5L200 40.7l-11.2 5.9 2.1-12.5-9.1-8.9 12.6-1.8z" fill="#fff3c4" />
     </svg>
   );
 };
