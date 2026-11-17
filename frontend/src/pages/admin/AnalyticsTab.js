@@ -156,7 +156,7 @@ const AnalyticsTab = () => {
   const load = () => {
     setLoading(true); setErr('');
     axios.get(`${API}/admin/site-analytics`, { params: { days }, withCredentials: true })
-      .then((r) => setData(r.data))
+      .then((r) => { if (r.data && r.data.summary) setData(r.data); else setErr('Analytics is updating, try again in a minute.'); })
       .catch((e) => setErr(e.response?.data?.detail || 'Could not load analytics'))
       .finally(() => setLoading(false));
   };
